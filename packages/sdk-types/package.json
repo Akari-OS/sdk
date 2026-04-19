@@ -1,0 +1,63 @@
+{
+  "name": "@akari-os/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript type definitions for AKARI OS Module SDK",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./agent": {
+      "types": "./dist/agent.d.ts"
+    },
+    "./memory": {
+      "types": "./dist/memory.d.ts"
+    },
+    "./context": {
+      "types": "./dist/context.d.ts"
+    },
+    "./ui": {
+      "types": "./dist/ui.d.ts"
+    },
+    "./inter-app": {
+      "types": "./dist/inter-app.d.ts"
+    },
+    "./permission": {
+      "types": "./dist/permission.d.ts"
+    },
+    "./skill": {
+      "types": "./dist/skill.d.ts"
+    },
+    "./panel-schema": {
+      "types": "./dist/panel-schema.d.ts"
+    },
+    "./manifest": {
+      "types": "./dist/manifest.d.ts"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.ts"
+    }
+  },
+  "files": [
+    "dist/",
+    "src/"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Akari-OS/sdk",
+    "directory": "packages/sdk-types"
+  }
+}

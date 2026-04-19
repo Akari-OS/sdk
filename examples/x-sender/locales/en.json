@@ -1,0 +1,26 @@
+{
+  "panel.title": "Post to X",
+
+  "post.text.label": "Post text",
+  "post.text.placeholder": "What's happening?",
+  "post.text.helper": "Up to 280 characters",
+
+  "post.media.label": "Attachment (image / video)",
+  "post.media.helper": "Pick up to 4 images or videos from Pool",
+
+  "post.schedule.label": "Schedule",
+  "post.schedule.placeholder": "Leave blank to post immediately",
+
+  "action.post.label": "Post",
+  "action.schedule.label": "Schedule post",
+  "action.draft.label": "Save draft",
+
+  "hitl.confirm.title": "Confirm post",
+  "hitl.media_count": "Attachments",
+  "hitl.items": "item(s)",
+
+  "toast.posted": "Posted to X",
+  "toast.scheduled": "Scheduled post registered",
+  "toast.draft_saved": "Draft saved to Pool",
+  "toast.error": "An error occurred"
+}

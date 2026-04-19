@@ -1,0 +1,50 @@
+{
+  "$schema": "akari://panel-schema/v0",
+  "title": "X Sender",
+  "layout": "form",
+  "fields": [
+    {
+      "id": "text",
+      "type": "textarea",
+      "label": "{{t:post.body}}",
+      "maxLength": 280,
+      "bind": "mcp.x.post.text",
+      "required": true
+    },
+    {
+      "id": "media",
+      "type": "pool-picker",
+      "label": "{{t:post.media}}",
+      "accept": ["image", "video"],
+      "max": 4
+    },
+    {
+      "id": "when",
+      "type": "datetime-optional",
+      "label": "{{t:post.schedule}}"
+    }
+  ],
+  "actions": [
+    {
+      "id": "post",
+      "label": "{{t:action.post}}",
+      "kind": "primary",
+      "mcp": {
+        "tool": "x.post",
+        "args": { "text": "$text", "media": "$media" }
+      },
+      "hitl": { "require": true, "preview": "text-summary" }
+    },
+    {
+      "id": "schedule",
+      "label": "{{t:action.schedule}}",
+      "kind": "secondary",
+      "mcp": {
+        "tool": "x.schedule",
+        "args": { "text": "$text", "when": "$when" }
+      },
+      "hitl": { "require": true, "preview": "schedule-summary" },
+      "enabled_when": { "!=": [{ "var": "when" }, null] }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "panel.title": "X に投稿",
+
+  "post.text.label": "本文",
+  "post.text.placeholder": "いまどうしてる？",
+  "post.text.helper": "280 文字以内",
+
+  "post.media.label": "添付（画像 / 動画）",
+  "post.media.helper": "Pool から画像・動画を最大 4 件選択できます",
+
+  "post.schedule.label": "予約日時",
+  "post.schedule.placeholder": "空欄 = 即時投稿",
+
+  "action.post.label": "投稿",
+  "action.schedule.label": "予約投稿",
+  "action.draft.label": "下書き保存",
+
+  "hitl.confirm.title": "投稿内容の確認",
+  "hitl.media_count": "添付",
+  "hitl.items": "件",
+
+  "toast.posted": "X に投稿しました",
+  "toast.scheduled": "予約投稿を登録しました",
+  "toast.draft_saved": "下書きを Pool に保存しました",
+  "toast.error": "エラーが発生しました"
+}

@@ -1,0 +1,524 @@
+{
+  "$schema": "akari://panel-schema/v0",
+  "title": "{{t:module.title}}",
+  "layout": "tabs",
+
+  "tabs": [
+    { "id": "db-query",    "label": "{{t:tab.db_query}}" },
+    { "id": "page-editor", "label": "{{t:tab.page_editor}}" },
+    { "id": "pool-export", "label": "{{t:tab.pool_export}}" },
+    { "id": "pool-import", "label": "{{t:tab.pool_import}}" }
+  ],
+
+  "fields": [
+
+    {
+      "_comment_section": "=== Panel 1: Database Query Panel ===",
+      "id": "db_id",
+      "tab": "db-query",
+      "type": "select",
+      "label": "{{t:db.select_label}}",
+      "placeholder": "{{t:db.select_placeholder}}",
+      "bind": "mcp.notion.query_database.database_id",
+      "required": true,
+      "options_source": "mcp.notion.list_databases",
+      "helperText": "{{t:db.select_helper}}"
+    },
+    {
+      "id": "db_filter_property",
+      "tab": "db-query",
+      "type": "select",
+      "label": "{{t:db.filter_property_label}}",
+      "placeholder": "{{t:db.filter_property_placeholder}}",
+      "bind": "state.db_filter_property",
+      "options_source": "mcp.notion.get_database_properties",
+      "options_source_args": { "database_id": "$db_id" },
+      "visible_when": "$db_id != null"
+    },
+    {
+      "id": "db_filter_operator",
+      "tab": "db-query",
+      "type": "select",
+      "label": "{{t:db.filter_operator_label}}",
+      "bind": "state.db_filter_operator",
+      "options": [
+        { "value": "equals",        "label": "{{t:op.equals}}" },
+        { "value": "contains",      "label": "{{t:op.contains}}" },
+        { "value": "starts_with",   "label": "{{t:op.starts_with}}" },
+        { "value": "is_empty",      "label": "{{t:op.is_empty}}" },
+        { "value": "is_not_empty",  "label": "{{t:op.is_not_empty}}" },
+        { "value": "greater_than",  "label": "{{t:op.greater_than}}" },
+        { "value": "less_than",     "label": "{{t:op.less_than}}" }
+      ],
+      "visible_when": "$db_filter_property != null"
+    },
+    {
+      "id": "db_filter_value",
+      "tab": "db-query",
+      "type": "text",
+      "label": "{{t:db.filter_value_label}}",
+      "placeholder": "{{t:db.filter_value_placeholder}}",
+      "bind": "mcp.notion.query_database.filter.value",
+      "visible_when": "$db_filter_operator != null && $db_filter_operator != 'is_empty' && $db_filter_operator != 'is_not_empty'"
+    },
+    {
+      "id": "db_sort_property",
+      "tab": "db-query",
+      "type": "select",
+      "label": "{{t:db.sort_property_label}}",
+      "bind": "mcp.notion.query_database.sorts.property",
+      "options_source": "mcp.notion.get_database_properties",
+      "options_source_args": { "database_id": "$db_id" },
+      "visible_when": "$db_id != null"
+    },
+    {
+      "id": "db_sort_direction",
+      "tab": "db-query",
+      "type": "select",
+      "label": "{{t:db.sort_direction_label}}",
+      "bind": "mcp.notion.query_database.sorts.direction",
+      "options": [
+        { "value": "ascending",  "label": "{{t:sort.ascending}}" },
+        { "value": "descending", "label": "{{t:sort.descending}}" }
+      ],
+      "visible_when": "$db_sort_property != null"
+    },
+    {
+      "id": "db_page_size",
+      "tab": "db-query",
+      "type": "stepper",
+      "label": "{{t:db.page_size_label}}",
+      "bind": "mcp.notion.query_database.page_size",
+      "min": 1,
+      "max": 100,
+      "default": 20
+    },
+    {
+      "id": "db_results",
+      "tab": "db-query",
+      "type": "table",
+      "label": "{{t:db.results_label}}",
+      "bind": "state.db_results",
+      "visible_when": "$db_results != null",
+      "read_only": true
+    },
+
+    {
+      "_comment_section": "=== Panel 2: Page Editor Panel ===",
+      "id": "page_source_mode",
+      "tab": "page-editor",
+      "type": "radio",
+      "label": "{{t:page.source_mode_label}}",
+      "bind": "state.page_source_mode",
+      "default": "existing",
+      "options": [
+        { "value": "existing", "label": "{{t:page.source_existing}}" },
+        { "value": "new",      "label": "{{t:page.source_new}}" }
+      ]
+    },
+    {
+      "id": "page_picker",
+      "tab": "page-editor",
+      "type": "pool-picker",
+      "label": "{{t:page.picker_label}}",
+      "accept": ["notion-page"],
+      "max": 1,
+      "bind": "state.selected_page_ref",
+      "helperText": "{{t:page.picker_helper}}",
+      "visible_when": "$page_source_mode == 'existing'"
+    },
+    {
+      "id": "page_parent_db",
+      "tab": "page-editor",
+      "type": "select",
+      "label": "{{t:page.parent_db_label}}",
+      "bind": "mcp.notion.create_page.parent.database_id",
+      "options_source": "mcp.notion.list_databases",
+      "visible_when": "$page_source_mode == 'new'"
+    },
+    {
+      "id": "page_title",
+      "tab": "page-editor",
+      "type": "text",
+      "label": "{{t:page.title_label}}",
+      "placeholder": "{{t:page.title_placeholder}}",
+      "bind": "mcp.notion.create_page.properties.title",
+      "required": true,
+      "maxLength": 255,
+      "visible_when": "$page_source_mode == 'new'"
+    },
+    {
+      "id": "page_outline",
+      "tab": "page-editor",
+      "type": "doc-outline-tree",
+      "label": "{{t:page.outline_label}}",
+      "bind": "state.page_outline",
+      "source": "mcp.notion.get_page_blocks",
+      "source_args": { "page_id": "$page_picker" },
+      "visible_when": "$page_source_mode == 'existing' && $page_picker != null",
+      "helperText": "{{t:page.outline_helper}}"
+    },
+    {
+      "id": "page_body",
+      "tab": "page-editor",
+      "type": "rich-text-editor",
+      "label": "{{t:page.body_label}}",
+      "bind": "mcp.notion.append_block_children.children",
+      "placeholder": "{{t:page.body_placeholder}}",
+      "toolbar": ["bold", "italic", "heading", "bullet-list", "numbered-list", "code", "link"],
+      "helperText": "{{t:page.body_helper}}"
+    },
+    {
+      "id": "page_status",
+      "tab": "page-editor",
+      "type": "select",
+      "label": "{{t:page.status_label}}",
+      "bind": "mcp.notion.create_page.properties.Status",
+      "options": [
+        { "value": "Not started", "label": "{{t:status.not_started}}" },
+        { "value": "In progress", "label": "{{t:status.in_progress}}" },
+        { "value": "Done",        "label": "{{t:status.done}}" }
+      ]
+    },
+    {
+      "id": "page_tags",
+      "tab": "page-editor",
+      "type": "multi-select",
+      "label": "{{t:page.tags_label}}",
+      "placeholder": "{{t:page.tags_placeholder}}",
+      "bind": "mcp.notion.create_page.properties.Tags",
+      "options_source": "mcp.notion.get_property_options",
+      "options_source_args": { "database_id": "$page_parent_db", "property": "Tags" }
+    },
+    {
+      "id": "page_due",
+      "tab": "page-editor",
+      "type": "datetime-optional",
+      "label": "{{t:page.due_label}}",
+      "bind": "mcp.notion.create_page.properties.Due"
+    },
+
+    {
+      "_comment_section": "=== Panel 3: Export from Pool Panel (Pool -> Notion) ===",
+      "id": "export_pool_items",
+      "tab": "pool-export",
+      "type": "pool-picker",
+      "label": "{{t:export.pool_items_label}}",
+      "accept": ["text", "markdown", "image", "document"],
+      "max": 20,
+      "bind": "state.export_pool_items",
+      "helperText": "{{t:export.pool_items_helper}}",
+      "required": true
+    },
+    {
+      "id": "export_target_db",
+      "tab": "pool-export",
+      "type": "select",
+      "label": "{{t:export.target_db_label}}",
+      "bind": "mcp.notion.create_page.parent.database_id",
+      "options_source": "mcp.notion.list_databases",
+      "required": true,
+      "helperText": "{{t:export.target_db_helper}}"
+    },
+    {
+      "id": "export_title_field",
+      "tab": "pool-export",
+      "type": "select",
+      "label": "{{t:export.title_field_label}}",
+      "bind": "state.export_title_field",
+      "options": [
+        { "value": "pool_name",  "label": "{{t:export.title_from_name}}" },
+        { "value": "pool_tag",   "label": "{{t:export.title_from_tag}}" },
+        { "value": "custom",     "label": "{{t:export.title_custom}}" }
+      ],
+      "default": "pool_name"
+    },
+    {
+      "id": "export_custom_title",
+      "tab": "pool-export",
+      "type": "text",
+      "label": "{{t:export.custom_title_label}}",
+      "placeholder": "{{t:export.custom_title_placeholder}}",
+      "bind": "state.export_custom_title",
+      "maxLength": 255,
+      "visible_when": "$export_title_field == 'custom'"
+    },
+    {
+      "id": "export_add_backlink",
+      "tab": "pool-export",
+      "type": "toggle",
+      "label": "{{t:export.add_backlink_label}}",
+      "bind": "state.export_add_backlink",
+      "default": true,
+      "helperText": "{{t:export.add_backlink_helper}}"
+    },
+    {
+      "id": "export_preview",
+      "tab": "pool-export",
+      "type": "markdown",
+      "bind": "state.export_preview_md",
+      "visible_when": "$export_pool_items != null && $export_target_db != null"
+    },
+
+    {
+      "_comment_section": "=== Panel 4: Import to Pool Panel (Notion -> Pool) ===",
+      "id": "import_source_db",
+      "tab": "pool-import",
+      "type": "select",
+      "label": "{{t:import.source_db_label}}",
+      "bind": "mcp.notion.query_database.database_id",
+      "options_source": "mcp.notion.list_databases",
+      "required": true,
+      "helperText": "{{t:import.source_db_helper}}"
+    },
+    {
+      "id": "import_filter_status",
+      "tab": "pool-import",
+      "type": "multi-select",
+      "label": "{{t:import.filter_status_label}}",
+      "bind": "state.import_filter_status",
+      "options": [
+        { "value": "Not started", "label": "{{t:status.not_started}}" },
+        { "value": "In progress", "label": "{{t:status.in_progress}}" },
+        { "value": "Done",        "label": "{{t:status.done}}" }
+      ],
+      "visible_when": "$import_source_db != null"
+    },
+    {
+      "id": "import_pool_tags",
+      "tab": "pool-import",
+      "type": "multi-select",
+      "label": "{{t:import.pool_tags_label}}",
+      "placeholder": "{{t:import.pool_tags_placeholder}}",
+      "bind": "state.import_pool_tags",
+      "helperText": "{{t:import.pool_tags_helper}}"
+    },
+    {
+      "id": "import_include_body",
+      "tab": "pool-import",
+      "type": "toggle",
+      "label": "{{t:import.include_body_label}}",
+      "bind": "state.import_include_body",
+      "default": false,
+      "helperText": "{{t:import.include_body_helper}}"
+    }
+  ],
+
+  "actions": [
+
+    {
+      "_comment_section": "=== Actions: Database Query Panel ===",
+      "id": "run_query",
+      "tab": "db-query",
+      "label": "{{t:action.run_query}}",
+      "kind": "primary",
+      "type": "mcp.invoke",
+      "mcp": {
+        "tool": "notion.query_database",
+        "args": {
+          "database_id": "$db_id",
+          "filter": {
+            "property": "$db_filter_property",
+            "operator": "$db_filter_operator",
+            "value": "$db_filter_value"
+          },
+          "sorts": [
+            {
+              "property": "$db_sort_property",
+              "direction": "$db_sort_direction"
+            }
+          ],
+          "page_size": "$db_page_size"
+        }
+      },
+      "on_success": {
+        "bind_result": "state.db_results",
+        "toast": "{{t:toast.query_success}}"
+      },
+      "on_error": { "toast": "{{t:toast.query_error}}: {{error}}" },
+      "enabled_when": "$db_id != null"
+    },
+
+    {
+      "_comment_section": "=== Actions: Page Editor Panel — Save existing page ===",
+      "id": "save_page_blocks",
+      "tab": "page-editor",
+      "label": "{{t:action.save_page}}",
+      "kind": "primary",
+      "type": "mcp.invoke",
+      "mcp": {
+        "tool": "notion.append_block_children",
+        "args": {
+          "block_id": "$page_picker",
+          "children": "$page_body"
+        }
+      },
+      "hitl": {
+        "require": true,
+        "preview": "diff",
+        "preview_template": "{{t:hitl.save_page_template}}"
+      },
+      "on_success": { "toast": "{{t:toast.save_success}}" },
+      "on_error": { "toast": "{{t:toast.save_error}}: {{error}}" },
+      "enabled_when": "$page_source_mode == 'existing' && $page_picker != null && $page_body != null",
+      "visible_when": "$page_source_mode == 'existing'"
+    },
+    {
+      "id": "create_new_page",
+      "tab": "page-editor",
+      "label": "{{t:action.create_page}}",
+      "kind": "primary",
+      "type": "mcp.invoke",
+      "mcp": {
+        "tool": "notion.create_page",
+        "args": {
+          "parent": { "database_id": "$page_parent_db" },
+          "properties": {
+            "title": "$page_title",
+            "Status": "$page_status",
+            "Tags": "$page_tags",
+            "Due": "$page_due"
+          },
+          "children": "$page_body"
+        }
+      },
+      "hitl": {
+        "require": true,
+        "preview": "custom-markdown",
+        "preview_template": "### {{t:hitl.create_page_heading}}\n\n**{{t:hitl.title}}**: {{page_title}}\n**{{t:hitl.parent_db}}**: {{page_parent_db}}\n**{{t:hitl.status}}**: {{page_status}}"
+      },
+      "on_success": { "toast": "{{t:toast.create_success}}" },
+      "on_error": { "toast": "{{t:toast.create_error}}: {{error}}" },
+      "enabled_when": "$page_source_mode == 'new' && $page_parent_db != null && $page_title != null",
+      "visible_when": "$page_source_mode == 'new'"
+    },
+    {
+      "id": "handoff_to_writer",
+      "tab": "page-editor",
+      "label": "{{t:action.handoff_writer}}",
+      "kind": "secondary",
+      "type": "handoff",
+      "handoff": {
+        "to": "com.akari.writer",
+        "intent": "edit-from-notion-page",
+        "payload": {
+          "notion_page_ref": "$page_picker",
+          "draft_content": "$page_body"
+        }
+      },
+      "visible_when": "$page_source_mode == 'existing' && $page_picker != null"
+    },
+
+    {
+      "_comment_section": "=== Actions: Export from Pool Panel ===",
+      "id": "preview_export",
+      "tab": "pool-export",
+      "label": "{{t:action.preview_export}}",
+      "kind": "secondary",
+      "type": "mcp.invoke",
+      "mcp": {
+        "tool": "notion.preview_page_content",
+        "args": {
+          "pool_items": "$export_pool_items",
+          "title_field": "$export_title_field",
+          "custom_title": "$export_custom_title"
+        }
+      },
+      "on_success": {
+        "bind_result": "state.export_preview_md",
+        "toast": "{{t:toast.preview_ready}}"
+      },
+      "on_error": { "toast": "{{t:toast.preview_error}}: {{error}}" },
+      "enabled_when": "$export_pool_items != null && $export_target_db != null"
+    },
+    {
+      "id": "run_export",
+      "tab": "pool-export",
+      "label": "{{t:action.run_export}}",
+      "kind": "primary",
+      "type": "mcp.invoke",
+      "mcp": {
+        "tool": "notion.create_pages_from_pool",
+        "args": {
+          "pool_items": "$export_pool_items",
+          "parent_database_id": "$export_target_db",
+          "title_field": "$export_title_field",
+          "custom_title": "$export_custom_title",
+          "add_backlink": "$export_add_backlink"
+        }
+      },
+      "hitl": {
+        "require": true,
+        "preview": "custom-markdown",
+        "preview_template": "### {{t:hitl.export_heading}}\n\n{{t:hitl.export_items_count}}: **{{export_pool_items.length}}**\n\n{{t:hitl.export_target}}: **{{export_target_db}}**"
+      },
+      "on_success": {
+        "toast": "{{t:toast.export_success}}",
+        "navigate": "tab:pool-import"
+      },
+      "on_error": { "toast": "{{t:toast.export_error}}: {{error}}" },
+      "enabled_when": "$export_pool_items != null && $export_target_db != null"
+    },
+    {
+      "id": "handoff_to_pool_after_export",
+      "tab": "pool-export",
+      "label": "{{t:action.open_pool}}",
+      "kind": "ghost",
+      "type": "handoff",
+      "handoff": {
+        "to": "com.akari.pool",
+        "intent": "view-items",
+        "payload": {
+          "item_ids": "$export_pool_items"
+        }
+      }
+    },
+
+    {
+      "_comment_section": "=== Actions: Import to Pool Panel ===",
+      "id": "run_import",
+      "tab": "pool-import",
+      "label": "{{t:action.run_import}}",
+      "kind": "primary",
+      "type": "mcp.invoke",
+      "mcp": {
+        "tool": "notion.query_and_import_to_pool",
+        "args": {
+          "database_id": "$import_source_db",
+          "filter_status": "$import_filter_status",
+          "include_body": "$import_include_body",
+          "pool_tags": "$import_pool_tags"
+        }
+      },
+      "hitl": {
+        "require": true,
+        "preview": "custom-markdown",
+        "preview_template": "### {{t:hitl.import_heading}}\n\n{{t:hitl.import_source}}: **{{import_source_db}}**\n\n{{t:hitl.import_tags}}: {{import_pool_tags}}\n\n{{t:hitl.import_include_body}}: {{import_include_body}}"
+      },
+      "on_success": {
+        "toast": "{{t:toast.import_success}}",
+        "navigate": "tab:pool-export"
+      },
+      "on_error": { "toast": "{{t:toast.import_error}}: {{error}}" },
+      "enabled_when": "$import_source_db != null"
+    },
+    {
+      "id": "handoff_to_pool_after_import",
+      "tab": "pool-import",
+      "label": "{{t:action.open_pool}}",
+      "kind": "ghost",
+      "type": "handoff",
+      "handoff": {
+        "to": "com.akari.pool",
+        "intent": "view-recent",
+        "payload": {}
+      }
+    }
+  ],
+
+  "theme": {
+    "color_scheme": "auto",
+    "hint": "notion-brand",
+    "dark_mode_aware": true
+  }
+}

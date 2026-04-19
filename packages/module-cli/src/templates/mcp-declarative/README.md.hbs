@@ -1,0 +1,82 @@
+# {{moduleName}}
+
+> AKARI MCP-Declarative Tier Module — `{{moduleId}}`
+
+## Overview
+
+{{moduleName}} is a [MCP-Declarative Tier](https://github.com/akari-os/akari-os/docs/sdd/specs/spec-akari-module-sdk.md) AKARI module.
+MCP-Declarative modules use a bundled MCP server and a `panel.schema.json` declaration
+to provide UI in the Shell without writing any React code.
+
+**When to use MCP-Declarative over Full Tier:**
+- Your UI fits a form / list / tabs layout (HUB-025 standard widgets are sufficient)
+- You want the lightest possible review path (Automated Lint + Contract Test only)
+- You are wrapping an existing API or MCP endpoint
+
+**Upgrade path:** Start MCP-Declarative → promote to Full Tier later by changing
+`tier = "full"` in `akari.toml` and adding a React panel (no data migration needed).
+
+## Requirements
+
+- Node.js >= 18
+- AKARI OS with SDK `{{sdkRange}}`
+
+## Development
+
+```bash
+npm install
+akari dev          # start dev server and mount into local Shell
+```
+
+## Certification
+
+```bash
+akari module certify   # Automated Lint + Contract Tests (HUB-024 §6.8)
+                       # For MCP-Declarative: validates MCP tool contracts against panel.schema.json
+```
+
+## Distribution
+
+```bash
+# Self-distribution (Automated Lint + Contract Test only)
+npm publish
+
+# AKARI Marketplace (lighter Manual Review — schema + MCP contract audit only)
+akari module publish
+```
+
+## Structure
+
+```
+{{moduleSlug}}/
+├── akari.toml              Module manifest (AKARI-HUB-024 §6.5)
+├── panel.schema.json       Panel Schema v0 declaration (AKARI-HUB-025)
+└── mcp-server/
+    ├── index.ts            MCP server entry point (@modelcontextprotocol/sdk)
+    └── tools.ts            Tool implementations (bound to panel.schema.json actions)
+```
+
+## Panel Schema
+
+`panel.schema.json` declares the module's UI using [AKARI Panel Schema v0](https://github.com/akari-os/akari-os/docs/sdd/specs/spec-akari-panel-schema.md) (HUB-025).
+The Shell's generic Schema Renderer draws the UI; no React code is required.
+
+Key concepts:
+- `fields[].bind` — connects UI inputs to MCP tool arguments or local state
+- `actions[].mcp` — wires buttons to MCP tool calls
+- `actions[].hitl` — gates actions behind a human-approval dialog (HUB-024 §6.6 Permission API)
+- `{{t:key}}` — i18n keys resolved from `locales` at the bottom of the schema
+
+## Guidelines
+
+- All persistent state goes through Pool / AMP — no local DB (HUB-024 §6.7 rule 2)
+- All `amp.record()` calls must include `goal_ref` (HUB-024 §6.6)
+- Declare only necessary permissions in `akari.toml` (rule 5)
+- MCP tools declared in `akari.toml [mcp].tools` MUST be implemented in `mcp-server/`
+
+## References
+
+- [AKARI Module SDK spec (HUB-024)](https://github.com/akari-os/akari-os)
+- [Panel Schema spec (HUB-025)](https://github.com/akari-os/akari-os)
+- [MCP-Declarative Module catalog (HUB-005)](https://github.com/akari-os/akari-os)
+- [ADR-011: Module Agent Naming Convention](https://github.com/akari-os/akari-os)

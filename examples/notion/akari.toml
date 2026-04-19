@@ -1,0 +1,60 @@
+# akari.toml — Notion MCP-Declarative Module Manifest
+# AKARI Module SDK example: Documents category reference implementation
+# Spec: AKARI Panel Schema v0
+
+[module]
+id       = "com.akari.example.notion"
+name     = "Notion"
+version  = "0.1.0"
+tier     = "mcp-declarative"
+category = "documents"
+sdk      = ">=0.1.0 <1.0"
+
+# ---------------------------------------------------------------------------
+# MCP Server
+#
+# Option A (recommended for production): use the official Notion MCP package
+#   server = "npm:@notionhq/mcp"
+#
+# Option B (used in this example): local implementation in mcp-server/
+#   The local server wraps @notionhq/client directly so you can inspect and
+#   extend each tool. Switch to Option A when you don't need customisation.
+# ---------------------------------------------------------------------------
+[mcp]
+server = "mcp-server/index.ts"
+tools  = [
+  "notion.search",
+  "notion.query_database",
+  "notion.create_page",
+  "notion.update_page_properties",
+  "notion.append_block_children",
+  "notion.retrieve_page",
+  "notion.retrieve_database",
+  "notion.list_users",
+  "notion.retrieve_block_children",
+  "notion.delete_block",
+]
+
+[panels]
+# Single unified panel with 4 tabs (see panel.schema.json)
+main = { title = "Notion", schema = "panel.schema.json" }
+
+# ---------------------------------------------------------------------------
+# Permissions
+# ---------------------------------------------------------------------------
+[permissions]
+"external-network" = ["api.notion.com"]
+oauth              = ["notion.com"]
+keychain           = ["com.akari.example.notion"]
+pool               = ["read", "write"]   # Notion → Pool import / Pool → Notion export
+amp                = ["read", "write"]   # handoff receive (AMP read) + operation recording
+
+# ---------------------------------------------------------------------------
+# OAuth 2.0 Configuration (Notion Authorization Code + PKCE)
+# ---------------------------------------------------------------------------
+[oauth.notion]
+provider      = "notion.com"
+grant_type    = "authorization_code"
+pkce          = true
+scope         = ["read_content", "update_content", "insert_content"]
+token_storage = "keychain:com.akari.example.notion"

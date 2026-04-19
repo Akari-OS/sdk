@@ -1,0 +1,33 @@
+# akari.toml — intentionally INVALID manifest fixture
+# Used by certify tests to verify that errors are correctly detected.
+# This file should FAIL certification with multiple errors.
+#
+# Injected violations:
+#   ERROR 1 (INVALID_CATEGORY):    category = "social-media"
+#             Not a Core 11 value and not x-prefixed (ADR-013)
+#   ERROR 2 (AGENT_ID_MISSING_PREFIX): [agents] editor = "agents/editor.md"
+#             Missing module-short-id prefix (ADR-011 §2)
+#   ERROR 3 (MCP_DECLARATIVE_MISSING_MCP): mcp-declarative tier but no [mcp] section
+#   ERROR 4 (MODULE_ID_NOT_REVERSE_DNS): id = "my_module"
+#             Not a valid reverse-DNS format
+
+[module]
+id       = "my_module"
+name     = "Bad Module"
+version  = "0.1.0"
+tier     = "mcp-declarative"
+category = "social-media"
+
+# Missing [mcp] section entirely (violates mcp-declarative requirement)
+
+[panels]
+main = { title = "Bad Panel", schema = "panels/bad.schema.json" }
+
+[permissions]
+pool = ["read"]
+
+[agents]
+# ERROR: bare "editor" key — missing "my_module_" prefix
+editor = "agents/editor.md"
+# ERROR: "analyst" collides with Core 7 default
+analyst = "agents/analyst.md"

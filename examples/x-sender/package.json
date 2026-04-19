@@ -1,0 +1,25 @@
+{
+  "name": "@akari-os-examples/x-sender",
+  "version": "0.1.0",
+  "description": "X Sender — AKARI MCP-Declarative Module reference implementation",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "akari dev",
+    "build": "tsup mcp-server/index.ts --format esm --target node18 --outDir dist/mcp-server --clean",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@akari-os/sdk": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

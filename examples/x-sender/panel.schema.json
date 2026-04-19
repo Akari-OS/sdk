@@ -1,0 +1,106 @@
+{
+  "$schema": "akari://panel-schema/v0",
+  "title": "{{t:panel.title}}",
+  "layout": "form",
+
+  "fields": [
+    {
+      "id": "text",
+      "type": "textarea",
+      "label": "{{t:post.text.label}}",
+      "placeholder": "{{t:post.text.placeholder}}",
+      "maxLength": 280,
+      "bind": "mcp.x.post.text",
+      "required": true,
+      "helperText": "{{t:post.text.helper}}"
+    },
+    {
+      "id": "media",
+      "type": "pool-picker",
+      "label": "{{t:post.media.label}}",
+      "accept": ["image", "video"],
+      "max": 4,
+      "bind": "mcp.x.post.media",
+      "helperText": "{{t:post.media.helper}}"
+    },
+    {
+      "id": "when",
+      "type": "datetime-optional",
+      "label": "{{t:post.schedule.label}}",
+      "placeholder": "{{t:post.schedule.placeholder}}",
+      "bind": "mcp.x.schedule.publish_at"
+    }
+  ],
+
+  "actions": [
+    {
+      "id": "post",
+      "label": "{{t:action.post.label}}",
+      "kind": "primary",
+      "mcp": {
+        "tool": "x.post",
+        "args": {
+          "text": "$text",
+          "media": "$media"
+        }
+      },
+      "hitl": {
+        "require": true,
+        "preview": "custom-markdown",
+        "preview_template": "**{{t:hitl.confirm.title}}**\n\n{{$text}}\n\n{{#if $media}}{{t:hitl.media_count}}: {{$media.length}} {{t:hitl.items}}{{/if}}"
+      },
+      "enabled_when": "$text != null && $text.length > 0 && $when == null",
+      "on_success": {
+        "toast": "{{t:toast.posted}}",
+        "clear_fields": ["text", "media", "when"]
+      },
+      "on_error": {
+        "toast": "{{t:toast.error}}: {{error}}"
+      }
+    },
+    {
+      "id": "schedule",
+      "label": "{{t:action.schedule.label}}",
+      "kind": "secondary",
+      "mcp": {
+        "tool": "x.schedule",
+        "args": {
+          "text": "$text",
+          "publish_at": "$when",
+          "media": "$media"
+        }
+      },
+      "hitl": {
+        "require": true,
+        "preview": "schedule-summary"
+      },
+      "enabled_when": "$text != null && $text.length > 0 && $when != null",
+      "on_success": {
+        "toast": "{{t:toast.scheduled}}",
+        "clear_fields": ["text", "media", "when"]
+      },
+      "on_error": {
+        "toast": "{{t:toast.error}}: {{error}}"
+      }
+    },
+    {
+      "id": "draft",
+      "label": "{{t:action.draft.label}}",
+      "kind": "ghost",
+      "mcp": {
+        "tool": "x.draft_save",
+        "args": {
+          "text": "$text",
+          "media": "$media"
+        }
+      },
+      "enabled_when": "$text != null && $text.length > 0",
+      "on_success": {
+        "toast": "{{t:toast.draft_saved}}"
+      },
+      "on_error": {
+        "toast": "{{t:toast.error}}: {{error}}"
+      }
+    }
+  ]
+}

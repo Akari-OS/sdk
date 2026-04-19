@@ -1,0 +1,33 @@
+{
+  "name": "@akari-os-examples/notion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Notion MCP-Declarative Documents Module — AKARI SDK reference implementation (HUB-026)",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx mcp-server/index.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "certify": "akari module certify"
+  },
+  "dependencies": {
+    "@akari-os/sdk": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@notionhq/client": "^2.2.15",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0"
+  },
+  "keywords": [
+    "akari",
+    "akari-os",
+    "notion",
+    "mcp",
+    "mcp-declarative",
+    "documents"
+  ],
+  "license": "MIT"
+}
