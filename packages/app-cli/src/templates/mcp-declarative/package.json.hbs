@@ -1,0 +1,27 @@
+{
+  "name": "{{appSlug}}",
+  "version": "0.1.0",
+  "description": "{{appName}} — AKARI MCP-Declarative Tier App",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsup mcp-server/index.ts --format esm --target node18 --outDir dist/mcp-server --clean",
+    "dev": "akari dev",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "certify": "akari app certify",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@akari/sdk": ">=0.1.0 <1.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

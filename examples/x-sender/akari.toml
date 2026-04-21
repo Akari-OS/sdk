@@ -1,4 +1,4 @@
-# AKARI Module Manifest — AKARI Module SDK (MCP-Declarative Tier)
+# AKARI App Manifest — AKARI App SDK (MCP-Declarative Tier)
 # Reference implementation for the Publishing category.
 #
 # This file demonstrates:
@@ -7,7 +7,7 @@
 #   - [mcp]: bundled MCP server + tool declarations
 #   - [panels]: JSON Schema–based UI declaration (no React needed)
 
-[module]
+[app]
 id       = "com.akari.example.x-sender"
 name     = "X Sender"
 version  = "0.1.0"
@@ -23,7 +23,7 @@ category = "publishing"             # HUB-005 v0.2 Publishing category
 server = "mcp-server/index.ts"
 
 # Every tool listed here MUST be implemented in mcp-server/ AND referenced in panel.schema.json.
-# akari module certify verifies this triple-consistency automatically.
+# akari app certify verifies this triple-consistency automatically.
 tools = [
   "x.post",
   "x.schedule",
@@ -37,8 +37,8 @@ tools = [
 main = { title = "X", schema = "panel.schema.json" }
 
 [permissions]
-# Default deny. Declare only what this module actually needs.
-# Shell blocks any operation not listed here; akari module certify also verifies this.
+# Default deny. Declare only what this app actually needs.
+# Shell blocks any operation not listed here; akari app certify also verifies this.
 
 # External HTTP — restricted to X API domains only
 external-network = ["api.x.com", "api.twitter.com"]
@@ -46,7 +46,7 @@ external-network = ["api.x.com", "api.twitter.com"]
 # OAuth — allowed to initiate OAuth 2.0 PKCE flow for x.com
 oauth = ["x.com"]
 
-# Keychain — restricted to this module's own service name
+# Keychain — restricted to this app's own service name
 # (MCP server stores access_token / refresh_token / token_expiry here)
 keychain = ["com.akari.example.x-sender"]
 

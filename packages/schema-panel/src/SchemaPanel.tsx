@@ -129,7 +129,7 @@ export const SchemaPanel: React.FC<SchemaPanelProps> = ({
   // --- Action dispatcher ---
   const actionDispatcher = new ActionDispatcher({
     mcpClient: context.mcpClient,
-    moduleClient: context.moduleClient,
+    appClient: context.appClient,
     navigationClient: context.navigationClient,
     toastClient: context.toastClient,
     i18nResolver,

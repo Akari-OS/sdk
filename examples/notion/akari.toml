@@ -1,8 +1,8 @@
-# akari.toml — Notion MCP-Declarative Module Manifest
-# AKARI Module SDK example: Documents category reference implementation
+# akari.toml — Notion MCP-Declarative App Manifest
+# AKARI App SDK example: Documents category reference implementation
 # Spec: AKARI Panel Schema v0
 
-[module]
+[app]
 id       = "com.akari.example.notion"
 name     = "Notion"
 version  = "0.1.0"

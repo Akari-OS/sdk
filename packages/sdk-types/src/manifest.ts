@@ -1,8 +1,8 @@
 /**
  * @file manifest.ts
- * Type definitions for the AKARI Module Manifest (`akari.toml`).
+ * Type definitions for the AKARI App Manifest (`akari.toml`).
  *
- * The manifest is the single source of truth for a Module's identity,
+ * The manifest is the single source of truth for an App's identity,
  * tier, SDK compatibility range, permissions, panels, agents, and skills.
  * It is validated by the Core at install and launch time.
  *
@@ -10,16 +10,16 @@
  */
 
 // ---------------------------------------------------------------------------
-// Module section
+// App section
 // ---------------------------------------------------------------------------
 
 /**
- * `[module]` section of `akari.toml`.
+ * `[app]` section of `akari.toml`.
  * Declares identity and compatibility metadata.
  */
-export interface ModuleSection {
+export interface AppSection {
   /**
-   * Reverse-domain Module ID.
+   * Reverse-domain App ID.
    * @example "com.akari.writer", "com.x.sender"
    */
   id: string
@@ -28,7 +28,7 @@ export interface ModuleSection {
   name: string
 
   /**
-   * Semantic version of this Module release.
+   * Semantic version of this App release.
    * @example "0.1.0"
    */
   version: string
@@ -40,24 +40,24 @@ export interface ModuleSection {
   author?: string
 
   /**
-   * Module tier.
+   * App tier.
    * - `"full"` — React Panel + full Agent / Skill API access
    * - `"mcp-declarative"` — MCP server + `panel.schema.json` only
    * @default "full"
    */
-  tier: ModuleTier
+  tier: AppTier
 
   /**
    * Core SDK compatibility range (semver range string).
-   * The Core rejects the Module when the installed SDK version is outside
+   * The Core rejects the App when the installed SDK version is outside
    * this range.
    * @example ">=0.1.0 <1.0"
    */
   sdk: string
 }
 
-/** Module tier declaration. */
-export type ModuleTier = "full" | "mcp-declarative"
+/** App tier declaration. */
+export type AppTier = "full" | "mcp-declarative"
 
 // ---------------------------------------------------------------------------
 // Permissions section
@@ -65,7 +65,7 @@ export type ModuleTier = "full" | "mcp-declarative"
 
 /**
  * `[permissions]` section of `akari.toml`.
- * Declares every scope the Module may request at runtime.
+ * Declares every scope the App may request at runtime.
  * Requesting an undeclared scope causes an immediate `PermissionDeniedError`.
  */
 export interface PermissionsSection {
@@ -83,7 +83,7 @@ export interface PermissionsSection {
   /**
    * Allowed external network domains.
    * - String array: `["api.x.com", "upload.x.com"]`
-   * - `false`: offline-only module (external network forbidden)
+   * - `false`: offline-only app (external network forbidden)
    */
   "external-network"?: string[] | false
 
@@ -94,13 +94,13 @@ export interface PermissionsSection {
   oauth?: string[]
 
   /**
-   * MCP tool names the Module is allowed to call.
+   * MCP tool names the App is allowed to call.
    * @example ["x.post", "x.schedule"]
    */
   mcp?: string[]
 
   /**
-   * Module IDs this Module is allowed to send handoffs to.
+   * App IDs this App is allowed to send handoffs to.
    * @example ["com.akari.video"]
    */
   "inter-app"?: string[]
@@ -119,7 +119,7 @@ export interface PermissionsSection {
 
 /**
  * `[mcp]` section of `akari.toml`.
- * Required for `tier = "mcp-declarative"` Modules.
+ * Required for `tier = "mcp-declarative"` Apps.
  */
 export interface McpSection {
   /**
@@ -142,7 +142,7 @@ export interface McpSection {
 
 /**
  * `[panels]` section of `akari.toml`.
- * Declares the named panels this Module provides.
+ * Declares the named panels this App provides.
  *
  * Each key is a panel alias (e.g. `"main"`, `"settings"`).
  *
@@ -188,7 +188,7 @@ export interface PanelDeclaration {
  * `[agents]` section of `akari.toml` (Full Tier only).
  * Maps agent IDs to their spec file paths.
  *
- * Key format: `<module-short-id>_<role>` (snake_case, ADR-011).
+ * Key format: `<app-short-id>_<role>` (snake_case, ADR-011).
  *
  * @example
  * ```toml
@@ -208,14 +208,14 @@ export type AgentsSection = Record<string, string>
  */
 export interface SkillsSection {
   /**
-   * Skills this Module exposes to other Modules.
+   * Skills this App exposes to other Apps.
    * Key: fully-qualified Skill ID. Value: path to implementation file.
    * @example { "writer.generate_draft": "skills/generate-draft.ts" }
    */
   exposed?: Record<string, string>
 
   /**
-   * Skills this Module consumes from other Modules.
+   * Skills this App consumes from other Apps.
    * Key: Skill ID. Value: semver range string.
    * @example { "pool.search": ">=0.1", "m2c.extract_features": ">=0.1" }
    */
@@ -231,8 +231,8 @@ export interface SkillsSection {
  * Used for programmatic reading, validation, and scaffolding.
  */
 export interface Manifest {
-  /** Module identity and compatibility. */
-  module: ModuleSection
+  /** App identity and compatibility. */
+  app: AppSection
 
   /** Declared permission scopes. */
   permissions?: PermissionsSection

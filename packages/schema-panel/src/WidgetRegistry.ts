@@ -175,7 +175,7 @@ export const defaultWidgetRegistry: WidgetRegistry = {
   // AKARI 固有（High priority）
   "pool-picker": PlaceholderWidget,
   "amp-query": PlaceholderWidget,
-  "module-picker": PlaceholderWidget,
+  "app-picker": PlaceholderWidget,
   "agent-picker": PlaceholderWidget,
 
   // Documents（Low priority）

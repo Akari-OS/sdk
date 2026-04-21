@@ -1,23 +1,23 @@
 ---
-title: Cookbook — Cross-over Handoff（Module 間連携）
+title: Cookbook — Cross-over Handoff（App 間連携）
 updated: 2026-04-19
 related: [HUB-005, HUB-024, HUB-026]
 ---
 
-# Cookbook — Cross-over Handoff（Module 間連携）
+# Cookbook — Cross-over Handoff（App 間連携）
 
 > **このレシピで学ぶこと**:
-> - `module.handoff()` の仕組みと payload 設計の原則
+> - `app.handoff()` の仕組みと payload 設計の原則
 > - Writer / Research / Video → Publishing / Documents の典型的な cross-over パターン
 > - Notion → Pool への素材取り込み
 > - 記憶層（Pool / AMP）経由の ID 渡しルール（直接通信禁止の理由）
-> - receiving Module 側の handoff handler 設計
+> - receiving App 側の handoff handler 設計
 
 ---
 
 ## はじめに — なぜ「直接通信禁止」なのか
 
-AKARI の Module 間通信は **Inter-App API**（`module.handoff()`）を通じて行う。
+AKARI の App 間通信は **Inter-App API**（`app.handoff()`）を通じて行う。
 このとき重要な制約がある。
 
 > **ルール**: payload に bytes / 文字列本文を直接埋め込まない。**Pool / AMP の ID のみを渡す。**
@@ -26,11 +26,11 @@ AKARI の Module 間通信は **Inter-App API**（`module.handoff()`）を通じ
 
 1. **トレーサビリティ**: 「誰が何を渡したか」を AMP に自動記録できる（ID があれば遡れる）
 2. **パフォーマンス**: 大きなバイナリ（動画・画像）を handoff payload として流すと IPC が詰まる
-3. **一元管理**: データの実体は常に記憶層にある。Module が死んでもデータは残る
+3. **一元管理**: データの実体は常に記憶層にある。App が死んでもデータは残る
 
 ```typescript
 // NG — bytes を直接渡している
-await module.handoff({
+await app.handoff({
   to: "com.akari.x-sender",
   intent: "post-draft",
   payload: {
@@ -40,7 +40,7 @@ await module.handoff({
 })
 
 // OK — Pool / AMP の ID だけを渡す
-await module.handoff({
+await app.handoff({
   to: "com.akari.x-sender",
   intent: "post-draft",
   payload: {
@@ -68,11 +68,11 @@ await module.handoff({
 
 最も頻度が高い cross-over。Writer で書いた下書きを X に投稿する。
 
-### 送信側（Writer Module）
+### 送信側（Writer App）
 
 ```typescript
 // panels/writer.tsx または skills/export.ts
-import { module, amp, pool } from "@akari/sdk"
+import { app, amp, pool } from "@akari/sdk"
 
 export async function handoffToXSender(
   draftAmpId: string,
@@ -85,14 +85,14 @@ export async function handoffToXSender(
     content:  `Writer → X Sender handoff を開始`,
     goal_ref: goalRef,
     meta: {
-      target_module: "com.akari.x-sender",
+      target_app: "com.akari.x-sender",
       draft_ref:     draftAmpId,
       asset_count:   mediaPoolIds.length,
     },
   })
 
   // 2. handoff 実行（ID のみ渡す）
-  await module.handoff({
+  await app.handoff({
     to:      "com.akari.x-sender",
     intent:  "post-draft",
     payload: {
@@ -104,16 +104,16 @@ export async function handoffToXSender(
 }
 ```
 
-### 受信側（X Sender Module）
+### 受信側（X Sender App）
 
-MCP-Declarative Module での handoff 受信は、`akari.toml` の `[handoff]` セクションで
+MCP-Declarative App での handoff 受信は、`akari.toml` の `[handoff]` セクションで
 受け入れる intent を宣言し、`handler` 関数で処理する。
 
 ```toml
 # akari.toml（X Sender）
 [handoff]
 accepts = [
-  { intent = "post-draft", from = "*" },  # 全 Module から受け入れ
+  { intent = "post-draft", from = "*" },  # 全 App から受け入れ
 ]
 ```
 
@@ -147,7 +147,7 @@ export async function handlePostDraft(payload: HandoffPayload) {
 }
 ```
 
-**ポイント**: receiving Module は `initial_state` を返すことで、
+**ポイント**: receiving App は `initial_state` を返すことで、
 Panel Schema の `state.*` binding に値を注入できる。
 ユーザーは Panel が開いた瞬間に内容が展開された状態を見る。
 
@@ -158,10 +158,10 @@ Panel Schema の `state.*` binding に値を注入できる。
 下書きを外部に「公開」するのではなく「知識管理」として保存するパターン。
 HUB-026（Notion 参考実装）の §6.1 を実装例として参照。
 
-### 送信側（Writer Module）
+### 送信側（Writer App）
 
 ```typescript
-import { module, amp } from "@akari/sdk"
+import { app, amp } from "@akari/sdk"
 
 export async function exportToNotion(
   draftAmpId: string,
@@ -169,7 +169,7 @@ export async function exportToNotion(
   poolAssetIds: string[],
   goalRef: string,
 ) {
-  await module.handoff({
+  await app.handoff({
     to:      "com.akari.notion",
     intent:  "export-to-notion",
     payload: {
@@ -182,10 +182,10 @@ export async function exportToNotion(
 }
 ```
 
-### 受信側（Notion Module）
+### 受信側（Notion App）
 
 ```typescript
-// mcp-server/handoff-handler.ts（Notion Module）
+// mcp-server/handoff-handler.ts（Notion App）
 import { amp, pool } from "@akari/sdk"
 import type { HandoffPayload } from "@akari/sdk/inter-app"
 
@@ -218,19 +218,19 @@ export async function handleExportToNotion(payload: HandoffPayload) {
 ```
 
 **Google Docs への export も同じ構造**（`intent: "export-to-gdocs"`、
-`to: "com.akari.gsuite"`）。intent 名とターゲット Module を変えるだけ。
+`to: "com.akari.gsuite"`）。intent 名とターゲット App を変えるだけ。
 
 ---
 
 ## レシピ 3: Research → Documents（Sheets 流し込み）
 
-Research Module（Perplexity / Exa 等）が収集した情報を
+Research App（Perplexity / Exa 等）が収集した情報を
 Google Sheets / Airtable のレコードとして書き込む。
 
-### 送信側（Research Module）
+### 送信側（Research App）
 
 ```typescript
-import { module, amp } from "@akari/sdk"
+import { app, amp } from "@akari/sdk"
 
 /**
  * AMP に積まれたリサーチ結果を Sheets に流し込む
@@ -244,7 +244,7 @@ export async function exportResearchToSheets(
   fieldMap: Record<string, string>,
   goalRef: string,
 ) {
-  await module.handoff({
+  await app.handoff({
     to:      "com.akari.gsuite",          // Google Sheets
     intent:  "save-to-db",
     payload: {
@@ -257,7 +257,7 @@ export async function exportResearchToSheets(
 }
 ```
 
-### 受信側（Google Sheets Module）
+### 受信側（Google Sheets App）
 
 ```typescript
 import { amp } from "@akari/sdk"
@@ -299,13 +299,13 @@ export async function handleSaveToDb(payload: HandoffPayload) {
 
 ## レシピ 4: Video → Documents（登壇資料自動生成）
 
-Video Module が持つ章構成（タイムライン）と静止画キャプチャを
+Video App が持つ章構成（タイムライン）と静止画キャプチャを
 PowerPoint / Google Slides にテンプレ挿入する。
 
-### 送信側（Video Module）
+### 送信側（Video App）
 
 ```typescript
-import { module, amp, pool } from "@akari/sdk"
+import { app, amp, pool } from "@akari/sdk"
 
 export async function generateSlidesFromVideo(
   timelineAmpId: string,     // AMP に記録されたタイムライン（章構成）の ID
@@ -313,7 +313,7 @@ export async function generateSlidesFromVideo(
   templateName: string,       // スライドテンプレート名（"lecture" / "minimal" 等）
   goalRef: string,
 ) {
-  await module.handoff({
+  await app.handoff({
     to:      "com.akari.gsuite",    // Google Slides または com.akari.m365（PPT）
     intent:  "generate-slides",
     payload: {
@@ -326,7 +326,7 @@ export async function generateSlidesFromVideo(
 }
 ```
 
-### 受信側（Google Slides / PPT Module）
+### 受信側（Google Slides / PPT App）
 
 ```typescript
 import { amp, pool } from "@akari/sdk"
@@ -368,7 +368,7 @@ export async function handleGenerateSlides(payload: HandoffPayload) {
 HUB-026 §6.3 のユースケースをコードで示す。
 
 ```typescript
-// Notion Module の MCP サーバー内
+// Notion App の MCP サーバー内
 import { pool, amp } from "@akari/sdk"
 
 /**
@@ -473,7 +473,7 @@ interface HandoffPayload {
 ## 記憶層経由の ID 渡し — 詳細フロー
 
 ```
-送信 Module                AMP / Pool               受信 Module
+送信 App                AMP / Pool               受信 App
 ───────────────────────────────────────────────────────────────
                            ← pool.put(bytes)
                                → pool_id: "pool:sha3:abc..."
@@ -483,7 +483,7 @@ amp.record({               ← amp.record(draft)
   content: "...",
 })
 
-module.handoff({
+app.handoff({
   to: "com.target",
   intent: "...",
   payload: {
@@ -498,7 +498,7 @@ module.handoff({
 
 ---
 
-## 受信 Module の Handler 設計原則
+## 受信 App の Handler 設計原則
 
 1. **初期状態の返却**: handler は Panel の `initial_state` を返す。
    Shell がそれを Panel Schema の `state.*` binding に注入する。
@@ -545,31 +545,31 @@ export async function handleHandoff(
 
 ```typescript
 // NG
-await module.handoff({ payload: { image: base64Image } })
+await app.handoff({ payload: { image: base64Image } })
 
 // OK — まず Pool に保存し、ID を渡す
 const id = await pool.put({ bytes: imageBytes, mime: "image/png" })
-await module.handoff({ payload: { assets: [id] } })
+await app.handoff({ payload: { assets: [id] } })
 ```
 
 ### 2. goal_ref を省略する
 
 ```typescript
 // NG — goal_ref がないと AMP でトレースできない
-await module.handoff({ to: "...", intent: "...", payload: { draft_ref: id } })
+await app.handoff({ to: "...", intent: "...", payload: { draft_ref: id } })
 
 // OK
-await module.handoff({ to: "...", intent: "...", payload: { draft_ref: id, goal_ref: currentGoalRef } })
+await app.handoff({ to: "...", intent: "...", payload: { draft_ref: id, goal_ref: currentGoalRef } })
 ```
 
-### 3. Module を直接 import する
+### 3. App を直接 import する
 
 ```typescript
-// NG — Module 間の直接依存（Lint で検出される）
+// NG — App 間の直接依存（Lint で検出される）
 import { generateDraft } from "com.akari.writer/skills/generate"
 
 // OK — Inter-App API 経由の handoff か Skill API 経由の呼び出し
-await module.handoff({ to: "com.akari.writer", intent: "..." })
+await app.handoff({ to: "com.akari.writer", intent: "..." })
 // または
 const result = await skill.call("writer.generate_draft", { topic: "..." })
 ```
@@ -578,8 +578,8 @@ const result = await skill.call("writer.generate_draft", { topic: "..." })
 
 ## 関連ドキュメント
 
-- [HUB-024 §6.5 Inter-App API](https://github.com/Akari-OS/.github/blob/main/VISION.md) — `module.handoff()` の仕様
-- [HUB-005 v0.2 §6.8 Module 間連携](https://github.com/Akari-OS/.github/blob/main/VISION.md) — cross-over ユースケース一覧
+- [HUB-024 §6.5 Inter-App API](https://github.com/Akari-OS/.github/blob/main/VISION.md) — `app.handoff()` の仕様
+- [HUB-005 v0.2 §6.8 App 間連携](https://github.com/Akari-OS/.github/blob/main/VISION.md) — cross-over ユースケース一覧
 - [HUB-026 §6 Cross-over Use Cases](../examples/notion/) — Notion での具体実装
 - [Cookbook > State Management](./state-management.md) — Panel の state と initial_state binding
 - [Cookbook > Error Handling](./error-handling.md) — handoff エラーの処理

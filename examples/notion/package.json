@@ -2,13 +2,13 @@
   "name": "@akari-os-examples/notion",
   "version": "0.1.0",
   "private": true,
-  "description": "Notion MCP-Declarative Documents Module — AKARI SDK reference implementation (HUB-026)",
+  "description": "Notion MCP-Declarative Documents App — AKARI SDK reference implementation (HUB-026)",
   "type": "module",
   "scripts": {
     "dev": "tsx mcp-server/index.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "certify": "akari module certify"
+    "certify": "akari app certify"
   },
   "dependencies": {
     "@akari-os/sdk": "workspace:*",

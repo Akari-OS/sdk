@@ -2,7 +2,7 @@
   "name": "@akari-os/sdk-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "AKARI Module SDK monorepo — CLI, types, renderer, and examples",
+  "description": "AKARI App SDK monorepo — CLI, types, renderer, and examples",
   "license": "MIT",
   "repository": {
     "type": "git",

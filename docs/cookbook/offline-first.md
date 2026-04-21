@@ -1,6 +1,6 @@
 # Cookbook — オフラインファーストパターン
 
-> **対象**: AKARI Module SDK（HUB-024）でオフライン対応 Module を実装する開発者
+> **対象**: AKARI App SDK（HUB-024）でオフライン対応 App を実装する開発者
 > **前提**: Pool / AMP の基礎知識（Memory API）
 > **関連 spec**: AKARI-HUB-024 §6.7 Guideline 6, AKARI-HUB-023 Pool Tiered Storage, AKARI-HUB-026 Notion §9
 
@@ -8,7 +8,7 @@
 
 ## オフラインファーストの設計原則
 
-AKARI Module の Certification 必須要件（HUB-024 §6.8 Contract Test）に「AC-8: オフライン時でも Core + Module 単体で動作する」がある。
+AKARI App の Certification 必須要件（HUB-024 §6.8 Contract Test）に「AC-8: オフライン時でも Core + App 単体で動作する」がある。
 
 これは「ネットワーク接続なしで全機能が動く」という意味ではなく、次の条件を満たすことを指す：
 
@@ -159,7 +159,7 @@ export async function cachedQueryDatabase(
 ```typescript
 // notion-mcp/src/jobs/cache-refresh.ts
 
-// Module 起動時（または定期的）にキャッシュを更新するジョブ
+// App 起動時（または定期的）にキャッシュを更新するジョブ
 export async function refreshNotionCaches(): Promise<void> {
   const recentDatabases = await getRecentlyAccessedDatabases()
 
@@ -205,7 +205,7 @@ async function getRecentlyAccessedDatabases(): Promise<string[]> {
 
 export interface QueuedWrite {
   id:          string
-  module_id:   string
+  app_id:      string
   tool:        string
   args:        Record<string, unknown>
   goal_ref:    string
@@ -230,7 +230,7 @@ export async function enqueueWrite(write: Omit<QueuedWrite, "id" | "queued_at" |
   const poolId = await pool.put({
     bytes,
     mime: "application/json",
-    tags: [QUEUE_TAG, write.module_id, write.tool],
+    tags: [QUEUE_TAG, write.app_id, write.tool],
     meta: { queue_id: queued.id, goal_ref: write.goal_ref },
     tier: "hot",
   })
@@ -246,12 +246,12 @@ export async function enqueueWrite(write: Omit<QueuedWrite, "id" | "queued_at" |
 }
 
 // キューを flush する（オンライン復帰時に呼ぶ）
-export async function flushWriteQueue(moduleId: string): Promise<{
+export async function flushWriteQueue(appId: string): Promise<{
   flushed: number
   failed:  number
 }> {
   const pending = await pool.search({
-    tags: [QUEUE_TAG, moduleId],
+    tags: [QUEUE_TAG, appId],
     tier: "hot",
   })
 
@@ -300,7 +300,7 @@ export async function flushWriteQueue(moduleId: string): Promise<{
         await shell.notify({
           title: "書き込みに失敗しました",
           body:  `${write.tool} の実行に 3 回失敗しました。手動で再実行してください。`,
-          action: { type: "open-queue-manager", moduleId },
+          action: { type: "open-queue-manager", appId },
         })
       }
 
@@ -332,7 +332,7 @@ export const xPostTool = {
     if (!isOnline) {
       // オフライン → キューに積んで下書き保存を提案
       const queueId = await enqueueWrite({
-        module_id: "com.akari.x-sender",
+        app_id: "com.akari.x-sender",
         tool:      "x.post",
         args:      { text: input.text, media: input.media },
         goal_ref:  input.goal_ref ?? "com.akari.x-sender",
@@ -374,14 +374,14 @@ export const xPostTool = {
 // shared/network-monitor.ts
 import { shell } from "@akari/sdk"
 
-export function startNetworkMonitor(moduleId: string): () => void {
+export function startNetworkMonitor(appId: string): () => void {
   let wasOffline = false
 
   const handleOnline = async () => {
     if (!wasOffline) return
 
     wasOffline = false
-    const pending = await getPendingQueueCount(moduleId)
+    const pending = await getPendingQueueCount(appId)
 
     if (pending > 0) {
       await shell.toast({
@@ -391,7 +391,7 @@ export function startNetworkMonitor(moduleId: string): () => void {
       })
 
       // 少し待ってから flush（接続の安定を待つ）
-      setTimeout(() => flushWriteQueue(moduleId), 2000)
+      setTimeout(() => flushWriteQueue(appId), 2000)
     }
   }
 
@@ -869,7 +869,7 @@ const { data: records, from_cache } = await fetchWithFallback({
 
 ## オフライン対応チェックリスト
 
-`akari module certify` の Contract Test で検証されるオフライン要件：
+`akari app certify` の Contract Test で検証されるオフライン要件：
 
 - `external-network` permission に必要なドメインのみを宣言している
 - 読み取り系 MCP ツールはキャッシュがあればオフラインでも動作する

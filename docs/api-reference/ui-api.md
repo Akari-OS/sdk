@@ -6,27 +6,27 @@ status: draft
 created: 2026-04-19
 updated: 2026-04-19
 related:
-  - HUB-024 (Module SDK spec (AKARI-HUB-024, Hub)) — §5.4 UI API
+  - HUB-024 (App SDK spec (AKARI-HUB-024, Hub)) — §5.4 UI API
   - HUB-025 (Panel Schema spec (AKARI-HUB-025, Hub)) — Panel Schema v0
 ---
 
 # UI API リファレンス
 
-> **目的**: Module（アプリ）が AKARI Shell の UI surface — Panel、Dialog、Toast、Notification、HITL Preview — を制御するための統一 API リファレンス。
+> **目的**: App（アプリ）が AKARI Shell の UI surface — Panel、Dialog、Toast、Notification、HITL Preview — を制御するための統一 API リファレンス。
 > Full Tier（React Panel）と MCP-Declarative Tier（Panel Schema v0）の両方から呼び出せる。
 
 ---
 
 ## 1. 概要 — Shell UI surface の統一 API
 
-AKARI では **Module が独自ウィンドウを作ることを禁止**している。すべての UI は Shell が管理する surface（パネル・ダイアログ・トースト等）を通じて表示する。これにより：
+AKARI では **App が独自ウィンドウを作ることを禁止**している。すべての UI は Shell が管理する surface（パネル・ダイアログ・トースト等）を通じて表示する。これにより：
 
 - レイアウト・配色・配置は Shell が一元管理し、エコシステム全体のトーンが統一される
-- Module 開発者は UI のレイアウトを考える必要がなく、コンテンツとロジックに集中できる
-- ユーザーはどの Module を使っても同じ操作感を得られる
+- App 開発者は UI のレイアウトを考える必要がなく、コンテンツとロジックに集中できる
+- ユーザーはどの App を使っても同じ操作感を得られる
 
 ```
-Module コード
+App コード
     │
     ▼
 @akari/sdk → shell.mountPanel() / shell.dialog.show() / shell.toast.*()
@@ -58,11 +58,11 @@ import { shell } from "@akari/sdk"
 
 ## 2. Panel
 
-Panel は Shell の `WorkspaceHost` が持つ 4 スロット（toolPalette / editor / inspector / chat）に mount される、Module のメイン UI。
+Panel は Shell の `WorkspaceHost` が持つ 4 スロット（toolPalette / editor / inspector / chat）に mount される、App のメイン UI。
 
 ### 2.1 `shell.mountPanel()` — Full Tier React Panel のマウント
 
-Full Tier Module が任意の React コンポーネントを Shell のパネルレジストリに登録する。
+Full Tier App が任意の React コンポーネントを Shell のパネルレジストリに登録する。
 
 ```typescript
 shell.mountPanel(options: PanelMountOptions): void
@@ -104,7 +104,7 @@ interface PanelMountOptions {
 import { shell } from "@akari/sdk"
 import { WriterInspector } from "./components/WriterInspector"
 
-// Module 初期化時に呼ぶ
+// App 初期化時に呼ぶ
 shell.mountPanel({
   id: "com.akari.writer.inspector",
   defaultPosition: "inspector",
@@ -123,7 +123,7 @@ shell.mountPanel({
 
 ### 2.2 `shell.mountSchemaPanel()` — MCP-Declarative Panel のマウント
 
-MCP-Declarative Tier Module が `panel.schema.json`（HUB-025 形式）を Shell に渡し、汎用 Schema レンダラで描画させる。
+MCP-Declarative Tier App が `panel.schema.json`（HUB-025 形式）を Shell に渡し、汎用 Schema レンダラで描画させる。
 
 ```typescript
 shell.mountSchemaPanel(options: SchemaPanelMountOptions): void
@@ -189,7 +189,7 @@ shell.mountSchemaPanel({
 
 #### `<SchemaPanel>` コンポーネント（Full Tier 内での部分利用）
 
-Full Tier Module が React 内で Schema Panel の Widget セットを部分利用したい場合は `<SchemaPanel>` コンポーネントを使う。
+Full Tier App が React 内で Schema Panel の Widget セットを部分利用したい場合は `<SchemaPanel>` コンポーネントを使う。
 
 ```typescript
 import { SchemaPanel } from "@akari/sdk/react"
@@ -213,7 +213,7 @@ function WriterInspector() {
 
 ### 2.3 Panel 間ナビゲーション
 
-Shell のパネル状態はユーザーが自由にカスタマイズできるため、Module 間・パネル間の直接遷移は Shell のナビゲーション API 経由で行う。
+Shell のパネル状態はユーザーが自由にカスタマイズできるため、App 間・パネル間の直接遷移は Shell のナビゲーション API 経由で行う。
 
 #### 別パネルをフォーカス
 
@@ -272,7 +272,7 @@ interface TextSelection {
 
 ## 3. Dialog / Modal
 
-`shell.dialog.show()` は Module がモーダルダイアログを表示するための API。Shell がダイアログの表示・非表示・アニメーションを管理する。
+`shell.dialog.show()` は App がモーダルダイアログを表示するための API。Shell がダイアログの表示・非表示・アニメーションを管理する。
 
 ```typescript
 shell.dialog.show(options: DialogOptions): Promise<DialogResult>
@@ -552,7 +552,7 @@ interface HITLPreviewResult {
 }
 ```
 
-#### 使用例 — X 投稿の確認（X Sender Module）
+#### 使用例 — X 投稿の確認（X Sender App）
 
 ```typescript
 import { shell, permission } from "@akari/sdk"
@@ -672,13 +672,13 @@ useEffect(() => {
 }, [])
 ```
 
-> **制約**: Module 側から `shell.theme.set()` でテーマを変更することはできない。テーマはユーザーの設定として Shell が一元管理する。CSS カスタムプロパティ（`var(--akari-surface)` 等）を使うことで、Shell Theme の変更に自動追従できる。
+> **制約**: App 側から `shell.theme.set()` でテーマを変更することはできない。テーマはユーザーの設定として Shell が一元管理する。CSS カスタムプロパティ（`var(--akari-surface)` 等）を使うことで、Shell Theme の変更に自動追従できる。
 
 ---
 
 ## 7. i18n — 多言語対応
 
-Shell が現在のロケールを管理し、Module は `{{t:key}}` 記法でテキストを外部化する。
+Shell が現在のロケールを管理し、App は `{{t:key}}` 記法でテキストを外部化する。
 
 ```typescript
 shell.i18n.resolve(key: string): string
@@ -704,10 +704,10 @@ const unsubscribe = shell.i18n.onLocaleChange((locale) => {
 })
 ```
 
-#### Module の locales ファイル構成
+#### App の locales ファイル構成
 
 ```
-my-module/
+my-app/
 └── locales/
     ├── ja.json    ← 日本語（必須・デフォルト）
     └── en.json    ← 英語（任意）
@@ -744,7 +744,7 @@ my-module/
 
 ## 8. Workspace — 現在のコンテキスト取得
 
-Shell が管理する現在の作業状態（アクティブな Work / パネル / Module）を取得する。
+Shell が管理する現在の作業状態（アクティブな Work / パネル / App）を取得する。
 
 ```typescript
 shell.workspace.current: WorkspaceContext
@@ -759,15 +759,15 @@ interface WorkspaceContext {
   work: {
     id: string
     title: string
-    moduleType: "writer" | "video" | "chat" | string
+    appType: "writer" | "video" | "chat" | string
     status: "draft" | "published" | "archived"
   } | null
 
   /** 現在アクティブなパネルの ID */
   activePanelId: string | null
 
-  /** 現在アクティブな Module の ID */
-  activeModuleId: string
+  /** 現在アクティブな App の ID */
+  activeAppId: string
 
   /** エディタ上部でアクティブなプラットフォームタブ（Writer 等で使用） */
   activePlatform: string | null
@@ -782,7 +782,7 @@ import { shell } from "@akari/sdk"
 // 現在の Work 情報を取得
 const { work } = shell.workspace.current
 if (work) {
-  console.log(`現在の Work: ${work.title} (${work.moduleType})`)
+  console.log(`現在の Work: ${work.title} (${work.appType})`)
 }
 
 // Work 切り替えを購読
@@ -908,12 +908,12 @@ export interface Shell {
 
 ## 10. 使用例
 
-### 10.1 X Sender Module — 投稿確認 HITL フロー
+### 10.1 X Sender App — 投稿確認 HITL フロー
 
-MCP-Declarative Tier Module として X への投稿フローを実装した例。
+MCP-Declarative Tier App として X への投稿フローを実装した例。
 
 ```typescript
-// panels/x-sender-panel.ts（MCP-Declarative Module では通常 JSON で完結するが、
+// panels/x-sender-panel.ts（MCP-Declarative App では通常 JSON で完結するが、
 // Full Tier で同等のフローを書く場合の例）
 import { shell, permission } from "@akari/sdk"
 
@@ -991,9 +991,9 @@ export async function executePost(options: PostOptions) {
 
 ---
 
-### 10.2 Writer Module — スタイル選択ダイアログ
+### 10.2 Writer App — スタイル選択ダイアログ
 
-Full Tier Module として、Writer がスタイル選択のカスタムダイアログを表示する例。
+Full Tier App として、Writer がスタイル選択のカスタムダイアログを表示する例。
 
 ```typescript
 // components/StyleSelectorDialog.tsx
@@ -1093,15 +1093,15 @@ UI で承認フローが必要な操作は必ず `permission.gate()` を UI API 
 
 ### SchemaPanel レンダラ（リファレンス実装）
 
-MCP-Declarative Module が使う汎用 Schema レンダラの実装仕様および Widget Catalog は [HUB-025](https://github.com/Akari-OS/.github/blob/main/VISION.md) を参照。`shell.mountSchemaPanel()` はこのレンダラを内部で使う。
+MCP-Declarative App が使う汎用 Schema レンダラの実装仕様および Widget Catalog は [HUB-025](https://github.com/Akari-OS/.github/blob/main/VISION.md) を参照。`shell.mountSchemaPanel()` はこのレンダラを内部で使う。
 
-Full Tier Module が `<SchemaPanel>` を部分利用する方法は §2.2 を参照。
+Full Tier App が `<SchemaPanel>` を部分利用する方法は §2.2 を参照。
 
 ### 関連 spec
 
 | spec | 内容 |
 |---|---|
-| [AKARI-HUB-024](https://github.com/Akari-OS/.github/blob/main/VISION.md) | Module SDK — UI API の仕様元（§6.6 (4)） |
+| [AKARI-HUB-024](https://github.com/Akari-OS/.github/blob/main/VISION.md) | App SDK — UI API の仕様元（§6.6 (4)） |
 | [AKARI-HUB-025](https://github.com/Akari-OS/.github/blob/main/VISION.md) | Panel Schema v0 — Widget Catalog / Binding / HITL |
 | Shell Panel Framework (internal spec) | Shell Panel Framework — PanelRegistry / LayoutEngine |
 | Shell Workspace UI (internal spec) | Shell Workspace UI — WorkspaceHost / 4 スロット |

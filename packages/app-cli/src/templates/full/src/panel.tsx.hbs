@@ -1,0 +1,106 @@
+/**
+ * {{appName}} — Main Panel Component (Full Tier)
+ * Spec: AKARI-HUB-024 §6.6 UI API
+ *
+ * Guidelines:
+ *   - Do NOT create independent windows. Use Shell panel API only (HUB-024 §6.7 rule 3).
+ *   - Do NOT store state locally. Write everything to Pool / AMP (rule 2 & 9).
+ *   - Colours, spacing, and layout follow Shell Theme (rule 3; do not hard-code colours).
+ *   - All AMP records must include a goal_ref (HUB-024 §6.6 Memory API).
+ */
+
+import React, { useCallback, useEffect, useState } from "react";
+import { pool, amp } from "@akari/sdk";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface PoolItem {
+  id: string;
+  tags: string[];
+  previewText?: string;
+}
+
+// ---------------------------------------------------------------------------
+// MainPanel
+// ---------------------------------------------------------------------------
+
+export function MainPanel(): React.ReactElement {
+  const [items, setItems] = useState<PoolItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch recent Pool items on mount
+  const fetchItems = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const results = await pool.search({ query: "recent" });
+      setItems(results as PoolItem[]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchItems();
+  }, [fetchItems]);
+
+  // Record a decision in AMP — all records MUST have goal_ref (HUB-024 §6.6 Memory API)
+  const handleAction = useCallback(async (itemId: string) => {
+    await amp.record({
+      kind: "action",
+      content: `User selected item ${itemId} in {{appName}}`,
+      goal_ref: "{{appId}}",   // bind to app's own ID as the goal context
+    });
+    // TODO: implement app-specific action
+  }, []);
+
+  return (
+    <div className="akari-panel">
+      <header className="akari-panel__header">
+        <h1>{{appName}}</h1>
+      </header>
+
+      <main className="akari-panel__body">
+        {loading && <p className="akari-state akari-state--loading">Loading…</p>}
+        {error && <p className="akari-state akari-state--error">{error}</p>}
+
+        {!loading && !error && items.length === 0 && (
+          <p className="akari-state akari-state--empty">
+            No items found. Add content to Pool to see it here.
+          </p>
+        )}
+
+        <ul className="akari-item-list">
+          {items.map((item) => (
+            <li key={item.id} className="akari-item">
+              <span className="akari-item__preview">
+                {item.previewText ?? item.id}
+              </span>
+              <button
+                className="akari-button akari-button--secondary"
+                onClick={() => void handleAction(item.id)}
+              >
+                Select
+              </button>
+            </li>
+          ))}
+        </ul>
+      </main>
+
+      <footer className="akari-panel__footer">
+        <button
+          className="akari-button akari-button--primary"
+          onClick={() => void fetchItems()}
+          disabled={loading}
+        >
+          Refresh
+        </button>
+      </footer>
+    </div>
+  );
+}

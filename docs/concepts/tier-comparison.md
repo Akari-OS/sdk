@@ -6,7 +6,7 @@ related: [HUB-024, HUB-025, HUB-005]
 
 # Tier Comparison — Full vs MCP-Declarative / Choosing Your Tier
 
-> Module には 2 つの Tier がある。どちらを選ぶかは「参入コストと UI 表現力のトレードオフ」。
+> App には 2 つの Tier がある。どちらを選ぶかは「参入コストと UI 表現力のトレードオフ」。
 > iOS でいう **Full App ⇔ App Clips** の関係（別種ではなく、重さの違い）。
 
 ---
@@ -31,21 +31,21 @@ related: [HUB-024, HUB-025, HUB-005]
 **Full Tier**:
 
 ```
-my-module/
+my-app/
 ├── akari.toml              ← Manifest
 ├── panels/
 │   └── writer.tsx          ← 任意の React component（⚠️ 自由）
 ├── agents/
-│   └── editor.md           ← Module 固有エージェント定義
+│   └── editor.md           ← App 固有エージェント定義
 ├── skills/
-│   └── generate_draft.ts   ← 他 Module に公開する関数
+│   └── generate_draft.ts   ← 他 App に公開する関数
 └── src/                    ← ビジネスロジック
 ```
 
 **MCP-Declarative Tier**:
 
 ```
-my-module/
+my-app/
 ├── akari.toml              ← Manifest（tier = "mcp-declarative"）
 ├── mcp-server/
 │   └── index.ts            ← MCP サーバーのみ（React なし）
@@ -184,7 +184,7 @@ MCP-Declarative で利用できる `panel.schema.json` の Widget 一覧（HUB-0
 | 数値 | `number` / `slider` / `stepper` | 数値入力 |
 | 選択 | `select` / `multi-select` / `radio` / `checkbox` / `toggle` | 列挙値の選択 |
 | 日時 | `date` / `time` / `datetime` / `datetime-optional` / `duration` | 日付・時刻・期間 |
-| **AKARI 固有** | **`pool-picker`** / `amp-query` / `module-picker` / `agent-picker` | Pool 素材選択 / AMP 検索 |
+| **AKARI 固有** | **`pool-picker`** / `amp-query` / `app-picker` / `agent-picker` | Pool 素材選択 / AMP 検索 |
 | Documents 系 | `rich-text-editor` / `doc-outline-tree` / `sheet-row-picker` / `cell-range-picker` | Office 系 UI |
 | ファイル | `file-upload` / `image-preview` / `video-preview` | 添付・プレビュー |
 | 表示 | `markdown` / `badge` / `stat` / `progress` | 静的コンテンツ |
@@ -197,11 +197,11 @@ MCP-Declarative で利用できる `panel.schema.json` の Widget 一覧（HUB-0
 
 ## マイグレーション: MCP-Declarative → Full / Upgrading Tiers
 
-MCP-Declarative で始めた Module を Full に昇格させる手順：
+MCP-Declarative で始めた App を Full に昇格させる手順：
 
 ```toml
 # akari.toml の変更
-[module]
+[app]
 tier = "full"   # "mcp-declarative" → "full" に変更
 ```
 
@@ -228,7 +228,7 @@ React 化は差分だけ行えばよい。
 
 ## 参考実装 / Reference Implementations
 
-| Module | Tier | ガイド |
+| App | Tier | ガイド |
 |---|---|---|
 | X Sender（Publishing） | MCP-Declarative | [HUB-007](../examples/x-sender/) |
 | Notion（Documents） | MCP-Declarative | [HUB-026](../examples/notion/) |
@@ -238,8 +238,8 @@ React 化は差分だけ行えばよい。
 
 ## 関連ドキュメント / Related Docs
 
-- [Getting Started](../getting-started.md) — MCP-Declarative でミニ Module を動かす
-- [Module Lifecycle](./module-lifecycle.md) — install から uninstall まで
+- [Getting Started](../getting-started.md) — MCP-Declarative でミニ App を動かす
+- [App Lifecycle](./app-lifecycle.md) — install から uninstall まで
 - [Architecture Map](./architecture-map.md) — SDK と Core の通信フロー
 - [HUB-024 §6.2](https://github.com/Akari-OS/.github/blob/main/VISION.md) — Tier の正式仕様
 - [HUB-025 §6.2](https://github.com/Akari-OS/.github/blob/main/VISION.md) — Widget Catalog 完全版

@@ -1,5 +1,5 @@
 {
-  "module.title": "Notion",
+  "app.title": "Notion",
   "tab.db_query": "DB Query",
   "tab.page_editor": "Page Editor",
   "tab.pool_export": "Pool → Notion",

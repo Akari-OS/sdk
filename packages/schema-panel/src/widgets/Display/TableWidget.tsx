@@ -4,7 +4,7 @@
  * Widget type: "table" (data display)
  *
  * Renders tabular data in a read-only or sortable table.
- * Used in Notion module (db_results field): bound to "state.db_results".
+ * Used in Notion app (db_results field): bound to "state.db_results".
  * Column definitions come from spec.columns; rows from widget value.
  *
  * Shell-side import note:

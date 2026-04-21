@@ -1,4 +1,4 @@
-# Contributing to AKARI Module SDK
+# Contributing to AKARI App SDK
 
 Thank you for your interest in contributing! This guide covers everything you need to know.
 
@@ -116,13 +116,13 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/).
 
 ### Scope (optional)
 
-Use the package name: `sdk`, `module-cli`, `panel-schema`, `cert`, `docs`, `examples`.
+Use the package name: `sdk`, `app-cli`, `panel-schema`, `cert`, `docs`, `examples`.
 
 ### Examples
 
 ```
 feat(sdk): add pool.search() pagination support
-fix(module-cli): correct tsconfig path in generated template
+fix(app-cli): correct tsconfig path in generated template
 docs: add MCP-Declarative cookbook recipe for REST API integration
 chore(deps): update typescript to 5.8
 ```
@@ -213,7 +213,7 @@ Good entry points for new contributors:
 - Add new `panel.schema.json` widget types
 - Improve error messages in the schema validator
 - Add Cookbook recipes for popular REST APIs
-- Improve generated template quality in `module-cli`
+- Improve generated template quality in `app-cli`
 
 ### Full Tier
 

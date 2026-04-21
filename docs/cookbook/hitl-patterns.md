@@ -1,6 +1,6 @@
 # Cookbook — HITL（Human-in-the-Loop）パターン
 
-> **対象**: AKARI Module SDK（HUB-024）で HITL ゲートを実装する Module 開発者
+> **対象**: AKARI App SDK（HUB-024）で HITL ゲートを実装する App 開発者
 > **前提**: Panel Schema v0（HUB-025）の基礎知識
 > **関連 spec**: AKARI-HUB-025 §6.5 Action 規約, AKARI-HUB-007 X Sender, AKARI-HUB-026 Notion
 
@@ -8,7 +8,7 @@
 
 ## HITL とは
 
-HITL（Human-in-the-Loop）は、AI や Module が外部に影響を与える操作（投稿・送信・削除・上書きなど）の前に **ユーザーに承認を求める** 仕組みです。
+HITL（Human-in-the-Loop）は、AI や App が外部に影響を与える操作（投稿・送信・削除・上書きなど）の前に **ユーザーに承認を求める** 仕組みです。
 
 ```
 ユーザーがアクションボタンを押す
@@ -495,7 +495,7 @@ export const xScheduleTool = {
 
 ### いつ使うか
 
-- Research Module から Notion へ一括追加（複数レコードを一度に処理）
+- Research App から Notion へ一括追加（複数レコードを一度に処理）
 - AI が生成したコンテンツの内容確認（ページ作成前の最終チェック）
 - 件数・サイズが大きい操作で「本当に N 件処理してよいか」を確認させたい場合
 
@@ -761,10 +761,10 @@ await amp.record({
 // shared/proposal.ts
 
 export async function loadPreviousPostSettings(
-  moduleId: string
+  appId: string
 ): Promise<{ text_template?: string; media?: string[]; last_posted_at?: string } | null> {
   const records = await amp.query({
-    goal_ref: moduleId,
+    goal_ref: appId,
     filter: { kind: "publish-action" },
     order:  "desc",
     limit:  1,
@@ -794,7 +794,7 @@ export async function loadPreviousPostSettings(
 
 ## HITL 設計チェックリスト
 
-以下の項目を確認すること。`hitl.require: true` の設定漏れは `akari module certify` で検出される。
+以下の項目を確認すること。`hitl.require: true` の設定漏れは `akari app certify` で検出される。
 
 - 外部サービスへの書き込み・投稿操作すべてに `hitl.require: true` を付けている
 - 削除操作には `preview: "custom-markdown"` を使い、削除対象を全文表示している

@@ -107,7 +107,7 @@ export interface AmpClient {
 }
 
 // ---------------------------------------------------------------------------
-// Inter-App Handoff (AKARI Module SDK §6.5)
+// Inter-App Handoff (AKARI App SDK §6.5)
 // ---------------------------------------------------------------------------
 
 export interface HandoffPayload {
@@ -116,8 +116,8 @@ export interface HandoffPayload {
   payload: Record<string, unknown>;
 }
 
-export interface ModuleClient {
-  /** 他 Module への handoff を実行する */
+export interface AppClient {
+  /** 他 App への handoff を実行する */
   handoff(params: HandoffPayload): Promise<void>;
 }
 
@@ -157,7 +157,7 @@ export interface ToastClient {
  * - mcpClient: Tauri command ラッパーを実装
  * - poolClient: Pool daemon への Unix socket 接続を実装
  * - ampClient: AMP への接続を実装
- * - moduleClient: Inter-App handoff を実装
+ * - appClient: Inter-App handoff を実装
  * - navigationClient: TanStack Router を使ったナビゲーションを実装
  * - toastClient: shadcn/ui の Toaster を使ったトースト実装
  */
@@ -172,7 +172,7 @@ export interface RenderContext {
   ampClient: AmpClient;
 
   /** Inter-App handoff クライアント */
-  moduleClient: ModuleClient;
+  appClient: AppClient;
 
   /** Panel 内ナビゲーション */
   navigationClient: NavigationClient;
@@ -228,9 +228,9 @@ export const createStubAmpClient = (): AmpClient => ({
   },
 });
 
-export const createStubModuleClient = (): ModuleClient => ({
+export const createStubAppClient = (): AppClient => ({
   async handoff(params) {
-    console.warn(`[StubModuleClient] handoff(${JSON.stringify(params)}) — not wired`);
+    console.warn(`[StubAppClient] handoff(${JSON.stringify(params)}) — not wired`);
   },
 });
 
@@ -256,7 +256,7 @@ export const createStubRenderContext = (
   mcpClient: createStubMcpClient(),
   poolClient: createStubPoolClient(),
   ampClient: createStubAmpClient(),
-  moduleClient: createStubModuleClient(),
+  appClient: createStubAppClient(),
   navigationClient: createStubNavigationClient(),
   toastClient: createStubToastClient(),
   locale,

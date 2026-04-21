@@ -1,7 +1,7 @@
 {
   "name": "@akari-os-examples/x-sender",
   "version": "0.1.0",
-  "description": "X Sender — AKARI MCP-Declarative Module reference implementation",
+  "description": "X Sender — AKARI MCP-Declarative App reference implementation",
   "private": true,
   "type": "module",
   "scripts": {

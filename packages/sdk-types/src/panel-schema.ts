@@ -2,12 +2,12 @@
  * @file panel-schema.ts
  * Type definitions for AKARI Panel Schema v0.
  *
- * Panel Schema v0 is a declarative UI format for MCP-Declarative Tier Modules.
+ * Panel Schema v0 is a declarative UI format for MCP-Declarative Tier Apps.
  * A `panel.schema.json` file describes the layout, fields, bindings, and
  * actions of a panel. The Shell's generic Schema Renderer turns it into
- * a live UI without any React code from the Module.
+ * a live UI without any React code from the App.
  *
- * Full Tier Modules can also use `<SchemaPanel schema={...} />` from
+ * Full Tier Apps can also use `<SchemaPanel schema={...} />` from
  * `@akari-os/sdk/react` to embed Schema-driven widgets inside a custom panel.
  *
  * @see https://github.com/Akari-OS/sdk/blob/main/docs/api-reference/
@@ -73,7 +73,7 @@ export type PanelLayout = "form" | "tabs" | "split" | "dashboard" | "list"
  * - **Numeric**: `number`, `slider`, `stepper`
  * - **Selection**: `select`, `multi-select`, `radio`, `checkbox`, `toggle`
  * - **Date/Time**: `date`, `time`, `datetime`, `datetime-optional`, `duration`
- * - **AKARI-specific**: `pool-picker`, `amp-query`, `module-picker`, `agent-picker`
+ * - **AKARI-specific**: `pool-picker`, `amp-query`, `app-picker`, `agent-picker`
  * - **Documents**: `rich-text-editor`, `doc-outline-tree`, `sheet-row-picker`,
  *   `cell-range-picker`, `slide-template-picker`, `slide-preview`
  * - **File**: `file-upload`, `image-preview`, `video-preview`
@@ -92,7 +92,7 @@ export type WidgetType =
   // Date / Time
   | "date" | "time" | "datetime" | "datetime-optional" | "duration"
   // AKARI-specific
-  | "pool-picker" | "amp-query" | "module-picker" | "agent-picker"
+  | "pool-picker" | "amp-query" | "app-picker" | "agent-picker"
   // Documents (Office-class)
   | "rich-text-editor" | "doc-outline-tree"
   | "sheet-row-picker" | "cell-range-picker"
@@ -222,7 +222,7 @@ export interface SchemaField {
 
 /**
  * An action button at the bottom of (or within) a panel.
- * Each action can invoke a MCP tool, trigger a Module handoff,
+ * Each action can invoke a MCP tool, trigger an App handoff,
  * or both sequentially.
  */
 export interface SchemaAction {
@@ -254,7 +254,7 @@ export interface SchemaAction {
    * Mutually exclusive with `mcp`.
    */
   handoff?: {
-    /** Target module ID. */
+    /** Target app ID. */
     to: string
     /** Handoff intent. */
     intent: string
@@ -345,7 +345,7 @@ export interface ActionFeedback {
 
 /**
  * A resolved widget instance produced by the Schema Renderer.
- * Module developers typically work with `SchemaField`; `Widget` is used
+ * App developers typically work with `SchemaField`; `Widget` is used
  * internally by the Shell and in test utilities.
  */
 export interface Widget {
