@@ -1,6 +1,6 @@
 /**
  * @file context.ts
- * Type definitions for the AKARI Module SDK — Context API.
+ * Type definitions for the AKARI App SDK — Context API.
  *
  * The Context API (ACE — Agent Context Engineering) provides typed helpers
  * for assembling the context objects passed to Agent Runtime invocations.
@@ -27,7 +27,7 @@ export type ContextItemKind =
   | "video-frame"    // Single video frame
   | "video-range"    // Time range within a video
   | "m2c-feature"    // M2C semantic feature extracted from media
-  | "system-note"    // Module-supplied system annotation
+  | "system-note"    // App-supplied system annotation
 
 /**
  * Describes where a `ContextItem`'s content originated.
@@ -39,7 +39,7 @@ export type ContextItemSource =
   | { type: "amp"; filter: AmpQueryFilter }
   | { type: "handoff"; session_id: string }
   | { type: "selection"; app: string }
-  | { type: "inline" }  // Module assembled the content directly
+  | { type: "inline" }  // App assembled the content directly
 
 // ---------------------------------------------------------------------------
 // ContextItem
@@ -51,7 +51,7 @@ export type ContextItemSource =
  */
 export interface ContextItem {
   /**
-   * Module-scoped unique identifier for this item.
+   * App-scoped unique identifier for this item.
    * Used by Lint to detect duplicates.
    */
   id: string

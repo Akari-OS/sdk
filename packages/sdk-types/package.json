@@ -1,7 +1,7 @@
 {
   "name": "@akari-os/sdk",
   "version": "0.1.0",
-  "description": "TypeScript type definitions for AKARI OS Module SDK",
+  "description": "TypeScript type definitions for AKARI OS App SDK",
   "license": "MIT",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

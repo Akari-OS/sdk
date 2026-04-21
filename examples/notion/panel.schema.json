@@ -1,6 +1,6 @@
 {
   "$schema": "akari://panel-schema/v0",
-  "title": "{{t:module.title}}",
+  "title": "{{t:app.title}}",
   "layout": "tabs",
 
   "tabs": [

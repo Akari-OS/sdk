@@ -1,5 +1,5 @@
 {
-  "module.title": "Notion",
+  "app.title": "Notion",
   "tab.db_query": "DB クエリ",
   "tab.page_editor": "ページ編集",
   "tab.pool_export": "Pool → Notion",

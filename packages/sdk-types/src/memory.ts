@@ -1,12 +1,12 @@
 /**
  * @file memory.ts
- * Type definitions for the AKARI Module SDK — Memory API.
+ * Type definitions for the AKARI App SDK — Memory API.
  *
  * The Memory API provides unified access to two persistence layers:
  * - **Pool** — Content-Addressed binary/text storage (blake3 hash IDs).
  * - **AMP** — Agent Memory Protocol: goal-linked decision and action records.
  *
- * Modules must NOT maintain their own databases.
+ * Apps must NOT maintain their own databases.
  * All state must flow through Pool or AMP.
  *
  * @see https://github.com/Akari-OS/sdk/blob/main/docs/api-reference/memory-api.md
@@ -178,8 +178,8 @@ export interface PoolSearchResult {
  * - `publish-action`, `research-result`, `style-preference` → `semantic`
  * - `working` → `working` (auto-decays at session end)
  *
- * Custom kinds must use the form `"<module-id>.<event-name>"`.
- * @example "com.myorg.mymodule.custom-event"
+ * Custom kinds must use the form `"<app-id>.<event-name>"`.
+ * @example "com.myorg.myapp.custom-event"
  */
 export type AmpKind =
   | "goal"
@@ -212,7 +212,7 @@ export interface AmpRecordInput {
 
   /**
    * Goal reference — links this record to a goal or session.
-   * Use Module ID (`"com.akari.writer"`) or session ID (`"session-2026-04-19"`).
+   * Use App ID (`"com.akari.writer"`) or session ID (`"session-2026-04-19"`).
    * **Required** — records without `goal_ref` are rejected with `MEMORY_GOAL_REF_REQUIRED`.
    */
   goal_ref: string
@@ -408,7 +408,7 @@ export class MemoryError extends Error {
 export enum MemoryErrorCode {
   /** `-34001` Pool item or AMP record not found. */
   NotFound = -34001,
-  /** `-34002` Access denied to another Module's private memory. */
+  /** `-34002` Access denied to another App's private memory. */
   PermissionDenied = -34002,
   /** `-34003` Record confidence is below `minConfidence`. */
   ConfidenceTooLow = -34003,

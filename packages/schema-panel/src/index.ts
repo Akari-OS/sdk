@@ -80,7 +80,7 @@ export type {
   McpClient,
   PoolClient,
   AmpClient,
-  ModuleClient,
+  AppClient,
   NavigationClient,
   ToastClient,
   PoolItem,
@@ -93,7 +93,7 @@ export {
   createStubMcpClient,
   createStubPoolClient,
   createStubAmpClient,
-  createStubModuleClient,
+  createStubAppClient,
   createStubNavigationClient,
   createStubToastClient,
 } from "./types/context";

@@ -5,7 +5,7 @@
  *
  * 対応 Action type:
  *   mcp.invoke  — HITL preview を挟むか判定 → 承認後 MCP ツール呼び出し
- *   handoff     — Module 間遷移（AKARI Module SDK Inter-App API）
+ *   handoff     — App 間遷移（AKARI App SDK Inter-App API）
  *   navigate    — Panel 内の別タブへ遷移
  *   submit      — Form 送信ロジック（mcp.invoke の簡略形）
  *
@@ -14,11 +14,11 @@
  *   2. ユーザーが承認 → MCP ツール呼び出し
  *   3. ユーザーが却下 → キャンセル
  *
- * TODO: AMP 監査ログへの自動書き込み（AKARI Module SDK §6.6 Permission API 参照）
+ * TODO: AMP 監査ログへの自動書き込み（AKARI App SDK §6.6 Permission API 参照）
  */
 
 import type { Action, McpCall, HandoffCall, OnSuccess, OnError } from "../types/schema";
-import type { McpClient, ModuleClient, NavigationClient, ToastClient } from "../types/context";
+import type { McpClient, AppClient, NavigationClient, ToastClient } from "../types/context";
 import { resolveActionArgs } from "./BindingResolver";
 import { I18nResolver } from "./I18nResolver";
 
@@ -43,7 +43,7 @@ export type ShowHitlPreview = (
 
 export interface ActionDispatcherOptions {
   mcpClient: McpClient;
-  moduleClient: ModuleClient;
+  appClient: AppClient;
   navigationClient: NavigationClient;
   toastClient: ToastClient;
   i18nResolver: I18nResolver;
@@ -62,7 +62,7 @@ export interface ActionDispatcherOptions {
  */
 export class ActionDispatcher {
   private mcp: McpClient;
-  private module: ModuleClient;
+  private app: AppClient;
   private navigation: NavigationClient;
   private toast: ToastClient;
   private i18n: I18nResolver;
@@ -70,7 +70,7 @@ export class ActionDispatcher {
 
   constructor(options: ActionDispatcherOptions) {
     this.mcp = options.mcpClient;
-    this.module = options.moduleClient;
+    this.app = options.appClient;
     this.navigation = options.navigationClient;
     this.toast = options.toastClient;
     this.i18n = options.i18nResolver;
@@ -199,7 +199,7 @@ export class ActionDispatcher {
     );
 
     try {
-      await this.module.handoff({
+      await this.app.handoff({
         to: handoff.to,
         intent: handoff.intent,
         payload: resolvedPayload,

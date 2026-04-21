@@ -1,6 +1,6 @@
 # @akari-os/schema-panel
 
-Reference React renderer for **AKARI Panel Schema v0** — the declarative UI schema that allows MCP-powered AKARI modules to describe their UI without shipping custom React code.
+Reference React renderer for **AKARI Panel Schema v0** — the declarative UI schema that allows MCP-powered AKARI apps to describe their UI without shipping custom React code.
 
 This package provides: core renderer + binding engine + action dispatcher + HITL preview. Widget implementations (Phase 3b) are registered separately via `WidgetRegistry`.
 
@@ -66,7 +66,7 @@ const context: RenderContext = {
   mcpClient,
   poolClient,
   ampClient,
-  moduleClient,
+  appClient,
   navigationClient,
   toastClient,
   locale: "ja",
@@ -108,7 +108,7 @@ schema-panel/
 │   └── widgets/                       42 widget stubs (Phase 3b fills implementations)
 └── tests/
     └── fixtures/
-        └── notion.schema.json         example Panel Schema (Notion module)
+        └── notion.schema.json         example Panel Schema (Notion app)
 ```
 
 ---
@@ -218,7 +218,7 @@ Sugar notation is converted to JSONLogic AST:
 | Action type | Flow |
 |---|---|
 | `mcp.invoke` | HITL check → PreviewDialog (if approval required) → MCP tool call → on_success / on_error |
-| `handoff` | `moduleClient.handoff()` → inter-app navigation |
+| `handoff` | `appClient.handoff()` → inter-app navigation |
 | `navigate` | `navigationClient.navigate()` → tab switch etc. |
 | `submit` | Same as `mcp.invoke` |
 
@@ -258,7 +258,7 @@ interface RenderContext {
   mcpClient: McpClient;
   poolClient: PoolClient;
   ampClient: AmpClient;
-  moduleClient: ModuleClient;
+  appClient: AppClient;
   navigationClient: NavigationClient;
   toastClient: ToastClient;
   locale: string;
@@ -287,7 +287,7 @@ Use `createStubRenderContext(locale)` for development and testing.
 - [ ] **MCP client** — replace `createStubMcpClient` with a real Tauri command wrapper (shell responsibility)
 - [ ] **Pool client** — implement Unix socket connection to Pool daemon
 - [ ] **AMP client** — implement AMP connection
-- [ ] **Inter-app handoff** — wire `moduleClient.handoff()` to the AKARI Shell inter-app API
+- [ ] **Inter-app handoff** — wire `appClient.handoff()` to the AKARI Shell inter-app API
 - [ ] **TanStack Router** — wire `navigationClient.navigate()` to TanStack Router
 - [ ] **shadcn/ui Toast** — wire `toastClient` to shadcn/ui `Toaster`
 - [ ] **Phase 3b widgets** — implement shadcn/ui-based widgets in `src/widgets/` and build `shellWidgetRegistry`

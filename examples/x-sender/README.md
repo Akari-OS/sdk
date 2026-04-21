@@ -1,21 +1,21 @@
-# X Sender — AKARI MCP-Declarative Module 参考実装
+# X Sender — AKARI MCP-Declarative App 参考実装
 
-> **Module ID**: `com.akari.example.x-sender`
+> **App ID**: `com.akari.example.x-sender`
 > **Tier**: MCP-Declarative
 > **Category**: Publishing
 
-AKARI Module SDK の **MCP-Declarative Tier** を使って、X (旧 Twitter) への投稿フォームを実装した参考実装です。
-Module 開発者が clone してすぐ動かせる最小構成です。
+AKARI App SDK の **MCP-Declarative Tier** を使って、X (旧 Twitter) への投稿フォームを実装した参考実装です。
+App 開発者が clone してすぐ動かせる最小構成です。
 
 ---
 
 ## What you'll learn
 
-1. **MCP-Declarative Tier の最小構成** — `akari.toml` + MCP サーバー + `panel.schema.json` だけで AKARI Module が成立することを体験できる
+1. **MCP-Declarative Tier の最小構成** — `akari.toml` + MCP サーバー + `panel.schema.json` だけで AKARI App が成立することを体験できる
 2. **Panel Schema の `bind` パターン** — フォームフィールドと MCP ツール引数を宣言的に結びつける方法
 3. **HITL（Human-in-the-loop）の組み込み方** — 外部公開アクションに `hitl.require: true` を付ける設計と、`enabled_when` による排他ボタン制御
 4. **OAuth 2.0 PKCE フローの構造** — MCP サーバー側で認証ライフサイクルを管理する設計（`oauth.ts` の PKCE ヘルパー群）
-5. **Publishing カテゴリの雛形** — LINE / Threads / Bluesky など類似 Module を作るときにそのまま流用できる構造
+5. **Publishing カテゴリの雛形** — LINE / Threads / Bluesky など類似 App を作るときにそのまま流用できる構造
 
 ---
 
@@ -44,7 +44,7 @@ pnpm install
 
 # 4. AKARI 開発サーバーで起動
 pnpm dev
-# → Shell に x-sender Module が mount されます
+# → Shell に x-sender App が mount されます
 ```
 
 > **dry_run モードで試す場合**: `.env` の設定なしに MCP ツールの動作を確認したい場合は、
@@ -59,7 +59,7 @@ examples/x-sender/
 ├── README.md               このファイル
 ├── package.json            npm package (private, @akari-os-examples/x-sender)
 ├── tsconfig.json           extends ../../tsconfig.base.json
-├── akari.toml              Module Manifest (MCP-Declarative Tier)
+├── akari.toml              App Manifest (MCP-Declarative Tier)
 ├── panel.schema.json       Panel Schema v0 — 投稿フォーム宣言
 ├── locales/
 │   ├── ja.json             日本語 i18n
@@ -91,7 +91,7 @@ examples/x-sender/
 
 ## Patterns to borrow
 
-このサンプルは **LINE / Threads / Bluesky など他の Publishing Module** を作る際の雛形として設計されています。
+このサンプルは **LINE / Threads / Bluesky など他の Publishing App** を作る際の雛形として設計されています。
 
 ### 変えるべき点
 
@@ -116,8 +116,8 @@ examples/x-sender/
 ## Certification
 
 ```bash
-# Automated Lint + Contract Test (AKARI Module SDK §6.8)
-pnpm akari module certify
+# Automated Lint + Contract Test (AKARI App SDK §6.8)
+pnpm akari app certify
 ```
 
 certify は以下を自動検証します:

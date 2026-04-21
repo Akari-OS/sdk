@@ -2,8 +2,8 @@
  * @file index.ts
  * Public API surface for `@akari-os/sdk` — TypeScript type definitions.
  *
- * All types for the seven AKARI Module SDK API groups, Panel Schema v0,
- * the Module Manifest, and shared error types are re-exported from here.
+ * All types for the seven AKARI App SDK API groups, Panel Schema v0,
+ * the App Manifest, and shared error types are re-exported from here.
  *
  * @example
  * ```typescript
@@ -122,16 +122,16 @@ export type {
   IncomingHandoff,
   HandoffResponse,
   HandoffHandler,
-  ModuleAPI,
+  AppAPI,
 } from "./inter-app.js"
 
 // Re-export HandoffPayload and HandoffResult from inter-app (the canonical definition)
 // Note: agent.ts defines HandoffPayload for agent.handoff(); inter-app.ts defines
-// HandoffPayload for module.handoff(). They share the same name but differ in shape.
-// We alias the Inter-App variant as ModuleHandoffPayload to avoid the collision.
+// HandoffPayload for app.handoff(). They share the same name but differ in shape.
+// We alias the Inter-App variant as AppHandoffPayload to avoid the collision.
 export type {
-  HandoffPayload as ModuleHandoffPayload,
-  HandoffResult as ModuleHandoffResult,
+  HandoffPayload as AppHandoffPayload,
+  HandoffResult as AppHandoffResult,
 } from "./inter-app.js"
 
 // ---------------------------------------------------------------------------
@@ -190,8 +190,8 @@ export type {
 // Manifest (akari.toml)
 // ---------------------------------------------------------------------------
 export type {
-  ModuleSection,
-  ModuleTier,
+  AppSection,
+  AppTier,
   PermissionsSection,
   McpSection,
   PanelsSection,

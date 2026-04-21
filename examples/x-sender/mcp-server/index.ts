@@ -1,8 +1,8 @@
 /**
  * X Sender — MCP server entry point (MCP-Declarative Tier)
- * Module ID: com.akari.example.x-sender
+ * App ID: com.akari.example.x-sender
  *
- * This process is spawned by AKARI Shell when the module is active.
+ * This process is spawned by AKARI Shell when the app is active.
  * Communication happens via stdio (StdioServerTransport).
  *
  * Tools implemented (Phase 0):
@@ -15,7 +15,7 @@
  *   - akari.toml        [mcp].tools
  *   - panel.schema.json actions[].mcp.tool
  *
- * akari module certify verifies the triple-consistency of these declarations.
+ * akari app certify verifies the triple-consistency of these declarations.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";

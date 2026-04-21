@@ -7,7 +7,7 @@ related: [HUB-024, HUB-005, ADR-010]
 # Cookbook — Error Handling（エラー処理）
 
 > **このレシピで学ぶこと**:
-> - AKARI のエラー階層（NetworkError / PermissionError / ValidationError / ModuleError）
+> - AKARI のエラー階層（NetworkError / PermissionError / ValidationError / AppError）
 > - ユーザー向けエラー UX（toast / dialog / retry）
 > - Silent retry（Core の retry / deadletter — ADR-010）
 > - エラーを AMP に記録するパターン
@@ -17,7 +17,7 @@ related: [HUB-024, HUB-005, ADR-010]
 
 ## エラーの階層
 
-AKARI Module SDK は 4 層のエラー型を定義する。
+AKARI App SDK は 4 層のエラー型を定義する。
 各層は「どこで発生したか」「誰が処理すべきか」を明確にする。
 
 ```
@@ -35,7 +35,7 @@ ValidationError       — 入力データの検証失敗
   └── PayloadError    — handoff payload の形式エラー
   └── ToolInputError  — MCP tool の input schema 違反
 
-ModuleError           — Module 固有のビジネスロジックエラー
+AppError           — App 固有のビジネスロジックエラー
   └── NotFoundError   — Pool / AMP の ID が存在しない
   └── ConflictError   — 同時書き込み競合（Notion / Sheets 等）
   └── QuotaError      — 外部サービスの利用上限超過
@@ -55,7 +55,7 @@ import {
   HitlCancelled,
   ManifestDenied,
   ValidationError,
-  ModuleError,
+  AppError,
   NotFoundError,
   ConflictError,
 } from "@akari/sdk/errors"
@@ -258,7 +258,7 @@ function PostButton({ onSubmit }: { onSubmit: () => Promise<void> }) {
 ## Part 2: Silent Retry（Core の retry / deadletter — ADR-010）
 
 ユーザーに見せずに Core がバックグラウンドでリトライする仕組み。
-MCP-Declarative Module の action は `hitl: false` の場合、Core のジョブキューに入る。
+MCP-Declarative App の action は `hitl: false` の場合、Core のジョブキューに入る。
 
 ### どのエラーが silent retry されるか
 
@@ -355,13 +355,13 @@ AMP record:
     payload:    { text_amp_id: "amp:rec:01J..." }  ← 本文は ID 参照
 ```
 
-Module はこの deadletter イベントを受信して、ユーザーに通知できる：
+App はこの deadletter イベントを受信して、ユーザーに通知できる：
 
 ```typescript
 // mcp-server/index.ts
-import { module } from "@akari/sdk"
+import { app } from "@akari/sdk"
 
-module.onDeadletter(async (job) => {
+app.onDeadletter(async (job) => {
   // deadletter に入ったジョブを受信
   shell.toast({
     message:  `「${job.tool}」の実行に失敗しました（3 回リトライ済み）`,
@@ -498,13 +498,13 @@ akari dev --debug   # さらに詳細なログ
 ```
 [akari:sdk] pool.put called (mime=image/png, size=204800)
 [akari:sdk] amp.record called (kind=draft, goal_ref=writer-session)
-[akari:sdk] module.handoff → com.akari.x-sender (intent=post-draft)
+[akari:sdk] app.handoff → com.akari.x-sender (intent=post-draft)
 [akari:mcp] tool called: x.post (input={text: "...240文字...", goal_ref: "..."})
 [akari:mcp] tool response: x.post → success (tweet_id=17...9)
 [akari:permission] gate: external-network.post → granted (hitl=true, user=approved)
 ```
 
-### Module 内でのデバッグロギング
+### App 内でのデバッグロギング
 
 開発時のみ詳細ログを出す：
 
@@ -512,7 +512,7 @@ akari dev --debug   # さらに詳細なログ
 import { logger } from "@akari/sdk"
 
 // 環境に応じたログレベルの切り替え
-const log = logger.create("com.akari.x-sender")  // Module ID をプレフィックスに
+const log = logger.create("com.akari.x-sender")  // App ID をプレフィックスに
 
 log.debug("MCP tool 呼び出し前の state:", { text: text.slice(0, 50) })
 log.info("投稿成功:", { tweet_id: result.tweet_id })
@@ -557,16 +557,16 @@ server.tool(
 )
 ```
 
-### `akari module certify` のエラー解読
+### `akari app certify` のエラー解読
 
 ```bash
-akari module certify
+akari app certify
 ```
 
 よくある失敗パターンと対処：
 
 ```
-✗ [Guidelines] Module contains direct database access
+✗ [Guidelines] App contains direct database access
   → src/store.ts:42 — "new Database(...)"
   → Fix: データは Pool / AMP を使う。自前 DB 禁止（HUB-024 §6.7 Guideline 2）
 
@@ -682,7 +682,7 @@ try {
 
 // OK — retryable なエラーは Core に任せ、deadletter になったときだけ通知
 // deadletter ハンドラーで通知（Part 2 参照）
-module.onDeadletter(async (job) => {
+app.onDeadletter(async (job) => {
   shell.toast({ message: `「${job.tool}」の実行に最終的に失敗しました`, level: "error" })
 })
 ```
@@ -707,7 +707,7 @@ module.onDeadletter(async (job) => {
 ## 関連ドキュメント
 
 - [HUB-024 §6.6 Permission API](https://github.com/Akari-OS/.github/blob/main/VISION.md) — HITL gate の仕様
-- [HUB-005 §6.6 エラー処理](https://github.com/Akari-OS/.github/blob/main/VISION.md) — Declarative Module のエラー分担
+- [HUB-005 §6.6 エラー処理](https://github.com/Akari-OS/.github/blob/main/VISION.md) — Declarative App のエラー分担
 - [ADR-010 (Hub)] — retry / deadletter アーキテクチャの意思決定記録
 - [Cookbook > State Management](./state-management.md) — エラー状態の state 管理
 - [Cookbook > Cross-over Handoff](./cross-over-handoff.md) — handoff handler のエラー設計

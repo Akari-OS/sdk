@@ -1,6 +1,6 @@
 /**
  * @file errors.ts
- * Shared error types for the AKARI Module SDK.
+ * Shared error types for the AKARI App SDK.
  *
  * Each API group (Agent, Memory, Permission, Skill) extends `AkariError`
  * with a typed `code` property drawn from `AkariErrorCode`.
@@ -32,7 +32,7 @@ export class AkariError extends Error {
 // ---------------------------------------------------------------------------
 
 /**
- * Exhaustive set of error codes used across the AKARI Module SDK.
+ * Exhaustive set of error codes used across the AKARI App SDK.
  * API-specific errors reference a subset of these codes.
  */
 export enum AkariErrorCode {
@@ -55,7 +55,7 @@ export enum AkariErrorCode {
   // -- Memory API --
   /** Pool item or AMP record was not found. */
   MemoryNotFound = "MEMORY_NOT_FOUND",
-  /** Access to another Module's private memory was denied. */
+  /** Access to another App's private memory was denied. */
   MemoryPermissionDenied = "MEMORY_PERMISSION_DENIED",
   /** Requested record's confidence is below `minConfidence`. */
   MemoryConfidenceTooLow = "MEMORY_CONFIDENCE_TOO_LOW",

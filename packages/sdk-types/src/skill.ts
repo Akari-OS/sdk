@@ -1,9 +1,9 @@
 /**
  * @file skill.ts
- * Type definitions for the AKARI Module SDK — Skill API.
+ * Type definitions for the AKARI App SDK — Skill API.
  *
- * A Skill is the typed, reusable capability unit that one Module exposes
- * for other Modules (or Workflow steps) to call. Skills must be declared in
+ * A Skill is the typed, reusable capability unit that one App exposes
+ * for other Apps (or Workflow steps) to call. Skills must be declared in
  * `akari.toml [skills.exposed]` and validated against Zod or JSON Schema 7.
  *
  * @see https://github.com/Akari-OS/sdk/blob/main/docs/api-reference/skill-api.md
@@ -106,7 +106,7 @@ export interface SkillDef<
 > {
   /**
    * Fully-qualified Skill ID.
-   * Format: `"<module-short-id>.<skill-name>"` in snake_case.
+   * Format: `"<app-short-id>.<skill-name>"` in snake_case.
    * Must be listed in `akari.toml [skills.exposed]`.
    * @example "writer.generate_draft"
    */
@@ -190,7 +190,7 @@ export interface SkillInvokeOptions {
  */
 export interface SkillAPI {
   /**
-   * Register one or more Skills with the Core at module mount time.
+   * Register one or more Skills with the Core at app mount time.
    * Every ID must be listed in `akari.toml [skills.exposed]`.
    */
   register(skill: SkillDef | SkillDef[]): void

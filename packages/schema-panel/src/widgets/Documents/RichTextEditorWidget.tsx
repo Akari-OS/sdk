@@ -4,7 +4,7 @@
  * Widget type: "rich-text-editor"
  *
  * Panel Schema v0 Documents category widget.
- * Used in Notion module (page_body field): bound to "mcp.notion.append_block_children.children"
+ * Used in Notion app (page_body field): bound to "mcp.notion.append_block_children.children"
  *
  * TODO: Tiptap integration
  *   Install: @tiptap/react @tiptap/starter-kit @tiptap/extension-link @tiptap/extension-code-block

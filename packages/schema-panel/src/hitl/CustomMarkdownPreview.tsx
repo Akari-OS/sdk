@@ -7,7 +7,7 @@
  * `preview_template` フィールドで指定された markdown を
  * フィールド値とi18nで補完して表示する。
  *
- * 使用例（notion-module-panel.schema.json から）:
+ * 使用例（notion-app-panel.schema.json から）:
  * ```json
  * "preview_template": "### {{t:hitl.create_page_heading}}\n\n**{{t:hitl.title}}**: {{page_title}}\n**{{t:hitl.parent_db}}**: {{page_parent_db}}"
  * ```

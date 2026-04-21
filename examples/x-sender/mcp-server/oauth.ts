@@ -1,14 +1,14 @@
 /**
  * X Sender — OAuth 2.0 PKCE flow (stub)
  *
- * This module manages the OAuth 2.0 PKCE flow for X API authentication.
+ * This app manages the OAuth 2.0 PKCE flow for X API authentication.
  * In Phase 0 the Keychain read/write is stubbed with TODO comments;
  * replace each TODO section with the actual platform Keychain API when
  * integrating with AKARI Shell's Permission API.
  *
  * Flow (spec §7.1):
  *   1. Shell triggers Permission API → user approves
- *   2. This module generates PKCE code_verifier + code_challenge
+ *   2. This app generates PKCE code_verifier + code_challenge
  *   3. Browser opens X OAuth 2.0 authorization URL
  *   4. Callback receives authorization_code → exchanges for tokens
  *   5. Tokens saved to Keychain (service: "com.akari.example.x-sender")
@@ -36,7 +36,7 @@ const KEYCHAIN_ACCOUNT_ACCESS_TOKEN = "access_token";
 const KEYCHAIN_ACCOUNT_REFRESH_TOKEN = "refresh_token";
 const KEYCHAIN_ACCOUNT_TOKEN_EXPIRY = "token_expiry";
 
-// OAuth 2.0 scopes required by the MCP tools in this module
+// OAuth 2.0 scopes required by the MCP tools in this app
 const OAUTH_SCOPES = [
   "tweet.read",
   "tweet.write",

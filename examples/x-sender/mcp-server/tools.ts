@@ -13,7 +13,7 @@
  *
  * Conventions:
  *   - dry_run: true → log intent, skip all external API calls, return mock result
- *   - All amp.record() calls MUST include goal_ref (AKARI Module SDK §6.6)
+ *   - All amp.record() calls MUST include goal_ref (AKARI App SDK §6.6)
  *   - No local DB: all persistence goes through Pool / AMP (@akari-os/sdk)
  *   - Offline: x.post / x.schedule will fail when network is unavailable;
  *              callers should catch and suggest x.draft_save as fallback

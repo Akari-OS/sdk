@@ -1,6 +1,6 @@
 {
   "$schema": "akari://panel-schema/v0",
-  "title": "{{t:module.title}}",
+  "title": "{{t:app.title}}",
   "layout": "tabs",
 
   "tabs": [
@@ -524,7 +524,7 @@
 
   "locales": {
     "ja": {
-      "module.title": "Notion",
+      "app.title": "Notion",
       "tab.db_query": "DB クエリ",
       "tab.page_editor": "ページ編集",
       "tab.pool_export": "Pool → Notion",
@@ -634,7 +634,7 @@
       "toast.import_error": "取り込みに失敗しました"
     },
     "en": {
-      "module.title": "Notion",
+      "app.title": "Notion",
       "tab.db_query": "DB Query",
       "tab.page_editor": "Page Editor",
       "tab.pool_export": "Pool → Notion",

@@ -1,8 +1,8 @@
 /**
  * @file ui.ts
- * Type definitions for the AKARI Module SDK — UI API (Shell API).
+ * Type definitions for the AKARI App SDK — UI API (Shell API).
  *
- * Modules must NOT create their own windows or DOM nodes outside the Shell's
+ * Apps must NOT create their own windows or DOM nodes outside the Shell's
  * managed surfaces. All UI is presented through Panel, Dialog, Toast,
  * Notification, or HITL Preview surfaces exposed by this API.
  *
@@ -32,7 +32,7 @@ export type PanelSlot = "toolPalette" | "editor" | "inspector" | "chat"
 export interface PanelMountOptions {
   /**
    * Globally unique panel ID.
-   * Recommended format: `"<module-id>.<slot-name>"`.
+   * Recommended format: `"<app-id>.<slot-name>"`.
    * @example "com.akari.writer.inspector"
    */
   id: string
@@ -337,18 +337,18 @@ export interface WorkspaceContext {
   work: {
     id: string
     title: string
-    moduleType: "writer" | "video" | "chat" | string
+    appType: "writer" | "video" | "chat" | string
     status: "draft" | "published" | "archived"
   } | null
 
   /** ID of the panel that currently has focus, or `null`. */
   activePanelId: string | null
 
-  /** ID of the currently active Module. */
-  activeModuleId: string
+  /** ID of the currently active App. */
+  activeAppId: string
 
   /**
-   * Active platform tab key (e.g. `"x"`, `"bluesky"`) used by modules
+   * Active platform tab key (e.g. `"x"`, `"bluesky"`) used by apps
    * like Writer that support multiple output platforms.
    */
   activePlatform: string | null
@@ -360,7 +360,7 @@ export interface WorkspaceContext {
 
 /**
  * The `shell` object exported from `@akari-os/sdk`.
- * Provides all Shell UI surfaces available to Module code.
+ * Provides all Shell UI surfaces available to App code.
  */
 export interface ShellAPI {
   // -- Panel mounting --
@@ -424,7 +424,7 @@ export interface ShellAPI {
     push(options: NotificationOptions): string
     /** Dismiss a specific notification. */
     dismiss(id: string): void
-    /** Dismiss all notifications for this module. */
+    /** Dismiss all notifications for this app. */
     dismissAll(): void
   }
 

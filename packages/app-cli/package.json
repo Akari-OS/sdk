@@ -1,0 +1,61 @@
+{
+  "name": "@akari-os/app-cli",
+  "version": "0.1.0",
+  "description": "CLI for scaffolding and developing AKARI OS apps — spec AKARI-HUB-024",
+  "license": "MIT",
+  "private": false,
+  "bin": {
+    "akari-app-cli": "./dist/cli.js",
+    "akari": "./dist/cli.js"
+  },
+  "main": "./dist/cli.js",
+  "files": [
+    "dist",
+    "src/templates"
+  ],
+  "scripts": {
+    "build": "tsup src/cli.ts --format cjs --target node18 --outDir dist --clean",
+    "dev": "tsup src/cli.ts --format cjs --target node18 --outDir dist --watch",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@iarna/toml": "^2.2.5",
+    "ajv": "^8.17.1",
+    "chalk": "^5.3.0",
+    "commander": "^12.0.0",
+    "fs-extra": "^11.2.0",
+    "handlebars": "^4.7.8",
+    "inquirer": "^9.2.0",
+    "json-logic-js": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/handlebars": "^4.1.0",
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "akari",
+    "akari-os",
+    "app",
+    "cli",
+    "scaffold"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Akari-OS/sdk",
+    "directory": "packages/app-cli"
+  },
+  "bugs": {
+    "url": "https://github.com/Akari-OS/sdk/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

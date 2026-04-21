@@ -1,8 +1,8 @@
 /**
  * @file inter-app.ts
- * Type definitions for the AKARI Module SDK — Inter-App API.
+ * Type definitions for the AKARI App SDK — Inter-App API.
  *
- * Modules communicate exclusively by passing **Pool / AMP IDs**.
+ * Apps communicate exclusively by passing **Pool / AMP IDs**.
  * Raw bytes and object references must never be included in a handoff payload.
  * Every handoff is automatically recorded in AMP for full traceability.
  *
@@ -18,7 +18,7 @@
  * Every value must be a Pool `ContentHash`, an AMP record ID, or an array
  * of the same. Raw bytes or plain objects are prohibited.
  *
- * The index signature allows Module-specific fields as long as they are IDs.
+ * The index signature allows App-specific fields as long as they are IDs.
  */
 export interface HandoffRefs {
   /** Generic Pool item IDs. */
@@ -33,16 +33,16 @@ export interface HandoffRefs {
   /** A specific AMP record ID. */
   ampRecordId?: string
 
-  /** AMP `goal_ref` to propagate to the receiving module. */
+  /** AMP `goal_ref` to propagate to the receiving app. */
   goalRef?: string
 
-  /** Module-specific ID fields. */
+  /** App-specific ID fields. */
   [key: string]: string | string[] | undefined
 }
 
 /**
- * Optional hints to help the receiving Module interpret the handoff.
- * The receiving module is free to ignore any hint without breaking the flow.
+ * Optional hints to help the receiving App interpret the handoff.
+ * The receiving app is free to ignore any hint without breaking the flow.
  */
 export interface HandoffHints {
   /**
@@ -52,7 +52,7 @@ export interface HandoffHints {
   intent?: string
 
   /**
-   * Target integration or platform within the receiving module.
+   * Target integration or platform within the receiving app.
    * @example "google-sheets", "notion", "powerpoint"
    */
   targetOutlet?: string
@@ -63,16 +63,16 @@ export interface HandoffHints {
    */
   format?: string
 
-  /** Additional module-specific hints. */
+  /** Additional app-specific hints. */
   [key: string]: unknown
 }
 
 /**
- * Payload sent via `module.handoff()`.
+ * Payload sent via `app.handoff()`.
  *
  * Standard `kind` values (inter-operability baseline):
- * - `"publish-draft"` — Writer → Publishing module
- * - `"export-to-doc"` — Writer / Research → Documents module
+ * - `"publish-draft"` — Writer → Publishing app
+ * - `"export-to-doc"` — Writer / Research → Documents app
  * - `"insert-to-slide"` — Video / Writer → Documents (PPT / Slides)
  * - `"append-to-sheet"` — Research / Analytics → Documents (Sheets / Excel)
  * - `"asset-ready"` — Asset Generation → Pool Browser / Writer
@@ -100,7 +100,7 @@ export interface HandoffPayload {
 // ---------------------------------------------------------------------------
 
 /**
- * Result returned by `module.handoff()` on the sending side.
+ * Result returned by `app.handoff()` on the sending side.
  */
 export interface HandoffResult {
   /**
@@ -108,7 +108,7 @@ export interface HandoffResult {
    * - `"accepted"` — receiver processed the payload successfully
    * - `"rejected"` — receiver returned `accept: false` (e.g. unsupported `kind`)
    * - `"pending"` — receiver queued the job and will complete asynchronously
-   * - `"not-installed"` — target module is not installed on this device
+   * - `"not-installed"` — target app is not installed on this device
    */
   status: "accepted" | "rejected" | "pending" | "not-installed"
 
@@ -117,7 +117,7 @@ export interface HandoffResult {
 
   /**
    * Human-readable explanation, present when `status` is `"rejected"` or
-   * `"not-installed"`.
+   * `"not-installed"` (app not installed on this device).
    */
   reason?: string
 }
@@ -127,13 +127,13 @@ export interface HandoffResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Object delivered to the `HandoffHandler` on the receiving module.
+ * Object delivered to the `HandoffHandler` on the receiving app.
  */
 export interface IncomingHandoff {
   /** AMP record ID of this handoff event. */
   handoffId: string
 
-  /** Module ID of the sender. */
+  /** App ID of the sender. */
   from: string
 
   /** Payload as sent by the sender. */
@@ -144,11 +144,11 @@ export interface IncomingHandoff {
 }
 
 /**
- * Response the receiving module must return from its `HandoffHandler`.
+ * Response the receiving app must return from its `HandoffHandler`.
  */
 export interface HandoffResponse {
   /**
-   * Whether the module accepted the handoff.
+   * Whether the app accepted the handoff.
    * Return `false` (with a `reason`) for unsupported `kind` values or
    * when the referenced resources cannot be found.
    */
@@ -159,28 +159,28 @@ export interface HandoffResponse {
 }
 
 /**
- * Handler function registered via `module.onHandoff()`.
+ * Handler function registered via `app.onHandoff()`.
  */
 export type HandoffHandler = (
   handoff: IncomingHandoff
 ) => Promise<HandoffResponse>
 
 // ---------------------------------------------------------------------------
-// ModuleAPI interface
+// AppAPI interface
 // ---------------------------------------------------------------------------
 
 /**
- * The `module` object exported from `@akari-os/sdk`.
+ * The `app` object exported from `@akari-os/sdk`.
  * Provides the Inter-App handoff API.
  */
-export interface ModuleAPI {
+export interface AppAPI {
   /**
-   * Send a handoff to another module.
+   * Send a handoff to another app.
    *
    * `targetId` accepts:
-   * - A specific module ID: `"com.akari.x-sender"`
+   * - A specific app ID: `"com.akari.x-sender"`
    * - A category selector: `"category:publishing"` — Core resolves the
-   *   best-matching installed module, or prompts the user if there are
+   *   best-matching installed app, or prompts the user if there are
    *   multiple candidates.
    *
    * All handoffs are automatically recorded in AMP.
@@ -191,7 +191,7 @@ export interface ModuleAPI {
 
   /**
    * Register a handler for incoming handoffs.
-   * Only one handler per module is supported; calling this a second time
+   * Only one handler per app is supported; calling this a second time
    * replaces the previous handler.
    */
   onHandoff(handler: HandoffHandler): void

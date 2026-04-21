@@ -6,14 +6,14 @@ status: draft
 created: 2026-04-19
 updated: 2026-04-19
 related:
-  - HUB-024  # Module SDK — Skill API の契約元
+  - HUB-024  # App SDK — Skill API の契約元
 ---
 
 # Skill API リファレンス
 
-> **一言**: Skill は Module が他 Module に公開する「型付き能力の単位」。
+> **一言**: Skill は App が他 App に公開する「型付き能力の単位」。
 > CAA（Costume-Agent Architecture）が Skill をコスチュームの装備品として使うのと並び、
-> Module 間の関数呼び出しプロトコルとしても機能する。
+> App 間の関数呼び出しプロトコルとしても機能する。
 
 ---
 
@@ -24,7 +24,7 @@ related:
 3. [`skill.register(skill)`](#3-skillregisterskill)
 4. [`skill.invoke(id, input)`](#4-skillinvokeid-input)
 5. [Skill vs Workflow vs Template — 違いと使い分け](#5-skill-vs-workflow-vs-template)
-6. [着ぐるみ Skill vs Module Skill](#6-着ぐるみ-skill-vs-module-skill)
+6. [着ぐるみ Skill vs App Skill](#6-着ぐるみ-skill-vs-app-skill)
 7. [Feedback Learning Loop 連携](#7-feedback-learning-loop-連携)
 8. [パラメータ / 型検証](#8-パラメータ--型検証)
 9. [Skill の永続化](#9-skill-の永続化)
@@ -38,15 +38,15 @@ related:
 
 ### Skill とは
 
-**Skill** は Module が外部に公開する「再利用可能な能力の単位」。
+**Skill** は App が外部に公開する「再利用可能な能力の単位」。
 `@akari/sdk` の `skill` オブジェクトを通じて登録・呼び出しを行う。
 
 CAA（Costume-Agent Architecture）の文脈では、Skill は**コスチューム（着ぐるみ）が装備できるプロンプト片**として生まれた概念（Skill / Workflow / Template framework (internal spec)）。
-Module SDK（HUB-024）においては、それを拡張し**型付き関数**として Module 間の契約に昇格させた形が「Module Skill」。
+App SDK（HUB-024）においては、それを拡張し**型付き関数**として App 間の契約に昇格させた形が「App Skill」。
 
 ```
-CAA 着ぐるみ Skill         Module Skill
-（コスチュームの装備品）     （Module 間の型付き関数）
+CAA 着ぐるみ Skill         App Skill
+（コスチュームの装備品）     （App 間の型付き関数）
    skills/*.md                skills/*.ts
       ↓                           ↓
   系譜・思想を継承           実装の器として継承
@@ -58,8 +58,8 @@ CAA 着ぐるみ Skill         Module Skill
 
 | なくした場合の問題 | Skill があると |
 |---|---|
-| Module が互いに直接 API を叩く → 密結合、破壊的変更が連鎖 | 型 + バージョン契約で疎結合 |
-| 同じ能力を各 Module が重複実装 | 1 箇所に置いて全 Module が再利用 |
+| App が互いに直接 API を叩く → 密結合、破壊的変更が連鎖 | 型 + バージョン契約で疎結合 |
+| 同じ能力を各 App が重複実装 | 1 箇所に置いて全 App が再利用 |
 | 能力の組み合わせ（Workflow）が書けない | `type: skill` Step で Workflow に組み込める |
 | フィードバックが能力に還元されない | Feedback Learning Loop (internal spec) が feedback を Skill に逆流させ自動進化 |
 
@@ -69,20 +69,20 @@ CAA 着ぐるみ Skill         Module Skill
 |---|---|
 | Memory Layer（記憶層・永続） | Skill Manifest ファイル（`skills/*.ts`、`skills/*.md`）|
 | Agent Runtime（思考層・揮発） | 着ぐるみ Skill（`skills/*.md`）の system prompt 注入 |
-| Module SDK（道具層） | `skill.register()` / `skill.invoke()` の実行 |
+| App SDK（道具層） | `skill.register()` / `skill.invoke()` の実行 |
 | Protocol Suite（MCP） | Workflow の `type: skill` Step 経由での呼び出し |
 
 ---
 
 ## 2. Skill Manifest 形式
 
-Module が公開する Skill は `skills/` ディレクトリ配下の TypeScript ファイルとして実装し、
+App が公開する Skill は `skills/` ディレクトリ配下の TypeScript ファイルとして実装し、
 `akari.toml` の `[skills.exposed]` に登録する。
 
 ### ディレクトリ構造
 
 ```
-my-module/
+my-app/
 ├── akari.toml
 └── skills/
     ├── generate-draft.ts       ← 公開 Skill
@@ -94,12 +94,12 @@ my-module/
 
 ```toml
 [skills.exposed]
-# キー = Skill の完全修飾 ID（module-id.skill-name の形式）
+# キー = Skill の完全修飾 ID（app-id.skill-name の形式）
 "writer.generate_draft"   = "skills/generate-draft.ts"
 "writer.style_rewrite"    = "skills/style-rewrite.ts"
 
 [skills.imported]
-# 本 Module が利用する他 Module の Skill（バージョン範囲を宣言）
+# 本 App が利用する他 App の Skill（バージョン範囲を宣言）
 "pool.search"             = ">=0.1"
 "m2c.extract_features"   = ">=0.1"
 ```
@@ -153,7 +153,7 @@ export default skill
 ### 着ぐるみ Skill ファイルの形式（`skills/*.md`）
 
 着ぐるみ Skill はコスチュームに注入されるシステムプロンプト断片。
-使い分けは [§6](#6-着ぐるみ-skill-vs-module-skill) を参照。
+使い分けは [§6](#6-着ぐるみ-skill-vs-app-skill) を参照。
 
 ```markdown
 ---
@@ -170,7 +170,7 @@ applicable-costumes: [partner, writer]
 
 ## 3. `skill.register(skill)`
 
-Module の起動時（`onMount`）に Skill を Core に登録する。登録後は他 Module から呼び出し可能になる。
+App の起動時（`onMount`）に Skill を Core に登録する。登録後は他 App から呼び出し可能になる。
 
 ```typescript
 import { skill } from "@akari/sdk"
@@ -183,7 +183,7 @@ export function onMount() {
 ```
 
 **制約**: `id` が `akari.toml` の `[skills.exposed]` に未宣言の場合は Core が拒否する。
-Module アンマウント時に登録は自動解除される。
+App アンマウント時に登録は自動解除される。
 
 ### エラーコード（register）
 
@@ -197,7 +197,7 @@ Module アンマウント時に登録は自動解除される。
 
 ## 4. `skill.invoke(id, input)`
 
-他 Module が登録した Skill を呼び出す関数。`skill.call()` はエイリアス。
+他 App が登録した Skill を呼び出す関数。`skill.call()` はエイリアス。
 
 ### シグネチャ
 
@@ -232,7 +232,7 @@ const adapted = await skill.call("publishing.platform_adapt", {
 
 - `[skills.imported]` に未宣言の Skill は呼べない（`SKILL_UNDECLARED_IMPORT`）
 - バージョン範囲外なら `SKILL_VERSION_MISMATCH`
-- Skill は別 Module プロセスで実行される（同期的 state 共有不可）
+- Skill は別 App プロセスで実行される（同期的 state 共有不可）
 - 結果は AMP に自動記録しない（`amp.record()` を明示的に呼ぶこと）
 
 ### エラーコード（invoke）
@@ -255,20 +255,20 @@ Skill / Workflow / Template framework (internal spec) が定義する「3 段階
 | | Skill | Workflow | Template |
 |---|---|---|---|
 | **粒度** | 1 つの能力 | 複数 Skill / 着ぐるみの手順 | Workflow + 初期素材 + Skill セット |
-| **形式** | `.ts`（Module Skill）/ `.md`（着ぐるみ Skill） | YAML | YAML + ファイル群 |
-| **呼び出し元** | 他 Module / Workflow Step | ユーザー / 着ぐるみ / 別 Workflow | ユーザー（テンプレ起動） |
+| **形式** | `.ts`（App Skill）/ `.md`（着ぐるみ Skill） | YAML | YAML + ファイル群 |
+| **呼び出し元** | 他 App / Workflow Step | ユーザー / 着ぐるみ / 別 Workflow | ユーザー（テンプレ起動） |
 | **冪等性** | 推奨（同入力→同出力） | 非冪等（副作用あり） | 非冪等（workspace 生成） |
 | **永続先** | Memory Layer（Skill 定義ファイル） | Memory Layer（YAML） | Memory Layer（YAML + works/） |
 
 ### いつ Skill を使うか
 
 - 単一の能力を**型付き・再利用可能な形で公開**したい
-- 他 Module から呼び出されることを想定している
+- 他 App から呼び出されることを想定している
 - Workflow の `type: skill` Step として組み込む予定がある
 
 ### いつ Workflow を使うか
 
-- 複数の Skill / 着ぐるみ / MCP Module を**順序・並列・HITL 付きで組み合わせる**
+- 複数の Skill / 着ぐるみ / MCP App を**順序・並列・HITL 付きで組み合わせる**
 - 承認ポイント（HITL）が途中に入る
 - `type: skill` Step で Skill を呼び出す（Skill と Workflow は合成関係）
 
@@ -297,17 +297,17 @@ steps:
 
 ---
 
-## 6. 着ぐるみ Skill vs Module Skill
+## 6. 着ぐるみ Skill vs App Skill
 
-HUB-018 が定義する「着ぐるみ Skill」と HUB-024 が定義する「Module Skill」は、同じ「Skill」という名前でも**レイヤーが異なる**。
+HUB-018 が定義する「着ぐるみ Skill」と HUB-024 が定義する「App Skill」は、同じ「Skill」という名前でも**レイヤーが異なる**。
 
 ### 比較表
 
-| 観点 | 着ぐるみ Skill（Skill / Workflow / Template framework） | Module Skill（HUB-024） |
+| 観点 | 着ぐるみ Skill（Skill / Workflow / Template framework） | App Skill（HUB-024） |
 |---|---|---|
 | **ファイル形式** | `skills/*.md`（Markdown frontmatter） | `skills/*.ts`（TypeScript） |
-| **役割** | 着ぐるみ（CAA 思考層）に注入される system prompt の断片 | Module 間の型付き関数呼び出し |
-| **呼び出し元** | Workflow Runner（着ぐるみを装備する際） | 他 Module の `skill.invoke()` / Workflow の `type: skill` Step |
+| **役割** | 着ぐるみ（CAA 思考層）に注入される system prompt の断片 | App 間の型付き関数呼び出し |
+| **呼び出し元** | Workflow Runner（着ぐるみを装備する際） | 他 App の `skill.invoke()` / Workflow の `type: skill` Step |
 | **入出力** | 型なし（プロンプト注入） | Zod / JSON Schema で型定義 |
 | **使い分け** | AI の思考パターンを変えたい時 | 具体的なデータ変換・ツール処理を公開したい時 |
 | **CAA 系譜** | 直系（コスチューム = 装備品の思想） | 派生（型付き関数として具象化） |
@@ -318,14 +318,14 @@ HUB-018 が定義する「着ぐるみ Skill」と HUB-024 が定義する「Mod
 呼び出し元は Workflow Runner（`type: costume` Step）であり、型付き戻り値はない。
 （形式は §2 を参照）
 
-### Module Skill（Tool 寄り）
+### App Skill（Tool 寄り）
 
-具体的な「データの入出力を持つ関数」。他 Module が `skill.invoke()` で呼び出す。
+具体的な「データの入出力を持つ関数」。他 App が `skill.invoke()` で呼び出す。
 （形式は §2、登録は §3、呼び出しは §4 を参照）
 
 ### 両者の連携
 
-着ぐるみが着ぐるみ Skill を装備した上で、Module Skill を呼び出すこともある：
+着ぐるみが着ぐるみ Skill を装備した上で、App Skill を呼び出すこともある：
 
 ```
 Workflow
@@ -370,7 +370,7 @@ skills/revision/tone-adjustment.md  (v0.1)
 skills/revision/tone-adjustment.md  (v0.2)
 ```
 
-Module Skill（`.ts`）の場合も同様に、`handler` の実装変更を PR 形式で提案する。
+App Skill（`.ts`）の場合も同様に、`handler` の実装変更を PR 形式で提案する。
 **必ず人間が承認してから main にマージ**する（自動マージは行わない）。
 
 ### `!from-memory` との統合
@@ -534,9 +534,9 @@ export interface SkillMemoryRecord {
 
 ## 11. 使用例
 
-### 例 1: Writer Module の "style-consistent-rewrite" Skill
+### 例 1: Writer App の "style-consistent-rewrite" Skill
 
-Writer Module が公開する、スタイル一貫性を維持しながら書き直す Skill。
+Writer App が公開する、スタイル一貫性を維持しながら書き直す Skill。
 
 ```typescript
 // skills/style-consistent-rewrite.ts
@@ -584,7 +584,7 @@ const skill: SkillDef<typeof InputSchema, typeof OutputSchema> = {
 export default skill
 ```
 
-呼び出し側（例: Publishing Module）：
+呼び出し側（例: Publishing App）：
 
 ```typescript
 import { skill } from "@akari/sdk"
@@ -599,9 +599,9 @@ const rewritten = await skill.invoke<{ rewritten: string; changes: string[] }>(
 
 ---
 
-### 例 2: Publishing Module の "platform-adapt" Skill
+### 例 2: Publishing App の "platform-adapt" Skill
 
-Publishing Module が公開する、コンテンツを各 SNS プラットフォームの文字数制限に合わせて変換する Skill。
+Publishing App が公開する、コンテンツを各 SNS プラットフォームの文字数制限に合わせて変換する Skill。
 
 ```typescript
 // skills/platform-adapt.ts
@@ -658,8 +658,8 @@ steps:
     parallel: true
 
   - id: post_x
-    type: mcp-module
-    module: com.akari.x-sender
+    type: mcp-app
+    app: com.akari.x-sender
     approval: required    # HITL 必須
     after: [adapt_x]
     inputs:
@@ -691,6 +691,6 @@ handler の先頭に置く。詳細は [Permission API リファレンス](./per
 ---
 
 > **関連 spec**:
-> - [AKARI-HUB-024](https://github.com/Akari-OS/.github/blob/main/VISION.md) — Module SDK（Skill API §5.7 の正典）
+> - [AKARI-HUB-024](https://github.com/Akari-OS/.github/blob/main/VISION.md) — App SDK（Skill API §5.7 の正典）
 > - Skill / Workflow / Template framework (internal spec) — 着ぐるみ Skill のフレームワーク
 > - Feedback Learning Loop (internal spec) — Feedback を Skill に還元する自動進化ループ

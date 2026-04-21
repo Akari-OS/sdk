@@ -1,0 +1,53 @@
+/**
+ * {{appName}} — Full Tier App entry point
+ * App ID: {{appId}}
+ * Spec: AKARI-HUB-024 §6.2 (Full Tier)
+ *
+ * This file runs inside the AKARI App sandbox.
+ * Register panels and skills here; all state must go through Memory Layer (Pool / AMP).
+ */
+
+import { shell, skill } from "@akari/sdk";
+import { MainPanel } from "./panel.js";
+
+// ---------------------------------------------------------------------------
+// Panel registration — mounts this app's UI in the Shell (HUB-024 §6.6 UI API)
+// ---------------------------------------------------------------------------
+
+shell.mountPanel({
+  id: "{{appSlug}}.main",
+  title: "{{appName}}",
+  icon: "layers",          // Shell icon name; see Shell Icon Registry
+  component: MainPanel,
+});
+
+// ---------------------------------------------------------------------------
+// Shell lifecycle hooks
+// ---------------------------------------------------------------------------
+
+shell.onFocus(() => {
+  // Called when this panel becomes the active panel
+});
+
+shell.onSelection((sel) => {
+  // Called when the user changes their selection in the Shell workspace
+  // Use sel.poolItemIds / sel.text to react to context changes
+  void sel;
+});
+
+// ---------------------------------------------------------------------------
+// Skill registration (optional) — expose functions to other apps
+// Uncomment and implement if this app provides skills (HUB-024 §6.6 Skill API)
+// ---------------------------------------------------------------------------
+
+// import { ExampleInputSchema, ExampleOutputSchema } from "./skills/example_skill.js";
+//
+// skill.register({
+//   id: "{{appSlug}}.example_skill",
+//   input: ExampleInputSchema,
+//   output: ExampleOutputSchema,
+//   handler: async (input) => {
+//     return { result: `processed: ${input.value}` };
+//   },
+// });
+void skill; // remove when skills are registered

@@ -7,7 +7,7 @@
  * Read-only display widget — no onChange.
  * Value is a markdown string (can be i18n template resolved first).
  *
- * Used in Notion module (export_preview field): bound to "state.export_preview_md"
+ * Used in Notion app (export_preview field): bound to "state.export_preview_md"
  *
  * Shell-side import note:
  *   The Shell may provide a shared markdown renderer. Options:

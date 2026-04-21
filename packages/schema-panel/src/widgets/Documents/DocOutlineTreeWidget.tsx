@@ -5,7 +5,7 @@
  *
  * Panel Schema v0 Documents category widget.
  * Displays a hierarchical outline derived from document headings (H1–H6).
- * Used in Notion module (page_outline field): source = "mcp.notion.get_page_blocks"
+ * Used in Notion app (page_outline field): source = "mcp.notion.get_page_blocks"
  *
  * Interaction:
  *  - Read-only tree view by default

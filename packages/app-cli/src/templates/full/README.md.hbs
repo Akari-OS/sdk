@@ -1,0 +1,64 @@
+# {{appName}}
+
+> AKARI Full Tier App — `{{appId}}`
+
+## Overview
+
+{{appName}} is a [Full Tier](https://github.com/akari-os/akari-os/docs/sdd/specs/spec-akari-app-sdk.md) AKARI app.
+Full Tier apps provide a custom React panel and can define agents and expose skills.
+
+## Requirements
+
+- Node.js >= 18
+- AKARI OS with SDK `{{sdkRange}}`
+
+## Development
+
+```bash
+npm install
+akari dev          # start dev server and mount into local Shell
+```
+
+## Certification
+
+```bash
+akari app certify   # run Automated Lint + Contract Tests (HUB-024 §6.8)
+```
+
+## Distribution
+
+```bash
+# Self-distribution (Automated Lint + Contract Test only)
+npm publish
+
+# AKARI Marketplace (requires Manual Review)
+akari app publish
+```
+
+## Structure
+
+```
+{{appSlug}}/
+├── akari.toml               App manifest (AKARI-HUB-024 §6.5)
+├── src/
+│   ├── index.ts             Entry: panel registration + skill registration
+│   └── panel.tsx            Main React panel component
+├── agents/
+│   └── assistant.md         App agent spec (ADR-011)
+├── skills/                  Exported skill implementations
+└── tests/
+    └── contract/            App Contract Tests (HUB-024 §6.8)
+```
+
+## Guidelines
+
+- All state must go through Pool / AMP — no local DB (HUB-024 §6.7 rule 2)
+- All AMP records must include `goal_ref` (HUB-024 §6.6 Memory API)
+- Do not create independent windows — use Shell panel API only (rule 3)
+- Declare only necessary permissions in `akari.toml` (rule 5)
+
+## References
+
+- [AKARI App SDK spec (HUB-024)](https://github.com/akari-os/akari-os)
+- [Panel Schema spec (HUB-025)](https://github.com/akari-os/akari-os)
+- [ADR-011: App Agent Naming Convention](https://github.com/akari-os/akari-os)

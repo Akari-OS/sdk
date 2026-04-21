@@ -1,8 +1,8 @@
-# Notion — AKARI MCP-Declarative Documents Module 参考実装
+# Notion — AKARI MCP-Declarative Documents App 参考実装
 
 > **Category**: Documents  
 > **Tier**: MCP-Declarative  
-> **Module ID**: `com.akari.example.notion`  
+> **App ID**: `com.akari.example.notion`  
 > **Related guide**: [`../../docs/examples/notion.md`](../../docs/examples/notion.md)
 
 ---
@@ -11,7 +11,7 @@
 
 - How to use an **official MCP server** (`@notionhq/mcp`) via `server = "npm:@notionhq/mcp"` in `akari.toml` — zero custom server code needed in production
 - How to write a **local MCP server** (`mcp-server/`) when you need custom logic — this example ships both
-- How to build a **4-tab Panel Schema** with `layout: "tabs"` for Documents-category modules
+- How to build a **4-tab Panel Schema** with `layout: "tabs"` for Documents-category apps
 - How to wire `options_source` so select fields auto-populate from MCP tool results
 - How to implement `visible_when` for wizard-style progressive disclosure
 - HITL policies for Documents: `diff` / `text-summary` / `custom-markdown` preview variants
@@ -28,7 +28,7 @@
 - A Notion account with either:
   - An **OAuth App** (Client ID + Secret) — for the full OAuth 2.0 flow
   - A **Personal Integration Token** — simpler, for local testing
-- AKARI Shell (for full module behavior; not required to run the MCP server standalone)
+- AKARI Shell (for full app behavior; not required to run the MCP server standalone)
 
 ---
 
@@ -62,7 +62,7 @@ examples/notion/
 ├── README.md               This file
 ├── package.json            private, @akari-os-examples/notion
 ├── tsconfig.json           extends ../../tsconfig.base.json
-├── akari.toml              Module manifest (MCP-Declarative, category = "documents")
+├── akari.toml              App manifest (MCP-Declarative, category = "documents")
 ├── panel.schema.json       4-tab AKARI Panel Schema v0
 ├── locales/
 │   ├── ja.json             Japanese translations for all {{t:key}} tokens
@@ -144,7 +144,7 @@ already been obtained.
 
 ## Patterns to borrow
 
-This example is designed as a template for other **Documents-category modules**.
+This example is designed as a template for other **Documents-category apps**.
 Here is what to keep and what to change when building Google Docs, Microsoft Word,
 Coda, or similar integrations.
 
@@ -162,7 +162,7 @@ Coda, or similar integrations.
 
 ### Change for a different Documents service
 
-| Item | This example | Your module |
+| Item | This example | Your app |
 |---|---|---|
 | `id` | `com.akari.example.notion` | `com.akari.example.google-docs` |
 | `[mcp].server` | `npm:@notionhq/mcp` | `npm:@google-ai-studio/mcp` or custom |
@@ -178,7 +178,7 @@ Coda, or similar integrations.
 ### Writer → Notion (draft → Notion page)
 
 ```
-module.handoff({
+app.handoff({
   to:      "com.akari.example.notion",
   intent:  "export-to-notion",
   payload: {
@@ -196,7 +196,7 @@ module.handoff({
 ### Research → Notion (results → database rows)
 
 ```
-module.handoff({
+app.handoff({
   to:      "com.akari.example.notion",
   intent:  "save-to-notion-db",
   payload: {
@@ -226,7 +226,7 @@ User selects database in "Notion → Pool" tab
 
 ## TODO — items required for production use
 
-The following stubs must be implemented before this module passes `akari module certify`:
+The following stubs must be implemented before this app passes `akari app certify`:
 
 | ID | File | What to implement |
 |---|---|---|
@@ -235,7 +235,7 @@ The following stubs must be implemented before this module passes `akari module 
 | T-4a | `mcp-server/oauth.ts` | Replace env-var credential lookup with AKARI Keychain API calls |
 | T-4b | `mcp-server/oauth.ts` | Wire `buildAuthorizationUrl` + `exchangeCodeForToken` into AKARI Permission API OAuth flow |
 | T-4c | `mcp-server/index.ts` | On auth failure, trigger `akari.permission.oauth.requestReauth()` instead of `process.exit(1)` |
-| T-5a | — | Run `akari module certify` and fix any Lint / Contract Test failures |
+| T-5a | — | Run `akari app certify` and fix any Lint / Contract Test failures |
 | T-5b | — | Offline test: block `api.notion.com` and verify Pool cache display + `notion-cache` badge |
 | T-5c | — | HITL gate test: verify create/update/delete actions show preview; verify API not called on cancel |
 | T-6a | `mcp-server/tools.ts` | Implement `intent: "export-to-notion"` handoff receive + draft expansion |

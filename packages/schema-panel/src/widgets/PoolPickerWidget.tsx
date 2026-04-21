@@ -4,7 +4,7 @@
  * Widget type: "pool-picker"
  *
  * AKARI-specific widget for selecting items from the Pool Knowledge Store.
- * Used in Notion module (notion-module-panel.schema.json): page_picker, export_pool_items.
+ * Used in Notion app (notion-app-panel.schema.json): page_picker, export_pool_items.
  *
  * Runtime contract:
  *   context.pool.query({ types, q, limit }) → PoolQueryResult[]

@@ -174,7 +174,7 @@ export class BindingResolver {
         break;
 
       case "amp":
-        // TODO: AMP への書き込み実装（AKARI Module SDK §6.2 Memory API）
+        // TODO: AMP への書き込み実装（AKARI App SDK §6.2 Memory API）
         console.warn(`[BindingResolver] AMP write not yet implemented: "${bind}"`);
         break;
 

@@ -1,9 +1,9 @@
 /**
  * @file permission.ts
- * Type definitions for the AKARI Module SDK — Permission API.
+ * Type definitions for the AKARI App SDK — Permission API.
  *
  * The Permission API enforces the Principle of Least Privilege.
- * Modules declare required scopes in `akari.toml [permissions]`.
+ * Apps declare required scopes in `akari.toml [permissions]`.
  * At runtime, `permission.gate()` verifies the declaration and optionally
  * presents a Human-in-the-Loop (HITL) approval dialog to the user.
  *
@@ -27,7 +27,7 @@
  * | `amp:read` | — | Read from AMP |
  * | `amp:write` | — | Write to AMP |
  * | `mcp:<tool>` | `mcp:x.post` | Call a specific MCP tool |
- * | `inter-app:<module-id>` | `inter-app:com.akari.video` | Handoff to a module |
+ * | `inter-app:<app-id>` | `inter-app:com.akari.video` | Handoff to an app |
  * | `network:<domain>` | `network:api.x.com` | HTTP to a domain |
  * | `oauth:<domain>` | `oauth:x.com` | OAuth flow for a service |
  * | `filesystem:read:<key>` | `filesystem:read:user-docs` | Read a path key |
@@ -119,11 +119,11 @@ export interface PermissionStatus {
 
 /**
  * Shape of the AMP record written automatically by the Core whenever
- * `permission.gate()` is called. Modules do not write this themselves.
+ * `permission.gate()` is called. Apps do not write this themselves.
  */
 export interface PermissionAuditRecord {
   kind: "permission-grant" | "permission-deny"
-  module_id: string
+  app_id: string
   scope: PermissionScope
   reason: string
   result: "granted" | "denied"

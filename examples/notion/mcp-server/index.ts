@@ -1,5 +1,5 @@
 /**
- * Notion MCP Server — AKARI Module SDK example
+ * Notion MCP Server — AKARI App SDK example
  *
  * Starts a local MCP server that exposes 10 Notion tools.
  * Communicates over stdio (default MCP transport).

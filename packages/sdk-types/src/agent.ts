@@ -1,8 +1,8 @@
 /**
  * @file agent.ts
- * Type definitions for the AKARI Module SDK — Agent API.
+ * Type definitions for the AKARI App SDK — Agent API.
  *
- * Module developers use `agent.register()`, `agent.invoke()`, and
+ * App developers use `agent.register()`, `agent.invoke()`, and
  * `agent.spawn()` to interact with the Agent Runtime inside AKARI Core.
  * All agents are ephemeral: they start on demand and vanish after responding.
  * State must always be persisted via the Memory API (Pool / AMP).
@@ -18,16 +18,16 @@ import type { AkariError, AkariErrorCode } from "./errors.js"
 // ---------------------------------------------------------------------------
 
 /**
- * Module-supplied agent ID.
- * Must follow the pattern `<module-short-id>_<role>` in snake_case (ADR-011).
+ * App-supplied agent ID.
+ * Must follow the pattern `<app-short-id>_<role>` in snake_case (ADR-011).
  *
  * @example "writer_editor", "pdf_reader_extractor"
  */
 export type AgentId = string
 
 /**
- * Core reference defaults — the seven built-in agents every Module can call.
- * These IDs are reserved and cannot be used as Module agent IDs.
+ * Core reference defaults — the seven built-in agents every App can call.
+ * These IDs are reserved and cannot be used as App agent IDs.
  */
 export type ReferenceDefaultId =
   | "partner"
@@ -42,8 +42,8 @@ export type ReferenceDefaultId =
 // ---------------------------------------------------------------------------
 
 /**
- * Specification passed to `agent.register()` when registering a
- * Module-supplied agent with the Agent Runtime.
+ * Specification passed to `agent.register()` when registering an
+ * App-supplied agent with the Agent Runtime.
  */
 export interface AgentSpec {
   /**
@@ -53,7 +53,7 @@ export interface AgentSpec {
   persona: string
 
   /**
-   * Path to the agent spec file inside `agents/` (relative to module root).
+   * Path to the agent spec file inside `agents/` (relative to app root).
    * Must be a `*.md` file following the Claude Code agent format.
    */
   specFile: string
@@ -249,11 +249,11 @@ export interface HandoffPayload {
   /** Description of what the user wants to do next. */
   userIntent?: string
 
-  /** Module ID of the sending module. */
-  fromModule: string
+  /** App ID of the sending app. */
+  fromApp: string
 
-  /** Module ID of the receiving module. */
-  toModule: string
+  /** App ID of the receiving app. */
+  toApp: string
 }
 
 /**
@@ -263,7 +263,7 @@ export interface HandoffResult {
   /** Unique ID of the created handoff record. */
   handoffId: string
 
-  /** Auto-generated note injected into the next module's system prompt. */
+  /** Auto-generated note injected into the next app's system prompt. */
   handoffNote: HandoffNote
 
   /** AMP record ID where the handoff was logged. */
@@ -271,12 +271,12 @@ export interface HandoffResult {
 }
 
 /**
- * Auto-generated summary injected into the receiving module's system prompt
- * so the agent understands the context from the previous module.
+ * Auto-generated summary injected into the receiving app's system prompt
+ * so the agent understands the context from the previous app.
  */
 export interface HandoffNote {
-  /** Module ID that initiated the handoff. */
-  fromModule: string
+  /** App ID that initiated the handoff. */
+  fromApp: string
 
   /** LLM-generated summary of the conversation so far. */
   summary: string
@@ -297,12 +297,12 @@ export interface HandoffNote {
 
 /**
  * Options for `agent.switchPersona()`.
- * Used to tailor the Partner's system prompt when a Module mounts.
+ * Used to tailor the Partner's system prompt when an App mounts.
  */
 export interface PersonaSwitchOptions {
   /**
    * Additional text appended to the Partner's system prompt
-   * to establish module-specific expertise.
+   * to establish app-specific expertise.
    */
   systemPromptSuffix?: string
 

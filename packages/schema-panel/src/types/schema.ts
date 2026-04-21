@@ -79,7 +79,7 @@ export type WidgetType =
   // AKARI 固有
   | "pool-picker"
   | "amp-query"
-  | "module-picker"
+  | "app-picker"
   | "agent-picker"
   // Documents (Office 系)
   | "rich-text-editor"
@@ -269,7 +269,7 @@ export type ActionKind = "primary" | "secondary" | "destructive" | "ghost";
 
 export type ActionType =
   | "mcp.invoke" // MCP ツール呼び出し
-  | "handoff"    // 他 Module への handoff
+  | "handoff"    // 他 App への handoff
   | "navigate"   // Panel 内遷移
   | "submit";    // Form 送信
 
@@ -279,7 +279,7 @@ export interface McpCall {
 }
 
 export interface HandoffCall {
-  to: string;         // 遷移先 Module ID（例: "com.akari.video"）
+  to: string;         // 遷移先 App ID（例: "com.akari.video"）
   intent: string;     // 意図文字列
   payload: Record<string, FieldRef | unknown>;
 }
@@ -309,7 +309,7 @@ export interface Action {
   /** MCP ツール呼び出し定義（type: "mcp.invoke" のとき） */
   mcp?: McpCall;
 
-  /** Module 間 handoff 定義（type: "handoff" のとき） */
+  /** App 間 handoff 定義（type: "handoff" のとき） */
   handoff?: HandoffCall;
 
   /** HITL ゲート */
