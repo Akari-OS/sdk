@@ -6,11 +6,11 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { Palette, Share2, Target } from "lucide-react";
 
-import { WorkspaceHost } from "@/components/layout/WorkspaceHost";
-import { WorkBar } from "@/components/layout/WorkBar";
-import { SidePanel, SnsPlatformList, type SidePanelTab } from "@/components/layout/SidePanel";
-import { InspectorPanel } from "@/components/layout/InspectorPanel";
-import { ChatPanel } from "@/components/layout/ChatPanel";
+import { WorkspaceHost } from "./layout/WorkspaceHost";
+import { WorkBar } from "./layout/WorkBar";
+import { SidePanel, SnsPlatformList, type SidePanelTab } from "./layout/SidePanel";
+import { InspectorPanel } from "./layout/InspectorPanel";
+import { ChatPanel } from "./layout/ChatPanel";
 import { PolicyPanel } from "./components/PolicyPanel";
 import { StylePanel } from "./components/StylePanel";
 import { WriterView } from "./WriterView";
@@ -25,8 +25,8 @@ import { useFontScale } from "@/lib/use-font-scale";
 import { resizeImage } from "@/lib/image-resize";
 import { getPlatform, SOURCE_PLATFORM_ID, type ToneId } from "@/lib/platforms";
 import type { ContextItem } from "@/lib/context-selection";
-import { WriterSettings } from "@/components/layout/WriterSettings";
-import { PublishModal } from "@/components/layout/PublishModal";
+import { WriterSettings } from "./layout/WriterSettings";
+import { PublishModal } from "./layout/PublishModal";
 import { useSelectedModel, useFeatureModel } from "@/lib/model-store";
 import {
   type PolicyData,
@@ -34,7 +34,7 @@ import {
   policyToPromptContext,
   createDefaultPolicy,
 } from "@akari-os/templates-core";
-import { checkQuality, type QualityReport } from "@/lib/quality-check";
+import { checkQuality, type QualityReport } from "./lib/quality-check";
 import {
   styleConfigToPromptContext,
   createDefaultWorkStyle,
@@ -43,7 +43,7 @@ import {
   type WorkStyleConfig,
   type EmojiUsage,
 } from "@akari-os/writer-style-core";
-import { deriveWorkflowState } from "@/lib/workflow-state";
+import { deriveWorkflowState } from "./lib/workflow-state";
 import {
   type PipelinePlan,
   advanceStep,

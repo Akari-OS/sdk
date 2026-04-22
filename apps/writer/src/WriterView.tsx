@@ -8,7 +8,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ImagePlus, X, MessageCircle, ChevronUp, ChevronDown, AlertCircle, Scissors } from "lucide-react";
 import { ImagePreviewModal } from "@/components/ui/ImagePreview";
-import { PlatformTabs } from "@/components/layout/PlatformTabs";
+import { PlatformTabs } from "./layout/PlatformTabs";
 import { getPlatform, SOURCE_PLATFORM_ID } from "@/lib/platforms";
 import { createImageContext, type ContextItem } from "@/lib/context-selection";
 import { TiptapEditor } from "./TiptapEditor";
