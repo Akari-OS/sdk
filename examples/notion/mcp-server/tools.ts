@@ -37,7 +37,9 @@ import type {
 // Shared Zod schemas
 // ---------------------------------------------------------------------------
 
-const RichTextSchema = z.array(
+// Exported so tools like create_page / append_block_children can adopt it as
+// the rich-text content validator; kept here for co-location with other schemas.
+export const RichTextSchema = z.array(
   z.object({
     type: z.enum(["text", "mention", "equation"]).default("text"),
     text: z
@@ -76,7 +78,10 @@ const SortSchema: z.ZodType<NotionSort> = z.object({
 export interface ToolDefinition<TInput> {
   name: string;
   description: string;
-  inputSchema: z.ZodType<TInput>;
+  // Input is `unknown` because ZodDefault/ZodOptional schemas produce an
+  // input type wider than their output — tightening to ZodType<TInput> breaks
+  // inference on schemas that use .default() or .optional().
+  inputSchema: z.ZodType<TInput, z.ZodTypeDef, unknown>;
   handler: (args: TInput) => Promise<unknown>;
 }
 

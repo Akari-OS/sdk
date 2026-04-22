@@ -163,7 +163,8 @@ export interface NotionPaginatedResponse<T> {
   results: T[];
   has_more: boolean;
   next_cursor: string | null;
-  type: string;
+  /** Notion API's `type` discriminator (`page_or_database` / `block` / ...); omitted by stubs. */
+  type?: string;
 }
 
 // ---------------------------------------------------------------------------
