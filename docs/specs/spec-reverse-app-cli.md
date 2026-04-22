@@ -117,6 +117,10 @@ MCP サーバーを起動し、Panel Schema プレビュアーをローカルで
 
 **現在の状態:** STUB（Phase 2b 実装待ち）
 
+> **accepted 化ブロッカー（AKARI-HUB-024）**
+> - **AC-1**: `akari dev` スタブ解消 — `process.exit(0)` のみの現実装を、MCP サーバー起動 + Panel プレビュアー起動の実装に置換するまで accepted に移行できない。
+> - **AC-2**: Rust 型定義未実装 — HUB-024 が要求する Rust 側の型定義が未着手のため、SDK との型整合性が検証できない状態。
+
 Phase 2b で予定される実装:
 1. `akari.toml` 読み込み → tier / MCP server path / panel schema paths を取得
 2. MCP サーバープロセスを spawn（`node <mcp-server-path>`）
