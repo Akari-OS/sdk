@@ -974,4 +974,4 @@ async function handoffToVideo(draftId: ContentHash, assetIds: ContentHash[]) {
 | Memory Layer (internal spec) | Pool / Work / Session の 3 サブレイヤー構造 |
 | Tiered Storage (internal spec) | Hot/Warm/Cold Tiered Storage と Backend Adapter |
 | Pool MVP (internal spec) | Pool MVP — MCP ツール（`pool_search` / `pool_cat` 等）の実装基盤 |
-| [AMP spec v0.1](../../../../../agent-memory-protocol/spec/v0.1/protocol.md) | AMP プロトコルの原典。MemoryRecord スキーマ・lifecycle・provenance の詳細 |
+| [AMP spec v0.1](https://github.com/Akari-OS/amp/blob/main/spec/v0.1/protocol.md) | AMP プロトコルの原典。MemoryRecord スキーマ・lifecycle・provenance の詳細 |

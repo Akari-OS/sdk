@@ -1,6 +1,18 @@
 ---
 title: AKARI App SDK — 開発者ガイド集
-updated: 2026-04-19
+updated: 2026-04-22
+---
+
+# AKARI App SDK Documentation
+
+> **このリポの立ち位置**: AKARI OS 上で動く App を作るための SDK monorepo。Shell / Agent Runtime / Memory Layer との契約を定義する開発者向け正典。
+> **扱う範囲**: SDK API 仕様、App 認定プロセス（`akari app certify`）、Full / MCP-Declarative Tier の設計・ガイド
+> **扱わない範囲**: Shell 本体実装（→ akari-shell）、Agent 実装（→ akari-agents）、エコシステム全体ビジョン・横断戦略（→ Hub）
+>
+> - 🌐 正典: [Akari-OS/.github](https://github.com/Akari-OS)
+> - 🏛 Hub (非公開): `akari-os` — 横断研究・戦略・Master Index
+> - 🗺 全リポマップ: `akari-os/MAP.md`
+
 ---
 
 # AKARI App SDK — 開発者ガイド集 / Developer Guide Hub
@@ -157,7 +169,21 @@ App をマーケットに載せるための 3 層品質ゲート。
 
 ---
 
-### 7. Troubleshooting
+### 7. Specs（逆算仕様書）
+
+**[→ specs/](./specs/)**
+
+実装から逆算した仕様書（Reverse Spec）。コードを正典として、型・インターフェース・動作を構造化したドキュメント。
+
+| Spec ID | ファイル | 内容 |
+|---|---|---|
+| **AKARI-SDK-001** | [spec-reverse-sdk-types.md](./specs/spec-reverse-sdk-types.md) | `@akari-os/sdk` 公開型定義（7 API 群 + Panel Schema v0 + Manifest） |
+| **AKARI-SDK-002** | [spec-reverse-schema-panel.md](./specs/spec-reverse-schema-panel.md) | `@akari-os/schema-panel` — Panel Schema v0 React Renderer |
+| **AKARI-SDK-003** | [spec-reverse-app-cli.md](./specs/spec-reverse-app-cli.md) | `akari-app-cli` — App Toolchain（create / dev / certify） |
+
+---
+
+### 8. Troubleshooting
 
 **[→ troubleshooting/](./troubleshooting/)**
 
@@ -170,7 +196,7 @@ App をマーケットに載せるための 3 層品質ゲート。
 
 ---
 
-### 8. Examples（参考実装）
+### 9. Examples（参考実装）
 
 **[→ examples/](./examples/)**
 
