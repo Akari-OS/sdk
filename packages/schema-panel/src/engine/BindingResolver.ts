@@ -96,6 +96,8 @@ export interface BindingResolverOptions {
  * ```
  */
 export class BindingResolver {
+  // `mcp.*` binding の resolver は今後 MCP query 経由を実装する（現状は state/pool/amp/literal のみ）。
+  // @ts-expect-error reserved for future mcp.* binding resolution
   private mcp: McpClient;
   private pool: PoolClient;
   private amp: AmpClient;

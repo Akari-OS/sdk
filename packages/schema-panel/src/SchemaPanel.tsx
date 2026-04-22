@@ -43,7 +43,6 @@ import {
   createPanelStore,
   createStateAccessor,
   usePanelFieldValues,
-  extractStateBindings,
 } from "./state/usePanelState";
 import { PreviewDialog } from "./hitl/PreviewDialog";
 import type { WidgetRegistry, WidgetProps } from "./WidgetRegistry";
