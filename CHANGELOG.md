@@ -4,7 +4,7 @@ All notable changes to AKARI App SDK will be documented in this file.
 
 ## [Unreleased]
 
-## 2026-04-22
+## [0.1.0] - 2026-04-22
 
 ### Added
 - RULES §7 compliance block in `docs/README.md`
