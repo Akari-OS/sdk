@@ -13,7 +13,7 @@ import { PlatformIcon } from "@/components/icons/SnsIcons";
 import { TemplateSelector } from "./TemplateSelector";
 import { TemplateFields } from "./TemplateFields";
 import { getPlatform } from "@/lib/platforms";
-import { getTemplate, type PolicyData, createDefaultPolicy } from "@/lib/templates";
+import { getTemplate, type PolicyData, createDefaultPolicy } from "@akari-os/templates-core";
 
 export interface PolicyPanelProps {
   policy: PolicyData | undefined;

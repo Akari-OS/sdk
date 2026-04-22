@@ -16,7 +16,7 @@ import {
   TONE_PRESETS,
   createDefaultWorkStyle,
   createWorkStyleFromPreset,
-} from "@/lib/writer-style";
+} from "@akari-os/writer-style-core";
 
 export interface StylePanelProps {
   styleConfig: WorkStyleConfig | undefined;

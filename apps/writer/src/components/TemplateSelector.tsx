@@ -4,7 +4,7 @@
  * spec: AKARI-HUB-014 §3
  */
 
-import { TEMPLATES } from "@/lib/templates";
+import { TEMPLATES } from "@akari-os/templates-core";
 
 interface TemplateSelectorProps {
   selectedId: string;

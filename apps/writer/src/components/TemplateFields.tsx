@@ -4,7 +4,7 @@
  * spec: AKARI-HUB-014 §3
  */
 
-import type { TemplateField } from "@/lib/templates";
+import type { TemplateField } from "@akari-os/templates-core";
 
 interface TemplateFieldsProps {
   fields: TemplateField[];

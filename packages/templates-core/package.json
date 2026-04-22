@@ -1,0 +1,14 @@
+{
+  "name": "@akari-os/templates-core",
+  "version": "0.1.0",
+  "description": "AKARI — Writer post templates + PolicyData schema (shell / app shared)",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

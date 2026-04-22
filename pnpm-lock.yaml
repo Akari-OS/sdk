@@ -17,9 +17,18 @@ importers:
       '@akari-os/markdown-core':
         specifier: workspace:*
         version: link:../../packages/markdown-core
+      '@akari-os/pipeline-core':
+        specifier: workspace:*
+        version: link:../../packages/pipeline-core
       '@akari-os/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk-types
+      '@akari-os/templates-core':
+        specifier: workspace:*
+        version: link:../../packages/templates-core
+      '@akari-os/writer-style-core':
+        specifier: workspace:*
+        version: link:../../packages/writer-style-core
       '@tiptap/extension-bubble-menu':
         specifier: ^3.22.3
         version: 3.22.4(@tiptap/core@3.22.4(@tiptap/pm@3.22.4))(@tiptap/pm@3.22.4)
@@ -167,6 +176,12 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
+  packages/pipeline-core:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
   packages/schema-panel:
     dependencies:
       json-logic-js:
@@ -205,6 +220,18 @@ importers:
     dependencies:
       typescript:
         specifier: '>=5.0.0'
+        version: 5.9.3
+
+  packages/templates-core:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+
+  packages/writer-style-core:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
         version: 5.9.3
 
 packages:

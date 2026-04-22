@@ -33,7 +33,7 @@ import {
   getTemplate,
   policyToPromptContext,
   createDefaultPolicy,
-} from "@/lib/templates";
+} from "@akari-os/templates-core";
 import { checkQuality, type QualityReport } from "@/lib/quality-check";
 import {
   styleConfigToPromptContext,
@@ -42,14 +42,14 @@ import {
   TONE_PRESETS,
   type WorkStyleConfig,
   type EmojiUsage,
-} from "@/lib/writer-style";
+} from "@akari-os/writer-style-core";
 import { deriveWorkflowState } from "@/lib/workflow-state";
 import {
   type PipelinePlan,
   advanceStep,
   getCurrentStep,
   getTabForStep,
-} from "@/lib/pipeline";
+} from "@akari-os/pipeline-core";
 import {
   type Work,
   type PlatformContent,
