@@ -11,7 +11,7 @@
  */
 
 import type { AceContext } from "./context.js"
-import type { AkariError, AkariErrorCode } from "./errors.js"
+import { AkariErrorCode } from "./errors.js"
 
 // ---------------------------------------------------------------------------
 // Agent IDs

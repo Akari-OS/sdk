@@ -29,7 +29,9 @@ import * as crypto from "crypto";
 // ---------------------------------------------------------------------------
 
 const X_OAUTH_AUTHORIZE_URL = "https://twitter.com/i/oauth2/authorize";
-const X_OAUTH_TOKEN_URL = "https://api.twitter.com/2/oauth2/token";
+// Referenced by TODO stubs in exchangeCodeForToken / refreshAccessToken.
+// Exported to survive noUnusedLocals until the stubs are implemented.
+export const X_OAUTH_TOKEN_URL = "https://api.twitter.com/2/oauth2/token";
 
 const KEYCHAIN_SERVICE = "com.akari.example.x-sender";
 const KEYCHAIN_ACCOUNT_ACCESS_TOKEN = "access_token";
