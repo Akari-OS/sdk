@@ -4,7 +4,7 @@ spec: AKARI-HUB-024 §5.7
 version: 0.1.0
 status: draft
 created: 2026-04-19
-updated: 2026-04-19
+updated: 2026-04-22
 related:
   - HUB-024  # App SDK — Skill API の契約元
 ---

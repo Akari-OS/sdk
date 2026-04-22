@@ -1,7 +1,7 @@
 ---
 title: Permission API リファレンス
 spec: AKARI-HUB-024
-updated: 2026-04-19
+updated: 2026-04-22
 related: [HUB-024, HUB-025, ADR-010]
 ---
 

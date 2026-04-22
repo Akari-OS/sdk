@@ -1,7 +1,7 @@
 ---
 title: Memory API リファレンス
 spec-ref: AKARI-HUB-024 §5.2 (§6.6-2)
-updated: 2026-04-19
+updated: 2026-04-22
 related: [HUB-024]
 ---
 

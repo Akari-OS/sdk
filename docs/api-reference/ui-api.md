@@ -4,7 +4,7 @@ spec-ref: AKARI-HUB-024, AKARI-HUB-025
 version: 0.1.0
 status: draft
 created: 2026-04-19
-updated: 2026-04-19
+updated: 2026-04-22
 related:
   - HUB-024 (App SDK spec (AKARI-HUB-024, Hub)) — §5.4 UI API
   - HUB-025 (Panel Schema spec (AKARI-HUB-025, Hub)) — Panel Schema v0

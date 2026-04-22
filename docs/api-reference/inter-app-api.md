@@ -1,7 +1,7 @@
 ---
 title: Inter-App API リファレンス
 spec-ref: AKARI-HUB-024 §6.6(5)
-updated: 2026-04-19
+updated: 2026-04-22
 related: [HUB-024, HUB-005, memory-api.md, permission-api.md]
 ---
 

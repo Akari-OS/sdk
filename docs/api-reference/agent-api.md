@@ -3,7 +3,7 @@ guide-id: AKARI-GUIDE-SDK-AGENT-API
 version: 0.1.0
 status: draft
 created: 2026-04-19
-updated: 2026-04-19
+updated: 2026-04-22
 related-specs: [AKARI-HUB-024, AKARI-HUB-011, AKARI-HUB-006]
 related-adrs: [ADR-011]
 ai-context: claude-code
