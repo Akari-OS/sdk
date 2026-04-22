@@ -1,7 +1,7 @@
 {
   "name": "@akari-os/app-writer",
   "version": "0.1.0",
-  "description": "AKARI Writer — official writing app",
+  "description": "AKARI Writer — official writing app (140/280-char SNS to long-form)",
   "private": true,
   "type": "module",
   "main": "./src/index.tsx",
@@ -10,6 +10,13 @@
   },
   "dependencies": {
     "@akari-os/sdk": "workspace:*",
+    "@tiptap/extension-bubble-menu": "^3.22.3",
+    "@tiptap/extension-character-count": "^3.22.3",
+    "@tiptap/extension-placeholder": "^3.22.3",
+    "@tiptap/pm": "^3.22.3",
+    "@tiptap/react": "^3.22.3",
+    "@tiptap/starter-kit": "^3.22.3",
+    "lucide-react": "^1.8.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

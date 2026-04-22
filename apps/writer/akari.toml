@@ -1,5 +1,6 @@
-# AKARI Writer — 公式文章作成 App (MVP scaffold)
+# AKARI Writer — 公式文章作成 App
 # spec: akari-os/docs/planning/app-loading-mvp-2026-04-22.md
+# session 26: shell の modules/writer + WriterStudio を移植（Phase 1 C）
 
 [app]
 id = "com.akari.writer"
