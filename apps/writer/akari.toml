@@ -1,0 +1,24 @@
+# AKARI Writer — 公式文章作成 App (MVP scaffold)
+# spec: akari-os/docs/planning/app-loading-mvp-2026-04-22.md
+
+[app]
+id = "com.akari.writer"
+name = "AKARI Writer"
+version = "0.1.0"
+author = "Akari-OS"
+tier = "full"
+sdk = ">=0.1.0 <1.0"
+
+[app.i18n]
+name_ja = "AKARI Writer"
+description = "Official writing app for AKARI. From 140/280-char SNS posts to long-form articles."
+description_ja = "公式の文章作成 App。140/280 字 SNS から長文記事まで。"
+
+[permissions]
+pool = ["read", "write"]
+mcp = ["partner_chat", "pool_list_libraries", "pool_search_items"]
+# Phase 0 is declarative-only; enforcement is Phase 1 (see HUB-024 §6 AC-3)
+
+[panels.main]
+title = "Writer"
+mount = "src/index.tsx"
