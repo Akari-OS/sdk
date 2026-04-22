@@ -185,7 +185,7 @@ App をマーケットに載せるための 3 層品質ゲート。
 
 ### 8. Troubleshooting
 
-**[→ troubleshooting/](./troubleshooting/)**
+**[→ troubleshooting](./troubleshooting.md)**
 
 よくある問題と解決策。
 
@@ -206,7 +206,7 @@ App をマーケットに載せるための 3 層品質ゲート。
 |---|---|---|
 | X Sender（Publishing カテゴリ） | MCP-Declarative | [examples/x-sender](./examples/x-sender.md) |
 | Notion（Documents カテゴリ） | MCP-Declarative | [examples/notion](./examples/notion.md) |
-| Writer（Full Tier リファレンス） | Full | [packages/writer](../packages/writer/) |
+| Writer（Full Tier リファレンス） | Full | （別リポ / 未着手） |
 
 ---
 
