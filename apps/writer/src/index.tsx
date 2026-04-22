@@ -11,6 +11,7 @@
  */
 
 import { WriterStudio } from "./WriterStudio";
+import "./styles.css";
 
 export default function WriterApp() {
   return <WriterStudio />;

@@ -8,7 +8,7 @@ import { useEffect, useRef, useMemo, useCallback } from "react";
 import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
-import { markdownToHtml, htmlToMarkdown } from "@/lib/markdown";
+import { markdownToHtml, htmlToMarkdown } from "@akari-os/markdown-core";
 
 interface UseTiptapEditorOptions {
   /** 現在のテキスト（Markdown or プレーンテキスト） */

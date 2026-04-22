@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@akari-os/sdk": "workspace:*",
+    "@akari-os/markdown-core": "workspace:*",
     "@tiptap/extension-bubble-menu": "^3.22.3",
     "@tiptap/extension-character-count": "^3.22.3",
     "@tiptap/extension-placeholder": "^3.22.3",

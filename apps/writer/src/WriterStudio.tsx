@@ -11,8 +11,8 @@ import { WorkBar } from "@/components/layout/WorkBar";
 import { SidePanel, SnsPlatformList, type SidePanelTab } from "@/components/layout/SidePanel";
 import { InspectorPanel } from "@/components/layout/InspectorPanel";
 import { ChatPanel } from "@/components/layout/ChatPanel";
-import { PolicyPanel } from "@/components/writer/PolicyPanel";
-import { StylePanel } from "@/components/writer/StylePanel";
+import { PolicyPanel } from "./components/PolicyPanel";
+import { StylePanel } from "./components/StylePanel";
 import { WriterView } from "./WriterView";
 import type { MediaAttachment } from "@/lib/media";
 import {
