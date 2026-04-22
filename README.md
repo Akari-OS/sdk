@@ -101,7 +101,7 @@ examples/
 
 ## License
 
-[MIT](./LICENSE) © 2026 Ryoma Nakajima
+[MIT](./LICENSE) © 2026 Akari-OS contributors
 
 ---
 
