@@ -228,8 +228,9 @@ export class BindingResolver {
     }
     try {
       const records = await this.amp.query({ kind, limit: 1 });
-      if (records.length === 0) return null;
-      return records[0].fields?.[field] ?? null;
+      const first = records[0];
+      if (!first) return null;
+      return first.fields?.[field] ?? null;
     } catch (err) {
       console.error(`[BindingResolver] AMP query failed for "${kind}.${field}":`, err);
       return null;
@@ -278,7 +279,7 @@ function resolveValue(
   if (typeof template === "string") {
     // "$fieldId" の単純参照
     const match = template.match(/^\$([A-Za-z_][A-Za-z0-9_]*)$/);
-    if (match) {
+    if (match && match[1]) {
       const fieldId = match[1];
       return fieldValues[fieldId] ?? null;
     }

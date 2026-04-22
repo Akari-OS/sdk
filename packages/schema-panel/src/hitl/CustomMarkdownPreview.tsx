@@ -117,7 +117,7 @@ const MarkdownTextRenderer: React.FC<{ text: string }> = ({ text }) => {
     const h3Match = line.match(/^###\s+(.+)/);
     const h2Match = line.match(/^##\s+(.+)/);
     const h1Match = line.match(/^#\s+(.+)/);
-    if (h3Match) {
+    if (h3Match && h3Match[1]) {
       elements.push(
         <h3 key={key} className="text-base font-semibold">
           {parseBold(h3Match[1])}
@@ -125,7 +125,7 @@ const MarkdownTextRenderer: React.FC<{ text: string }> = ({ text }) => {
       );
       continue;
     }
-    if (h2Match) {
+    if (h2Match && h2Match[1]) {
       elements.push(
         <h2 key={key} className="text-lg font-semibold">
           {parseBold(h2Match[1])}
@@ -133,7 +133,7 @@ const MarkdownTextRenderer: React.FC<{ text: string }> = ({ text }) => {
       );
       continue;
     }
-    if (h1Match) {
+    if (h1Match && h1Match[1]) {
       elements.push(
         <h1 key={key} className="text-xl font-bold">
           {parseBold(h1Match[1])}

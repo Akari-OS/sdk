@@ -44,7 +44,7 @@ function parseA1(range: string): {
   }
 
   const match = notation.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i);
-  if (!match) return null;
+  if (!match || !match[1] || !match[2] || !match[3] || !match[4]) return null;
 
   return {
     sheet,

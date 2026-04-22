@@ -54,7 +54,7 @@ function parseVarRef(token: string): JsonLogicNode | string {
   if (!isNaN(num)) return num as unknown as string;
   // 文字列リテラル（クォート除去）
   const strMatch = trimmed.match(/^['"](.*)['"]$/);
-  if (strMatch) return strMatch[1];
+  if (strMatch && strMatch[1] !== undefined) return strMatch[1];
 
   // 不明トークン（そのまま文字列として返す）
   console.warn(`[ExpressionEvaluator] Unknown token: "${token}"`);
