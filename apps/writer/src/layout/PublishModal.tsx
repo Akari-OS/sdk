@@ -12,9 +12,9 @@ import { callToolJson } from "@/lib/api";
 import type { PublishResult } from "@/lib/types";
 import type { PlatformContent } from "@/lib/works";
 import { PreviewRouter, type PreviewTheme } from "@/components/preview/PreviewRouter";
-import { splitThread, isThreadContent } from "@/lib/thread-utils";
+import { splitThread, isThreadContent } from "../lib/thread-utils";
 import { DeviceFrame, DeviceSelector, type DeviceType } from "@/components/preview/DeviceFrame";
-import { getSnsAccount } from "@/lib/account-store";
+import { getSnsAccount } from "../lib/account-store";
 
 function countChars(text: string): number {
   return [...text].length;

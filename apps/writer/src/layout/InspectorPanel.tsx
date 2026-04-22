@@ -7,11 +7,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { ImagePreviewModal } from "@/components/ui/ImagePreview";
-import { getSnsAccount } from "@/lib/account-store";
+import { getSnsAccount } from "../lib/account-store";
 import { PlatformKnowledge, KnowledgeButton } from "./PlatformKnowledge";
 import { QualityCheckSection } from "../components/QualityCheckSection";
 import { TimingSuggestions } from "../components/TimingSuggestions";
-import { splitThread, isThreadContent } from "@/lib/thread-utils";
+import { splitThread, isThreadContent } from "../lib/thread-utils";
 import { ChevronRight, ChevronDown, Wand2, Send, FileText, Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { callToolJson } from "@/lib/api";

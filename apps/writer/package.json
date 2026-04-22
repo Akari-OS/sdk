@@ -14,6 +14,7 @@
     "@akari-os/writer-style-core": "workspace:*",
     "@akari-os/templates-core": "workspace:*",
     "@akari-os/pipeline-core": "workspace:*",
+    "@tauri-apps/api": "^2",
     "@tiptap/extension-bubble-menu": "^3.22.3",
     "@tiptap/extension-character-count": "^3.22.3",
     "@tiptap/extension-placeholder": "^3.22.3",

@@ -22,7 +22,7 @@ import {
 } from "@/lib/types";
 import { callToolJson } from "@/lib/api";
 import { useFontScale } from "@/lib/use-font-scale";
-import { resizeImage } from "@/lib/image-resize";
+import { resizeImage } from "./lib/image-resize";
 import { getPlatform, SOURCE_PLATFORM_ID, type ToneId } from "@/lib/platforms";
 import type { ContextItem } from "@/lib/context-selection";
 import { WriterSettings } from "./layout/WriterSettings";

@@ -12,8 +12,8 @@ import { PlatformTabs } from "./layout/PlatformTabs";
 import { getPlatform, SOURCE_PLATFORM_ID } from "@/lib/platforms";
 import { createImageContext, type ContextItem } from "@/lib/context-selection";
 import { TiptapEditor } from "./TiptapEditor";
-import { isThreadContent, threadPartCounts, THREAD_SEPARATOR } from "@/lib/thread-utils";
-import { extractUrls, fetchOgp, type OgpData } from "@/lib/ogp-fetch";
+import { isThreadContent, threadPartCounts, THREAD_SEPARATOR } from "./lib/thread-utils";
+import { extractUrls, fetchOgp, type OgpData } from "./lib/ogp-fetch";
 import { LinkPreviewCard } from "./components/LinkPreviewCard";
 import type { MediaAttachment } from "@/lib/media";
 

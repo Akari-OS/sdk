@@ -5,7 +5,7 @@
  */
 
 import { X } from "lucide-react";
-import type { OgpData } from "@/lib/ogp-fetch";
+import type { OgpData } from "../lib/ogp-fetch";
 
 interface LinkPreviewCardProps {
   ogp: OgpData;

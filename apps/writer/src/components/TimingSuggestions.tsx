@@ -5,7 +5,7 @@
  */
 
 import { Clock } from "lucide-react";
-import { suggestTimings, formatSuggestionTime } from "@/lib/timing-suggest";
+import { suggestTimings, formatSuggestionTime } from "../lib/timing-suggest";
 
 export function TimingSuggestions() {
   const suggestions = suggestTimings(3);

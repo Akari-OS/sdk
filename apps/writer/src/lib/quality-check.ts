@@ -7,7 +7,7 @@
 
 import type { PlatformContent } from "@/lib/works";
 import { getPlatform } from "@/lib/platforms";
-import { splitThread, isThreadContent } from "@/lib/thread-utils";
+import { splitThread, isThreadContent } from "./thread-utils";
 
 // ---------------------------------------------------------------------------
 // 型定義

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X, Download } from "lucide-react";
 import { getXPlan, setXPlan, type XPlan } from "@/lib/platforms";
-import { loadSnsAccounts, setSnsAccount, type SnsAccount } from "@/lib/account-store";
+import { loadSnsAccounts, setSnsAccount, type SnsAccount } from "../lib/account-store";
 import { PlatformIcon } from "@/components/icons/SnsIcons";
 
 interface WriterSettingsProps {
