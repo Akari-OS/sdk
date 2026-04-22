@@ -8,6 +8,7 @@ related-specs:
   - AKARI-HUB-008
   - AKARI-HUB-025
   - AKARI-SDK-001
+  - AKARI-SDK-003
 ai-context: claude-code
 ---
 

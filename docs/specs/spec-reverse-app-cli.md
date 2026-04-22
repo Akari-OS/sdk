@@ -7,6 +7,8 @@ updated: 2026-04-22
 related-specs:
   - AKARI-HUB-024
   - ADR-015
+  - AKARI-SDK-001
+  - AKARI-SDK-002
 ai-context: claude-code
 ---
 
