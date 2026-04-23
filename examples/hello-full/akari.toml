@@ -1,0 +1,27 @@
+# Hello Full Tier — runtime install の動作検証用最小サンプル
+#
+# build-in ではなく `~/.akari/apps/com.example.hello-full/` から runtime load
+# されることを目視で確認する。
+
+[app]
+id = "com.example.hello-full"
+name = "Hello Full"
+short_name = "Hello"
+version = "0.1.0"
+author = "Akari-OS"
+tier = "full"
+sdk = ">=0.1.0 <1.0"
+icon = "Sparkles"
+
+[app.i18n]
+name_ja = "こんにちは Full Tier"
+short_name_ja = "Hello"
+description = "A minimal Full Tier app to verify runtime install."
+description_ja = "runtime install の動作検証用の最小 Full Tier app。"
+
+[permissions]
+# 最小検証なので何も要求しない
+
+[panels.main]
+title = "Hello Full"
+mount = "dist/index.js"

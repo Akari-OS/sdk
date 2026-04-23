@@ -28,6 +28,12 @@ function isExternal(id: string): boolean {
 
 export default defineConfig({
   plugins: [react()],
+  // lib mode では vite が自動で process.env.NODE_ENV を置換しないため、明示する。
+  // shell 側（Tauri webview）には `process` globalがないので、build-time で消しておく。
+  define: {
+    "process.env.NODE_ENV": JSON.stringify("production"),
+    "process.env": "{}",
+  },
   build: {
     outDir: "dist",
     emptyOutDir: true,
@@ -38,16 +44,21 @@ export default defineConfig({
       formats: ["es"],
       fileName: () => "index.js",
     },
+    minify: false,
     rollupOptions: {
       external: isExternal,
       output: {
-        inlineDynamicImports: true,
+        // Bundle is lib mode = single entry, so rollup naturally produces one chunk.
+        // inlineDynamicImports was previously set to true but caused module order
+        // issues (Cannot access 'X' before initialization) — keep default.
         assetFileNames: (asset) => {
           if (asset.name && asset.name.endsWith(".css")) return "index.css"
           return "assets/[name]-[hash][extname]"
         },
       },
     },
-    sourcemap: true,
+    // sourcemap 無効（prod bundle では 3.6MB の .map が fetch されて Tauri asset
+    // protocol で 404 になるため。デバッグ時は true に戻す）
+    sourcemap: false,
   },
 })

@@ -5,13 +5,17 @@
 [app]
 id = "com.akari.writer"
 name = "AKARI Writer"
+short_name = "Writer"
 version = "0.1.0"
 author = "Akari-OS"
 tier = "full"
 sdk = ">=0.1.0 <1.0"
+# lucide-react のアイコン名（ActivityBar で使用）
+icon = "PenLine"
 
 [app.i18n]
 name_ja = "AKARI Writer"
+short_name_ja = "Writer"
 description = "Official writing app for AKARI. From 140/280-char SNS posts to long-form articles."
 description_ja = "公式の文章作成 App。140/280 字 SNS から長文記事まで。"
 

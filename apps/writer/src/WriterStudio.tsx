@@ -124,9 +124,11 @@ export function WriterStudio({
   const handleSettingsChanged = useCallback(() => setSettingsVersion((v) => v + 1), []);
 
   // Works state
-  const [works, setWorks] = useState<Work[]>(loadWorks);
+  // NOTE: ACTIVE_WORK_KEY は closure 経由だと runtime-loaded bundle で TDZ になる
+  // ことがあるため（理由調査中）、useState 初期値は直接 localStorage に当てる
+  const [works, setWorks] = useState<Work[]>(() => loadWorks());
   const [activeWorkId, setActiveWorkId] = useState<string | null>(() =>
-    localStorage.getItem(ACTIVE_WORK_KEY),
+    localStorage.getItem("akari.writer.activeWorkId"),
   );
 
   const activeWork = works.find((w) => w.id === activeWorkId);
