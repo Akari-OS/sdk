@@ -4,7 +4,7 @@
   "description": "AKARI OS App SDK — types + Phase 1 runtime (mcp / pool / models / chat-context / ui-hooks / partner)",
   "license": "MIT",
   "type": "module",
-  "private": true,
+  "private": false,
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
