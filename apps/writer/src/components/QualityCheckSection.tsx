@@ -6,7 +6,7 @@
 
 import { AlertTriangle, AlertCircle, Info, CheckCircle2 } from "lucide-react";
 import { sortIssues, type QualityReport, type CheckSeverity } from "../lib/quality-check";
-import { PlatformIcon } from "@/components/icons/SnsIcons";
+import { PlatformIcon } from "./icons/SnsIcons";
 
 interface QualityCheckSectionProps {
   report: QualityReport | null;

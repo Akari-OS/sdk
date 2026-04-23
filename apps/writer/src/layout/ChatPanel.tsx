@@ -12,22 +12,22 @@
 
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent, type DragEvent } from "react";
 import { X, ChevronRight, Target, Database } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { callToolJson, readResourceJson } from "@/lib/api";
-import { uuid, type ConversationMessage, type PartnerChatResponse, type PartnerNewConversationResult } from "@/lib/types";
-import { DelegationAccordion } from "@/modules/chat/DelegationAccordion";
+import { Button } from "@akari-os/shell-ui/button";
+import { callToolJson, readResourceJson } from "@akari-os/sdk/mcp";
+import { uuid, type ConversationMessage, type PartnerChatResponse, type PartnerNewConversationResult } from "@akari-os/sdk/partner";
+import { DelegationAccordion } from "@akari-os/shell-ui/DelegationAccordion";
 import { QuestionsWizard, type Question } from "../components/QuestionsWizard";
 import { type PlatformResult } from "../components/PlatformDiffView";
 import { PipelineMessage, type PipelineData } from "../components/PipelineMessage";
 import { PlanMessage } from "../components/PlanMessage";
 import { WorkflowBar } from "../components/WorkflowBar";
 import { createPlanFromAI, type PipelinePlan } from "@akari-os/pipeline-core";
-import { contextsToPromptText, type ContextItem, type PresetContext, type TextSelectionContext, type PointerElementContext } from "@/lib/context-selection";
-import { getPlatform } from "@/lib/platforms";
+import { contextsToPromptText, type ContextItem, type PresetContext, type TextSelectionContext, type PointerElementContext } from "@akari-os/sdk/chat-context";
+import { getPlatform } from "../lib/platforms";
 import { ModelSelector } from "../components/ModelSelector";
 import { PoolPickerPopup } from "../components/PoolPickerPopup";
-import { useSelectedModel } from "@/lib/model-store";
-import { getModelById } from "@/lib/model-data";
+import { useSelectedModel } from "@akari-os/sdk/model-store";
+import { getModelById } from "@akari-os/sdk/models";
 import { policyToPromptContext, getTemplate } from "@akari-os/templates-core";
 import type { WorkflowState } from "../lib/workflow-state";
 import { styleConfigToPromptContext } from "@akari-os/writer-style-core";
@@ -41,7 +41,7 @@ interface ChatMessage {
   displayedChars?: number;
   createdAt: number;
   /** サブエージェント委譲記録 */
-  delegations?: import("@/lib/types").Delegation[];
+  delegations?: import("@akari-os/sdk/partner").Delegation[];
 }
 
 type ChatMode = "normal" | "deep" | "plan";

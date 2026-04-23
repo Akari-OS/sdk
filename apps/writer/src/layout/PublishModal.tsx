@@ -6,14 +6,14 @@
 
 import { useState } from "react";
 import { X, Send, Copy, Check, Loader2, Clock, Eye, ZoomIn, ZoomOut } from "lucide-react";
-import { getPlatform } from "@/lib/platforms";
-import { PlatformIcon } from "@/components/icons/SnsIcons";
-import { callToolJson } from "@/lib/api";
-import type { PublishResult } from "@/lib/types";
-import type { PlatformContent } from "@/lib/works";
-import { PreviewRouter, type PreviewTheme } from "@/components/preview/PreviewRouter";
+import { getPlatform } from "../lib/platforms";
+import { PlatformIcon } from "../components/icons/SnsIcons";
+import { callToolJson } from "@akari-os/sdk/mcp";
+import type { PublishResult } from "@akari-os/sdk/partner";
+import type { PlatformContent } from "../lib/works";
+import { PreviewRouter, type PreviewTheme } from "../components/preview/PreviewRouter";
 import { splitThread, isThreadContent } from "../lib/thread-utils";
-import { DeviceFrame, DeviceSelector, type DeviceType } from "@/components/preview/DeviceFrame";
+import { DeviceFrame, DeviceSelector, type DeviceType } from "../components/preview/DeviceFrame";
 import { getSnsAccount } from "../lib/account-store";
 
 function countChars(text: string): number {

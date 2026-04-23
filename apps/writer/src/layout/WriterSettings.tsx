@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { X, Download } from "lucide-react";
-import { getXPlan, setXPlan, type XPlan } from "@/lib/platforms";
+import { getXPlan, setXPlan, type XPlan } from "../lib/platforms";
 import { loadSnsAccounts, setSnsAccount, type SnsAccount } from "../lib/account-store";
-import { PlatformIcon } from "@/components/icons/SnsIcons";
+import { PlatformIcon } from "../components/icons/SnsIcons";
 
 interface WriterSettingsProps {
   onClose: () => void;
@@ -36,7 +36,7 @@ export function WriterSettings({ onClose, onSettingsChanged }: WriterSettingsPro
     setFetchingAccount(true);
     setFetchStatus("idle");
     try {
-      const { callToolJson } = await import("@/lib/api");
+      const { callToolJson } = await import("@akari-os/sdk/mcp");
       const res = await callToolJson<{ id: string; name: string; username: string; profile_image_url?: string }>("operator_get_me", { target: "x" });
       updateXAccount({
         displayName: res.name,

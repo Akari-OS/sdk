@@ -7,8 +7,8 @@
 
 import { useState } from "react";
 import { FileText } from "lucide-react";
-import { getPlatform, SOURCE_PLATFORM_ID } from "@/lib/platforms";
-import { PlatformIcon } from "@/components/icons/SnsIcons";
+import { getPlatform, SOURCE_PLATFORM_ID } from "../lib/platforms";
+import { PlatformIcon } from "../components/icons/SnsIcons";
 
 interface PlatformTabsProps {
   active: string;

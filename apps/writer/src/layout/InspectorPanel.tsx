@@ -6,22 +6,22 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { ImagePreviewModal } from "@/components/ui/ImagePreview";
+import { ImagePreviewModal } from "@akari-os/shell-ui/ImagePreview";
 import { getSnsAccount } from "../lib/account-store";
 import { PlatformKnowledge, KnowledgeButton } from "./PlatformKnowledge";
 import { QualityCheckSection } from "../components/QualityCheckSection";
 import { TimingSuggestions } from "../components/TimingSuggestions";
 import { splitThread, isThreadContent } from "../lib/thread-utils";
 import { ChevronRight, ChevronDown, Wand2, Send, FileText, Bookmark } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { callToolJson } from "@/lib/api";
-import type { PublishResult } from "@/lib/types";
+import { Button } from "@akari-os/shell-ui/button";
+import { callToolJson } from "@akari-os/sdk/mcp";
+import type { PublishResult } from "@akari-os/sdk/partner";
 import {
   DeviceFrame,
   DeviceSelector,
   type DeviceType,
-} from "@/components/preview/DeviceFrame";
-import { PreviewRouter, type PreviewTheme } from "@/components/preview/PreviewRouter";
+} from "../components/preview/DeviceFrame";
+import { PreviewRouter, type PreviewTheme } from "../components/preview/PreviewRouter";
 import {
   TONE_PRESETS,
   LENGTH_PRESETS,
@@ -30,12 +30,12 @@ import {
   type WritingOptions,
   getPlatform,
   buildWritingPrompt,
-} from "@/lib/platforms";
-import { callToolText } from "@/lib/api";
-import type { PartnerNewConversationResult } from "@/lib/types";
-import { callToolJson as callToolJsonTyped } from "@/lib/api";
-import type { MediaAttachment } from "@/lib/media";
-import { useSelectedModel } from "@/lib/model-store";
+} from "../lib/platforms";
+import { callToolText } from "@akari-os/sdk/mcp";
+import type { PartnerNewConversationResult } from "@akari-os/sdk/partner";
+import { callToolJson as callToolJsonTyped } from "@akari-os/sdk/mcp";
+import type { MediaAttachment } from "../lib/media";
+import { useSelectedModel } from "@akari-os/sdk/model-store";
 
 function countChars(text: string): number {
   return [...text].length;
@@ -140,7 +140,7 @@ interface InspectorPanelProps {
   /** 選択された投稿先プラットフォーム */
   selectedPlatforms?: string[];
   /** コンテキストチップを Chat に追加 */
-  onAddContext?: (ctx: import("@/lib/context-selection").ContextItem) => void;
+  onAddContext?: (ctx: import("@akari-os/sdk/chat-context").ContextItem) => void;
   /** 品質チェック結果 */
   qualityReport?: import("../lib/quality-check").QualityReport | null;
 }

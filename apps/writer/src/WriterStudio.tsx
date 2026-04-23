@@ -14,20 +14,20 @@ import { ChatPanel } from "./layout/ChatPanel";
 import { PolicyPanel } from "./components/PolicyPanel";
 import { StylePanel } from "./components/StylePanel";
 import { WriterView } from "./WriterView";
-import type { MediaAttachment } from "@/lib/media";
+import type { MediaAttachment } from "./lib/media";
 import {
   uuid,
   type PartnerChatResponse,
   type PartnerNewConversationResult,
-} from "@/lib/types";
-import { callToolJson } from "@/lib/api";
-import { useFontScale } from "@/lib/use-font-scale";
+} from "@akari-os/sdk/partner";
+import { callToolJson } from "@akari-os/sdk/mcp";
+import { useFontScale } from "@akari-os/sdk/ui-hooks";
 import { resizeImage } from "./lib/image-resize";
-import { getPlatform, SOURCE_PLATFORM_ID, type ToneId } from "@/lib/platforms";
-import type { ContextItem } from "@/lib/context-selection";
+import { getPlatform, SOURCE_PLATFORM_ID, type ToneId } from "./lib/platforms";
+import type { ContextItem } from "@akari-os/sdk/chat-context";
 import { WriterSettings } from "./layout/WriterSettings";
 import { PublishModal } from "./layout/PublishModal";
-import { useSelectedModel, useFeatureModel } from "@/lib/model-store";
+import { useSelectedModel, useFeatureModel } from "@akari-os/sdk/model-store";
 import {
   type PolicyData,
   getTemplate,
@@ -57,7 +57,7 @@ import {
   loadWorks,
   saveWorks,
   createWork,
-} from "@/lib/works";
+} from "./lib/works";
 
 export type { Work, PlatformContent };
 export { ACTIVE_WORK_KEY, loadWorks, saveWorks };
@@ -69,7 +69,7 @@ interface WriterStudioProps {
   /** Chat パネルに表示するエージェント名 */
   agentName?: string;
   /** Pool Browser から注入されたコンテキスト（複数可） */
-  injectedContexts?: import("@/lib/context-selection").PresetContext[];
+  injectedContexts?: import("@akari-os/sdk/chat-context").PresetContext[];
   /** 注入コンテキストを消費した後のコールバック */
   onInjectedContextsConsumed?: () => void;
 }
@@ -106,7 +106,7 @@ export function WriterStudio({
   // Pool Browser → Writer App のグローバル event 受け口（AppHost 経由マウント用）
   useEffect(() => {
     const handler = (ev: Event) => {
-      const detail = (ev as CustomEvent).detail as import("@/lib/context-selection").PresetContext[] | undefined;
+      const detail = (ev as CustomEvent).detail as import("@akari-os/sdk/chat-context").PresetContext[] | undefined;
       if (detail && detail.length > 0) {
         setPendingContexts((prev) => [...prev, ...detail]);
       }

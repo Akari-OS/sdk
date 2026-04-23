@@ -22,4 +22,7 @@ mcp = ["partner_chat", "pool_list_libraries", "pool_search_items"]
 
 [panels.main]
 title = "Writer"
-mount = "src/index.tsx"
+mount = "dist/index.js"
+# Writer は pre-built ESM bundle（vite lib mode + external 化）として shell から
+# dynamic import される。ビルド: `pnpm -C apps/writer build`。
+# dev で source を使いたい場合は `mount = "src/index.tsx"` に戻す。

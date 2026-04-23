@@ -8,11 +8,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Sparkles, Loader2, MessageSquare, Target } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { PlatformIcon } from "@/components/icons/SnsIcons";
+import { Button } from "@akari-os/shell-ui/button";
+import { PlatformIcon } from "./icons/SnsIcons";
 import { TemplateSelector } from "./TemplateSelector";
 import { TemplateFields } from "./TemplateFields";
-import { getPlatform } from "@/lib/platforms";
+import { getPlatform } from "../lib/platforms";
 import { getTemplate, type PolicyData, createDefaultPolicy } from "@akari-os/templates-core";
 
 export interface PolicyPanelProps {

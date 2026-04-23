@@ -1,0 +1,35 @@
+{
+  "name": "@akari-os/shell-ui",
+  "version": "0.1.0",
+  "description": "AKARI OS Shell UI — shell と app で共有する shadcn ベースの汎用 UI 部品群",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./button": "./src/button.tsx",
+    "./ImagePreview": "./src/ImagePreview.tsx",
+    "./RadarChart": "./src/RadarChart.tsx",
+    "./DelegationAccordion": "./src/DelegationAccordion.tsx",
+    "./cn": "./src/lib/cn.ts"
+  },
+  "dependencies": {
+    "@akari-os/sdk": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.8.0",
+    "radix-ui": "^1.4.3",
+    "tailwind-merge": "^3.5.0"
+  },
+  "peerDependencies": {
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.7.0"
+  }
+}

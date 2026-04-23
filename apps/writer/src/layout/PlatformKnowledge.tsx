@@ -5,10 +5,10 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { X, BookOpen, Heart, ChevronDown, ChevronRight, CheckCircle2 } from "lucide-react";
-import { KNOWHOW_CATEGORIES, type KnowhowEntry, type PlatformConfig } from "@/lib/platforms";
-import { createPresetContext } from "@/lib/context-selection";
-import type { ContextItem } from "@/lib/context-selection";
-import { PlatformIcon } from "@/components/icons/SnsIcons";
+import { KNOWHOW_CATEGORIES, type KnowhowEntry, type PlatformConfig } from "../lib/platforms";
+import { createPresetContext } from "@akari-os/sdk/chat-context";
+import type { ContextItem } from "@akari-os/sdk/chat-context";
+import { PlatformIcon } from "../components/icons/SnsIcons";
 
 // --- localStorage 永続化ヘルパー ---
 

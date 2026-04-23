@@ -8,7 +8,7 @@
  */
 
 import { Check, Circle, Loader2, Play, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@akari-os/shell-ui/button";
 import type { PipelinePlan, PipelineStep } from "@akari-os/pipeline-core";
 
 export interface PlanMessageProps {

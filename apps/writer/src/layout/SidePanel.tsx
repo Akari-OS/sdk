@@ -9,8 +9,8 @@
 
 import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, Check } from "lucide-react";
-import { PLATFORMS, type PlatformConfig } from "@/lib/platforms";
-import { PlatformIcon } from "@/components/icons/SnsIcons";
+import { PLATFORMS, type PlatformConfig } from "../lib/platforms";
+import { PlatformIcon } from "../components/icons/SnsIcons";
 
 /** Tauri WebView 環境かどうか（D&D が不安定なため検出） */
 function isTauriEnv(): boolean {

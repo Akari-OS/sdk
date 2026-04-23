@@ -12,8 +12,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
-import { MODELS, getModelById } from "@/lib/model-data";
-import { RadarChart } from "@/components/chat/RadarChart";
+import { MODELS, getModelById } from "@akari-os/sdk/models";
+import { RadarChart } from "@akari-os/shell-ui/RadarChart";
 
 interface ModelSelectorProps {
   /** 選択中モデル ID */

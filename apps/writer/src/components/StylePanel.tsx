@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { Palette } from "lucide-react";
-import { getPlatform } from "@/lib/platforms";
+import { getPlatform } from "../lib/platforms";
 
 import {
   type EmojiUsage,

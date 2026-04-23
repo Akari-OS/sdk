@@ -7,7 +7,7 @@
 import type { Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { MessageCircle } from "lucide-react";
-import { createTextSelectionContext, type ContextItem } from "@/lib/context-selection";
+import { createTextSelectionContext, type ContextItem } from "@akari-os/sdk/chat-context";
 
 interface SelectionBubbleMenuProps {
   editor: Editor;

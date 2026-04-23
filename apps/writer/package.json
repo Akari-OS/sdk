@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@akari-os/sdk": "workspace:*",
+    "@akari-os/shell-ui": "workspace:*",
     "@akari-os/markdown-core": "workspace:*",
     "@akari-os/writer-style-core": "workspace:*",
     "@akari-os/templates-core": "workspace:*",
@@ -26,9 +27,16 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "typecheck": "tsc --noEmit"
+  },
   "devDependencies": {
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "typescript": "^5.7.0"
+    "@vitejs/plugin-react": "^4.6.0",
+    "typescript": "^5.7.0",
+    "vite": "^7.0.4"
   }
 }

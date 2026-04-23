@@ -5,8 +5,8 @@
  * spec: AKARI-HUB-014 §4.3
  */
 
-import type { PlatformContent } from "@/lib/works";
-import { getPlatform } from "@/lib/platforms";
+import type { PlatformContent } from "./works";
+import { getPlatform } from "./platforms";
 import { splitThread, isThreadContent } from "./thread-utils";
 
 // ---------------------------------------------------------------------------

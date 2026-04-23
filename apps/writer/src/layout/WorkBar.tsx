@@ -130,7 +130,7 @@ export function WorkBar({
     setGenerating(true);
     setSuggestion(null);
     try {
-      const { callToolJson } = await import("@/lib/api");
+      const { callToolJson } = await import("@akari-os/sdk/mcp");
       const conv = await callToolJson<{ conversationId: string }>("partner_new_conversation");
 
       // オプションコンテキストを組み立て

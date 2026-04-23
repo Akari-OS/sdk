@@ -1,56 +1,59 @@
 {
   "name": "@akari-os/sdk",
   "version": "0.1.0",
-  "description": "TypeScript type definitions for AKARI OS App SDK",
+  "description": "AKARI OS App SDK — types + Phase 1 runtime (mcp / pool / models / chat-context / ui-hooks / partner)",
   "license": "MIT",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "type": "module",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./agent": {
-      "types": "./dist/agent.d.ts"
-    },
-    "./memory": {
-      "types": "./dist/memory.d.ts"
-    },
-    "./context": {
-      "types": "./dist/context.d.ts"
-    },
-    "./ui": {
-      "types": "./dist/ui.d.ts"
-    },
-    "./inter-app": {
-      "types": "./dist/inter-app.d.ts"
-    },
-    "./permission": {
-      "types": "./dist/permission.d.ts"
-    },
-    "./skill": {
-      "types": "./dist/skill.d.ts"
-    },
-    "./panel-schema": {
-      "types": "./dist/panel-schema.d.ts"
-    },
-    "./manifest": {
-      "types": "./dist/manifest.d.ts"
-    },
-    "./errors": {
-      "types": "./dist/errors.d.ts"
-    }
+    ".": "./src/index.ts",
+    "./agent": "./src/agent.ts",
+    "./memory": "./src/memory.ts",
+    "./context": "./src/context.ts",
+    "./ui": "./src/ui.ts",
+    "./inter-app": "./src/inter-app.ts",
+    "./permission": "./src/permission.ts",
+    "./skill": "./src/skill.ts",
+    "./panel-schema": "./src/panel-schema.ts",
+    "./manifest": "./src/manifest.ts",
+    "./errors": "./src/errors.ts",
+    "./mcp": "./src/mcp.ts",
+    "./pool": "./src/pool.ts",
+    "./models": "./src/models.ts",
+    "./model-store": "./src/model-store.ts",
+    "./chat-context": "./src/chat-context.ts",
+    "./ui-hooks": "./src/ui-hooks.ts",
+    "./partner": "./src/partner.ts"
   },
   "files": [
-    "dist/",
-    "src/"
+    "src/",
+    "dist/"
   ],
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
+    "@tauri-apps/api": "^2",
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19",
     "typescript": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@tauri-apps/api": { "optional": true },
+    "react": { "optional": true },
+    "react-dom": { "optional": true },
+    "typescript": { "optional": true }
+  },
+  "devDependencies": {
+    "@tauri-apps/api": "^2",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.7.0"
   },
   "publishConfig": {
     "access": "public"

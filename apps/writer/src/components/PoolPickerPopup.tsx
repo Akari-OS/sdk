@@ -18,8 +18,8 @@ import {
   type LibraryInfo,
   type PoolItemSummary,
   type PoolSearchResult,
-} from "@/lib/pool-api";
-import { createPresetContext, type PresetContext } from "@/lib/context-selection";
+} from "@akari-os/sdk/pool";
+import { createPresetContext, type PresetContext } from "@akari-os/sdk/chat-context";
 
 interface PoolPickerPopupProps {
   anchorRect: DOMRect;

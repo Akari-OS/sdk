@@ -7,15 +7,15 @@
 
 import { useState, useRef, useEffect } from "react";
 import { ImagePlus, X, MessageCircle, ChevronUp, ChevronDown, AlertCircle, Scissors } from "lucide-react";
-import { ImagePreviewModal } from "@/components/ui/ImagePreview";
+import { ImagePreviewModal } from "@akari-os/shell-ui/ImagePreview";
 import { PlatformTabs } from "./layout/PlatformTabs";
-import { getPlatform, SOURCE_PLATFORM_ID } from "@/lib/platforms";
-import { createImageContext, type ContextItem } from "@/lib/context-selection";
+import { getPlatform, SOURCE_PLATFORM_ID } from "./lib/platforms";
+import { createImageContext, type ContextItem } from "@akari-os/sdk/chat-context";
 import { TiptapEditor } from "./TiptapEditor";
 import { isThreadContent, threadPartCounts, THREAD_SEPARATOR } from "./lib/thread-utils";
 import { extractUrls, fetchOgp, type OgpData } from "./lib/ogp-fetch";
 import { LinkPreviewCard } from "./components/LinkPreviewCard";
-import type { MediaAttachment } from "@/lib/media";
+import type { MediaAttachment } from "./lib/media";
 
 export type { MediaAttachment };
 

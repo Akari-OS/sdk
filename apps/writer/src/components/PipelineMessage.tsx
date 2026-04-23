@@ -8,7 +8,7 @@
 
 import { CheckCircle2, AlertTriangle, Send, RefreshCw, Sparkles } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@akari-os/shell-ui/button";
 
 // ---------------------------------------------------------------------------
 // 型定義

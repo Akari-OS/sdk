@@ -10,7 +10,7 @@ import { EditorContent } from "@tiptap/react";
 import { useTiptapEditor } from "./useTiptapEditor";
 import { MarkdownToolbar } from "./MarkdownToolbar";
 import { SelectionBubbleMenu } from "./SelectionBubbleMenu";
-import type { ContextItem } from "@/lib/context-selection";
+import type { ContextItem } from "@akari-os/sdk/chat-context";
 
 interface TiptapEditorProps {
   draft: string;
