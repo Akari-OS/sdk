@@ -131,6 +131,130 @@ export const PlaceholderWidget: React.FC<WidgetProps> = ({
 };
 
 // ---------------------------------------------------------------------------
+// MarkdownDisplayWidget — read-only markdown display (最小実装)
+// ---------------------------------------------------------------------------
+
+/**
+ * `type: "markdown"` フィールド向けの最小 display widget。
+ *
+ * 本格的な markdown parser（react-markdown + remark-gfm）の導入は
+ * widgets/Display/MarkdownWidget.tsx の TODO（Phase 3b 本番実装）。
+ * それまでは `<pre>` + `whitespace-pre-wrap` で plain-text として描画する。
+ * 値が空 / null の場合は何も描画しない（display widget の慣例）。
+ */
+const MarkdownDisplayWidget: React.FC<WidgetProps> = ({
+  field,
+  value,
+  i18nResolver,
+}) => {
+  const label = field.label ? i18nResolver.resolve(field.label) : null;
+  const raw = typeof value === "string" ? value : value == null ? "" : String(value);
+  const content = raw ? i18nResolver.resolve(raw) : "";
+  if (!content) return null;
+  return (
+    <div className="flex flex-col gap-1">
+      {label && (
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      )}
+      <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+        <pre className="whitespace-pre-wrap font-sans leading-relaxed">
+          {content}
+        </pre>
+      </div>
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// TableDisplayWidget — read-only table display (最小実装)
+// ---------------------------------------------------------------------------
+
+/** `TableField` の runtime 形状（spec の `columns` は schema.ts の型に未反映）。 */
+interface TableFieldRuntime {
+  columns?: Array<{ key: string; label?: string }>;
+}
+
+/**
+ * `type: "table"` フィールド向けの最小 table widget。
+ *
+ * `field.columns` の順で列を描画。値は array of object を想定し、
+ * `row[col.key]` を String() 変換して表示する。
+ * selectable / selection_bind / row_click_bind 等の interactive 機能は
+ * 後続 Phase で実装（現状は pure display）。
+ */
+const TableDisplayWidget: React.FC<WidgetProps> = ({
+  field,
+  value,
+  i18nResolver,
+}) => {
+  const label = field.label ? i18nResolver.resolve(field.label) : null;
+  const columns = (field as unknown as TableFieldRuntime).columns ?? [];
+  const rows = Array.isArray(value) ? (value as Array<Record<string, unknown>>) : [];
+
+  if (columns.length === 0) {
+    return (
+      <div className="rounded border border-dashed border-muted-foreground/40 p-3 text-xs text-muted-foreground">
+        [table] {label ?? field.id}: columns が定義されていません
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {label && (
+        <p className="text-xs font-medium text-muted-foreground">
+          {label} {rows.length > 0 ? `(${rows.length})` : ""}
+        </p>
+      )}
+      {rows.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">結果なし</p>
+      ) : (
+        <div className="overflow-x-auto rounded border border-border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50">
+              <tr>
+                {columns.map((col) => (
+                  <th
+                    key={col.key}
+                    className="px-3 py-2 text-left font-medium text-muted-foreground"
+                  >
+                    {col.label ? i18nResolver.resolve(col.label) : col.key}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, i) => (
+                <tr key={i} className="border-t border-border">
+                  {columns.map((col) => {
+                    const cell = row[col.key];
+                    const display =
+                      cell == null
+                        ? ""
+                        : typeof cell === "object"
+                          ? JSON.stringify(cell)
+                          : String(cell);
+                    return (
+                      <td
+                        key={col.key}
+                        className="px-3 py-2 align-top max-w-md truncate"
+                        title={display}
+                      >
+                        {display}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // defaultWidgetRegistry
 // ---------------------------------------------------------------------------
 
@@ -191,8 +315,8 @@ export const defaultWidgetRegistry: WidgetRegistry = {
   "image-preview": PlaceholderWidget,
   "video-preview": PlaceholderWidget,
 
-  // 表示（Medium priority）
-  markdown: PlaceholderWidget,
+  // 表示（Medium priority）— markdown / table は最小実装済み
+  markdown: MarkdownDisplayWidget,
   badge: PlaceholderWidget,
   stat: PlaceholderWidget,
   progress: PlaceholderWidget,
@@ -206,8 +330,8 @@ export const defaultWidgetRegistry: WidgetRegistry = {
   group: PlaceholderWidget,
   repeater: PlaceholderWidget,
 
-  // データ（Medium）
-  table: PlaceholderWidget,
+  // データ（Medium）— table は最小実装済み（list / card-grid は Phase 3b）
+  table: TableDisplayWidget,
   list: PlaceholderWidget,
   "card-grid": PlaceholderWidget,
 
