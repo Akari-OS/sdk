@@ -32,6 +32,19 @@ tools = [
   "research.save_to_pool",
 ]
 
+[mcp.env]
+# Environment variables injected into the MCP subprocess at spawn time by the Shell.
+# Value formats:
+#   - "keychain:<senderId>/<account>"  — read from macOS Keychain
+#       (service = `com.akari.<senderId>`, consistent with agent daemon naming)
+#   - "literal:<value>"                 — inline literal (debug only; not recommended for
+#                                         published apps — prefer keychain:)
+#
+# Users configure these in the Shell's 設定 → API キー tab under the "リサーチ" category.
+TAVILY_API_KEY = "keychain:tavily/api_key"
+BRAVE_API_KEY  = "keychain:brave/api_key"
+EXA_API_KEY    = "keychain:exa/api_key"
+
 [panels]
 # Shell's generic Schema Renderer reads this JSON Schema and draws the form.
 main = { title = "Research", schema = "panel.schema.json" }
