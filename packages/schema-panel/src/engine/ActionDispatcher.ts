@@ -87,7 +87,12 @@ export class ActionDispatcher {
     action: Action,
     fieldValues: Record<string, unknown>
   ): Promise<void> {
-    switch (action.type) {
+    // 明示的 `type` が無い場合は存在する sub-object から推定する（implicit 判別）。
+    // sdk-types の SchemaAction 定義（type なし、mcp / handoff を排他で指定）と
+    // schema-panel の Action 定義（type 必須）のギャップを吸収するフォールバック。
+    const resolvedType = resolveActionType(action);
+
+    switch (resolvedType) {
       case "mcp.invoke":
         await this.handleMcpInvoke(action, fieldValues);
         break;
@@ -106,9 +111,13 @@ export class ActionDispatcher {
         break;
 
       default: {
-        // TypeScript の exhaustive check のために string にキャスト
-        const unknownType = (action as Action).type as string;
-        console.warn(`[ActionDispatcher] Unknown action type: "${unknownType}"`);
+        const original = (action as Action).type as string | undefined;
+        console.warn(
+          `[ActionDispatcher] Unknown action type: "${String(
+            original,
+          )}" (id=${action.id}). ` +
+            `Provide "type" explicitly or declare one of: mcp / handoff.`,
+        );
       }
     }
   }
@@ -308,4 +317,18 @@ export class ActionDispatcher {
 
     return resolved;
   }
+}
+
+/**
+ * `action.type` が未指定の場合に、存在するサブオブジェクトから type を推定する。
+ *
+ * sdk-types の `SchemaAction`（type 無し、mcp / handoff の排他で判別）と
+ * schema-panel の `Action`（type 必須）のギャップを吸収する。
+ * 明示 `type` が最優先、無ければ `mcp` / `handoff` の存在を見る。
+ */
+function resolveActionType(action: Action): Action["type"] | undefined {
+  if (action.type) return action.type;
+  if (action.mcp) return "mcp.invoke";
+  if (action.handoff) return "handoff";
+  return undefined;
 }
