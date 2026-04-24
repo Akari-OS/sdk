@@ -13,6 +13,10 @@
     "./DelegationAccordion": "./src/DelegationAccordion.tsx",
     "./cn": "./src/lib/cn.ts"
   },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist"
+  },
   "dependencies": {
     "@akari-os/sdk": "workspace:*",
     "class-variance-authority": "^0.7.1",
