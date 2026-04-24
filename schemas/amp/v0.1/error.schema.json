@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp-protocol.org/schema/v0.1/error.json",
+  "title": "AMP Error Response",
+  "description": "JSON-RPC-style error envelope used across all AMP operations. Error codes mirror MCP / M2C conventions (§14).",
+  "type": "object",
+  "required": ["error"],
+  "additionalProperties": false,
+  "properties": {
+    "error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "integer",
+          "description": "JSON-RPC error code. AMP-specific range: -34001..-34008",
+          "oneOf": [
+            { "const": -32600, "description": "Invalid request" },
+            { "const": -32601, "description": "Unknown operation" },
+            { "const": -32602, "description": "Invalid parameters" },
+            { "const": -32603, "description": "Internal error" },
+            { "const": -32700, "description": "Parse error" },
+            { "const": -34001, "description": "Memory not found" },
+            { "const": -34002, "description": "Access denied" },
+            { "const": -34003, "description": "Confidence below threshold" },
+            { "const": -34004, "description": "Strategy not available" },
+            { "const": -34005, "description": "Duplicate memory detected" },
+            { "const": -34006, "description": "Consolidation conflict" },
+            { "const": -34007, "description": "Transform failed" },
+            { "const": -34008, "description": "Exchange rejected (access policy violation)" }
+          ]
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error description"
+        },
+        "data": {
+          "description": "Implementation-specific error context (memory id, required scope, etc.)",
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

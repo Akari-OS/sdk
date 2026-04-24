@@ -1,0 +1,298 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp-protocol.org/schema/v0.1/memory-record.json",
+  "title": "AMP MemoryRecord",
+  "description": "Standardized memory record for AI agents, defined by the Agent Memory Protocol (AMP)",
+  "type": "object",
+  "required": [
+    "id",
+    "type",
+    "content",
+    "confidence",
+    "reinforcement",
+    "provenance",
+    "access",
+    "tags",
+    "relations",
+    "createdAt",
+    "updatedAt",
+    "status"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier (UUID v7 recommended)"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["episodic", "semantic", "procedural", "working"],
+      "description": "Memory type based on cognitive science taxonomy"
+    },
+    "content": {
+      "type": "string",
+      "description": "Human-readable memory content (natural language)"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Confidence score indicating memory reliability"
+    },
+    "reinforcement": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of times this memory has been reinforced"
+    },
+    "decayRate": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Decay rate override (uses type default if omitted)"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenance"
+    },
+    "access": {
+      "$ref": "#/$defs/AccessPolicy"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Categorization tags"
+    },
+    "relations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Relation" },
+      "description": "Relations to other memories or external entities"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Creation timestamp (ISO 8601 UTC)"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last update timestamp (ISO 8601 UTC)"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "consolidated", "archived"],
+      "description": "Memory status"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Type-specific structured data"
+    },
+    "extensions": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Extension fields (namespaced)"
+    }
+  },
+  "$defs": {
+    "Provenance": {
+      "type": "object",
+      "required": ["agent", "source"],
+      "properties": {
+        "agent": {
+          "$ref": "#/$defs/AgentIdentity"
+        },
+        "source": {
+          "$ref": "#/$defs/MemorySource"
+        },
+        "sessionId": {
+          "type": "string",
+          "description": "Session or conversation ID"
+        },
+        "transformedFrom": {
+          "type": "string",
+          "description": "Source memory ID if this memory was transformed"
+        },
+        "consolidatedFrom": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Source memory IDs if this memory was consolidated"
+        },
+        "chain": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ProvenanceEntry" },
+          "description": "Full provenance chain for audit"
+        }
+      }
+    },
+    "AgentIdentity": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique agent identifier"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable agent name"
+        },
+        "platform": {
+          "type": "string",
+          "description": "Agent framework or platform (e.g., 'claude-code', 'langchain', 'crewai')"
+        }
+      }
+    },
+    "MemorySource": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "user_statement",
+            "observation",
+            "inference",
+            "tool_result",
+            "consolidation",
+            "transform",
+            "import"
+          ],
+          "description": "How this memory was created"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Source-specific confidence"
+        },
+        "toolName": {
+          "type": "string",
+          "description": "Tool name (when kind is 'tool_result')"
+        },
+        "sourceIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Source memory IDs (when kind is 'consolidation')"
+        },
+        "sourceId": {
+          "type": "string",
+          "description": "Source memory ID (when kind is 'transform')"
+        },
+        "method": {
+          "type": "string",
+          "description": "Transform method (when kind is 'transform')"
+        },
+        "externalSystem": {
+          "type": "string",
+          "description": "External system name (when kind is 'import')"
+        }
+      }
+    },
+    "ProvenanceEntry": {
+      "type": "object",
+      "required": ["timestamp", "operation", "agent"],
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "operation": {
+          "type": "string",
+          "enum": ["encode", "reinforce", "consolidate", "transform", "import"]
+        },
+        "agent": {
+          "$ref": "#/$defs/AgentIdentity"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "AccessPolicy": {
+      "type": "object",
+      "required": ["scope", "pii"],
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": ["private", "agent", "team", "public"],
+          "description": "Visibility scope"
+        },
+        "readers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Agent IDs with read access"
+        },
+        "writers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Agent IDs with write access"
+        },
+        "pii": {
+          "type": "string",
+          "enum": ["none", "personal", "sensitive", "restricted"],
+          "description": "PII classification level"
+        }
+      }
+    },
+    "Relation": {
+      "type": "object",
+      "required": ["target", "type", "strength"],
+      "properties": {
+        "target": {
+          "type": "string",
+          "description": "Target memory ID or external URI"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "related_to",
+            "derived_from",
+            "contradicts",
+            "supersedes",
+            "part_of",
+            "depends_on",
+            "co_occurred"
+          ],
+          "description": "Relation type"
+        },
+        "strength": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Relation strength"
+        },
+        "label": {
+          "type": "string",
+          "description": "Human-readable label"
+        }
+      }
+    },
+    "MemoryExchange": {
+      "type": "object",
+      "required": ["protocolVersion", "sender", "receiver", "memories", "exchange"],
+      "description": "Payload for memory exchange between agents",
+      "properties": {
+        "protocolVersion": {
+          "type": "string"
+        },
+        "sender": {
+          "$ref": "#/$defs/AgentIdentity"
+        },
+        "receiver": {
+          "$ref": "#/$defs/AgentIdentity"
+        },
+        "memories": {
+          "type": "array",
+          "items": { "$ref": "#" }
+        },
+        "exchange": {
+          "type": "object",
+          "required": ["id", "timestamp", "reshareAllowed"],
+          "properties": {
+            "id": { "type": "string" },
+            "timestamp": { "type": "string", "format": "date-time" },
+            "reason": { "type": "string" },
+            "reshareAllowed": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  }
+}

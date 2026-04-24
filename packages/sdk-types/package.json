@@ -25,7 +25,8 @@
     "./model-store": "./src/model-store.ts",
     "./chat-context": "./src/chat-context.ts",
     "./ui-hooks": "./src/ui-hooks.ts",
-    "./partner": "./src/partner.ts"
+    "./partner": "./src/partner.ts",
+    "./generated": "./src/generated/index.ts"
   },
   "files": [
     "src/",

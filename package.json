@@ -16,9 +16,12 @@
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test",
-    "lint": "pnpm -r run lint"
+    "lint": "pnpm -r run lint",
+    "codegen": "node scripts/codegen.mjs",
+    "sync-schemas": "node scripts/sync-schemas.mjs"
   },
   "devDependencies": {
+    "quicktype-core": "^23.0.0",
     "typescript": "^5.4.0"
   }
 }

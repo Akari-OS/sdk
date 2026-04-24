@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://amp-protocol.org/schema/v0.1/mcp-tools.json",
+  "title": "AMP MCP Tool Input Schemas",
+  "description": "Input schemas for the 7 MCP tools exposed by AMP providers (§12.1). Each tool maps 1:1 to an AMP operation (§3.2). The top-level envelope maps tool names to their input shapes so every $def is referenced from the root (required for TypeScript codegen).",
+  "type": "object",
+  "properties": {
+    "amp_encode":      { "$ref": "#/$defs/amp_encode" },
+    "amp_retrieve":    { "$ref": "#/$defs/amp_retrieve" },
+    "amp_reinforce":   { "$ref": "#/$defs/amp_reinforce" },
+    "amp_consolidate": { "$ref": "#/$defs/amp_consolidate" },
+    "amp_transform":   { "$ref": "#/$defs/amp_transform" },
+    "amp_delete":      { "$ref": "#/$defs/amp_delete" },
+    "amp_info":        { "$ref": "#/$defs/amp_info" }
+  },
+  "$defs": {
+    "memoryType": {
+      "type": "string",
+      "enum": ["episodic", "semantic", "procedural", "working"]
+    },
+    "provenanceInput": {
+      "type": "object",
+      "description": "Source provenance for an encode or reinforce call. Full structure is defined in the main MemoryRecord schema.",
+      "additionalProperties": true
+    },
+    "accessPolicy": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "relationInput": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "amp_encode": {
+      "type": "object",
+      "description": "Create a new MemoryRecord (§3.2.1)",
+      "required": ["type", "content", "provenance"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "$ref": "#/$defs/memoryType" },
+        "content": { "type": "string" },
+        "provenance": { "$ref": "#/$defs/provenanceInput" },
+        "access": { "$ref": "#/$defs/accessPolicy" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "relations": { "type": "array", "items": { "$ref": "#/$defs/relationInput" } },
+        "metadata": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "amp_retrieve": {
+      "type": "object",
+      "description": "Search memories (§3.2.2). Example in §12.2.",
+      "additionalProperties": false,
+      "properties": {
+        "text": { "type": "string", "description": "Semantic search query" },
+        "types": { "type": "array", "items": { "$ref": "#/$defs/memoryType" } },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "timeRange": {
+          "type": "object",
+          "properties": {
+            "after": { "type": "string", "format": "date-time" },
+            "before": { "type": "string", "format": "date-time" }
+          },
+          "additionalProperties": false
+        },
+        "minConfidence": { "type": "number", "minimum": 0.0, "maximum": 1.0, "default": 0.3 },
+        "limit": { "type": "integer", "minimum": 1, "default": 10 },
+        "scope": { "type": "string", "description": "AccessScope filter" },
+        "agentId": { "type": "string" }
+      }
+    },
+    "amp_reinforce": {
+      "type": "object",
+      "description": "Strengthen an existing memory (§3.2.3)",
+      "required": ["id", "provenance"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "additionalContent": { "type": "string" },
+        "provenance": { "$ref": "#/$defs/provenanceInput" }
+      }
+    },
+    "amp_consolidate": {
+      "type": "object",
+      "description": "Merge related memories (§3.2.4)",
+      "required": ["sourceIds"],
+      "additionalProperties": false,
+      "properties": {
+        "sourceIds": { "type": "array", "items": { "type": "string" }, "minItems": 2 },
+        "strategy": { "type": "string", "description": "Consolidation strategy name (provider-defined)" },
+        "provenance": { "$ref": "#/$defs/provenanceInput" }
+      }
+    },
+    "amp_transform": {
+      "type": "object",
+      "description": "Convert between memory types or apply a transform (§3.2.5)",
+      "required": ["id", "targetType"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "targetType": { "$ref": "#/$defs/memoryType" },
+        "reason": { "type": "string" }
+      }
+    },
+    "amp_delete": {
+      "type": "object",
+      "description": "Remove a memory (§3.2.6)",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "hard": { "type": "boolean", "default": false, "description": "If true, physically delete; otherwise mark status='deleted'" }
+      }
+    },
+    "amp_info": {
+      "type": "object",
+      "description": "Return provider metadata (§3.2.7). No input parameters.",
+      "additionalProperties": false,
+      "properties": {}
+    }
+  }
+}

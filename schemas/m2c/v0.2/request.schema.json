@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Akari-OS/m2c/schema/v0.2/request.json",
+  "title": "M2C Consumer Request",
+  "description": "Request payload sent by an M2C consumer at negotiation time (§6.2). The provider responds with the subset it can fulfill based on its Capabilities (capabilities.schema.json).",
+  "type": "object",
+  "required": ["protocolVersion", "requested"],
+  "additionalProperties": false,
+  "properties": {
+    "protocolVersion": {
+      "type": "string",
+      "description": "Date-based protocol version (YYYY-MM-DD)",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "requested": {
+      "type": "object",
+      "required": ["modules", "precisionLevel"],
+      "additionalProperties": false,
+      "properties": {
+        "modules": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Requested analysis modules. Must be a subset of the provider's advertised capabilities.modules."
+        },
+        "precisionLevel": {
+          "type": "string",
+          "enum": ["quick", "standard", "deep"]
+        },
+        "contextLevel": {
+          "type": "string",
+          "enum": ["L0", "L1", "L2", "L3"],
+          "description": "Supply context level (optional, requires Supply module support on provider side)"
+        },
+        "maxTokens": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Upper bound on returned context token count (hint for cost / latency budget)"
+        }
+      }
+    }
+  }
+}
