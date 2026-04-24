@@ -1,25 +1,21 @@
 {
+  // AKARI 共通 markdown-lint 設定（すべての akari-* リポで同一）
+  // 設計方針:
+  //   - 品質ゲートとして機能する rule（MD025 単一 H1、MD051 壊れた参照リンク、
+  //     MD022/031/032 の空行ルール、MD001 heading increment 等）は **enabled**
+  //   - 日本語ドキュメントで不可避的に発生する noise rule のみ disable
+  //   - akari-sdk README のように複数 H1 がある場合は正しく違反検出させ、
+  //     repo 側で構造修正する方針
+  // 差分監査 2026-04-24 P1 #3 の再調整。旧版は 20 rule disable で実質
+  // gate 無効化状態だった。今回は 7 rule disable に絞る。
   "config": {
-    "MD001": false,
-    "MD009": false,
-    "MD013": false,
-    "MD022": false,
-    "MD024": { "siblings_only": true },
-    "MD025": false,
-    "MD028": false,
-    "MD029": false,
-    "MD031": false,
-    "MD032": false,
-    "MD033": false,
-    "MD034": false,
-    "MD036": false,
-    "MD037": false,
-    "MD040": false,
-    "MD041": false,
-    "MD045": false,
-    "MD046": false,
-    "MD051": false,
-    "MD056": false
+    "MD013": false,                       // 行長 — 日本語 + 英語混在で破綻する
+    "MD024": { "siblings_only": true },   // 同階層内の重複のみ禁止
+    "MD033": false,                       // inline HTML — バッジ等で使用
+    "MD034": false,                       // bare URL — 識字的には可
+    "MD036": false,                       // emphasis as heading — 記法差は許容
+    "MD040": false,                       // fenced code language — 必須化しない
+    "MD041": false                        // first line h1 — frontmatter 混在
   },
   "globs": ["**/*.md"],
   "ignores": [
