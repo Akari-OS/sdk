@@ -1,0 +1,45 @@
+{
+  "app.title": "リサーチ",
+
+  "tab.search": "検索",
+  "tab.read": "詳細",
+  "tab.pool_export": "Pool 保存",
+
+  "search.query.label": "検索クエリ",
+  "search.query.placeholder": "調べたいキーワードを入力",
+  "search.provider.label": "プロバイダ",
+  "search.provider.helper": "Phase 0 は Tavily のみ実装。Brave / Exa は差し替え構造のみ用意。",
+  "search.max_results.label": "最大件数",
+  "search.include_answer.label": "AI 要約を取得する",
+  "search.include_answer.helper": "プロバイダ側で検索結果を合成した答え（Tavily の include_answer）を取り寄せます。",
+  "search.answer.label": "AI 要約",
+  "search.results.label": "検索結果",
+  "search.col.title": "タイトル",
+  "search.col.url": "URL",
+  "search.col.snippet": "要約",
+
+  "read.content.label": "本文",
+
+  "export.tags.label": "タグ",
+  "export.tags.helper": "Pool で検索しやすいタグを追加できます。",
+  "export.note.label": "メモ",
+  "export.note.placeholder": "保存時の補足メモ（任意）",
+  "export.preview.label": "保存プレビュー",
+  "export.answer_title": "AI 要約",
+
+  "action.search.label": "検索",
+  "action.read.label": "選択結果を本文で読む",
+  "action.quote.label": "Writer に引用として送る",
+  "action.save_pool.label": "選択結果を Pool に保存",
+  "action.save_answer.label": "AI 要約を Pool に保存",
+
+  "hitl.quote_to_writer": "Writer にこの引用を送ります",
+  "hitl.save_pool_count": "以下の件数を Pool に保存します",
+  "hitl.save_answer": "AI 要約を Pool に保存します",
+
+  "toast.search_done": "検索が完了しました",
+  "toast.read_loaded": "本文を取得しました",
+  "toast.saved_to_pool": "Pool に保存しました",
+  "toast.handoff_error": "Writer への送信に失敗しました",
+  "toast.error": "エラー"
+}

@@ -169,17 +169,18 @@ App をマーケットに載せるための 3 層品質ゲート。
 
 ---
 
-### 7. Specs（逆算仕様書）
+### 7. Specs（仕様書）
 
 **[→ specs/](./specs/)**
 
-実装から逆算した仕様書（Reverse Spec）。コードを正典として、型・インターフェース・動作を構造化したドキュメント。
+SDK パッケージおよび example App の仕様書。逆算仕様（Reverse Spec）と新規仕様の両方を含む。
 
 | Spec ID | ファイル | 内容 |
 |---|---|---|
 | **AKARI-SDK-001** | [spec-reverse-sdk-types.md](./specs/spec-reverse-sdk-types.md) | `@akari-os/sdk` 公開型定義（7 API 群 + Panel Schema v0 + Manifest） |
 | **AKARI-SDK-002** | [spec-reverse-schema-panel.md](./specs/spec-reverse-schema-panel.md) | `@akari-os/schema-panel` — Panel Schema v0 React Renderer |
 | **AKARI-SDK-003** | [spec-reverse-app-cli.md](./specs/spec-reverse-app-cli.md) | `akari-app-cli` — App Toolchain（create / dev / certify） |
+| **AKARI-SDK-004** | [spec-example-web-search.md](./specs/spec-example-web-search.md) | `examples/web-search` — Research カテゴリ参考実装（Tavily / AI answer / Pool export） |
 
 ---
 
@@ -206,6 +207,7 @@ App をマーケットに載せるための 3 層品質ゲート。
 |---|---|---|
 | X Sender（Publishing カテゴリ） | MCP-Declarative | [examples/x-sender](./examples/x-sender.md) |
 | Notion（Documents カテゴリ） | MCP-Declarative | [examples/notion](./examples/notion.md) |
+| Web Search（Research カテゴリ） | MCP-Declarative | [examples/web-search](./examples/web-search.md) |
 | Writer（Full Tier リファレンス） | Full | （別リポ / 未着手） |
 
 ---
@@ -217,7 +219,7 @@ App をマーケットに載せるための 3 層品質ゲート。
 | ディレクトリ | 内容 |
 |---|---|
 | [`../packages/`](../packages/) | SDK パッケージ実装（`@akari/sdk` など） |
-| [`../examples/`](../examples/) | 参考実装（X Sender / Notion / Writer） |
+| [`../examples/`](../examples/) | 参考実装（X Sender / Notion / Web Search / Writer） |
 
 ---
 

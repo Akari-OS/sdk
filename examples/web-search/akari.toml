@@ -1,0 +1,54 @@
+# AKARI App Manifest — AKARI App SDK (MCP-Declarative Tier)
+# Reference implementation for the Research category.
+#
+# This file demonstrates:
+#   - tier = "mcp-declarative": Shell handles rendering, HITL, Permission API
+#   - [permissions]: minimum-required declaration (default deny, API-key based — no OAuth)
+#   - [mcp]: bundled MCP server + tool declarations
+#   - [panels]: JSON Schema–based UI declaration (no React needed)
+#   - Provider-abstracted web search with AI answer (Tavily by default)
+
+[app]
+id       = "com.akari.example.web-search"
+name     = "Web Search"
+version  = "0.1.0"
+author   = "akari-os-examples"
+tier     = "mcp-declarative"        # MCP server + panel.schema.json are enough
+sdk      = ">=0.1.0 <1.0"           # Core SDK compatibility range
+category = "research"               # HUB-005 v0.2 Research category
+
+[mcp]
+# Relative path to the MCP server entry point (Node.js process).
+# The Shell spawns this process and communicates via stdio (StdioServerTransport).
+server = "mcp-server/index.ts"
+
+# Every tool listed here MUST be implemented in mcp-server/ AND referenced in panel.schema.json.
+# akari app certify verifies this triple-consistency automatically.
+tools = [
+  "research.search",
+  "research.deep_read",
+  "research.save_to_pool",
+]
+
+[panels]
+# Shell's generic Schema Renderer reads this JSON Schema and draws the form.
+main = { title = "Research", schema = "panel.schema.json" }
+
+[permissions]
+# Default deny. Declare only what this app actually needs.
+
+# External HTTP — Phase 0 is Tavily; Brave / Exa endpoints are declared for
+# Phase 1 provider-switch readiness. Comment out unused endpoints in production.
+external-network = [
+  "api.tavily.com",
+  "api.search.brave.com",
+  "api.exa.ai",
+]
+
+# Keychain — restricted to this app's own service name.
+# Phase 0 reads API keys from env vars; Phase 1 migrates to Keychain.
+keychain = ["com.akari.example.web-search"]
+
+# Memory layer — Pool for saved results / cache, AMP for research-action records
+pool = ["read", "write"]
+amp  = ["write"]

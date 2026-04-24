@@ -1,0 +1,45 @@
+{
+  "app.title": "Research",
+
+  "tab.search": "Search",
+  "tab.read": "Read",
+  "tab.pool_export": "Pool Export",
+
+  "search.query.label": "Query",
+  "search.query.placeholder": "Enter a keyword or question",
+  "search.provider.label": "Provider",
+  "search.provider.helper": "Phase 0 ships Tavily only. Brave / Exa are structural stubs.",
+  "search.max_results.label": "Max results",
+  "search.include_answer.label": "Include AI answer",
+  "search.include_answer.helper": "Ask the provider to synthesize an answer from the results (Tavily include_answer).",
+  "search.answer.label": "AI answer",
+  "search.results.label": "Results",
+  "search.col.title": "Title",
+  "search.col.url": "URL",
+  "search.col.snippet": "Snippet",
+
+  "read.content.label": "Body",
+
+  "export.tags.label": "Tags",
+  "export.tags.helper": "Extra tags to make the Pool records easy to find.",
+  "export.note.label": "Note",
+  "export.note.placeholder": "Optional memo to attach to every saved record",
+  "export.preview.label": "Preview",
+  "export.answer_title": "AI answer",
+
+  "action.search.label": "Search",
+  "action.read.label": "Read focused result",
+  "action.quote.label": "Quote to Writer",
+  "action.save_pool.label": "Save selected to Pool",
+  "action.save_answer.label": "Save AI answer to Pool",
+
+  "hitl.quote_to_writer": "Send this quote to Writer",
+  "hitl.save_pool_count": "Items to save to Pool",
+  "hitl.save_answer": "Save the AI answer to Pool",
+
+  "toast.search_done": "Search complete",
+  "toast.read_loaded": "Body loaded",
+  "toast.saved_to_pool": "Saved to Pool",
+  "toast.handoff_error": "Failed to hand off to Writer",
+  "toast.error": "Error"
+}

@@ -1,0 +1,269 @@
+{
+  "$schema": "akari://panel-schema/v0",
+  "title": "{{t:app.title}}",
+  "layout": "tabs",
+
+  "tabs": [
+    { "id": "search",      "label": "{{t:tab.search}}" },
+    { "id": "read",        "label": "{{t:tab.read}}" },
+    { "id": "pool-export", "label": "{{t:tab.pool_export}}" }
+  ],
+
+  "fields": [
+
+    {
+      "_comment_section": "=== Tab 1: Search ===",
+      "id": "query",
+      "tab": "search",
+      "type": "text",
+      "label": "{{t:search.query.label}}",
+      "placeholder": "{{t:search.query.placeholder}}",
+      "bind": "mcp.research.search.query",
+      "required": true
+    },
+    {
+      "id": "provider",
+      "tab": "search",
+      "type": "select",
+      "label": "{{t:search.provider.label}}",
+      "bind": "mcp.research.search.provider",
+      "options": [
+        { "value": "tavily", "label": "Tavily" },
+        { "value": "brave",  "label": "Brave (Phase 1)", "disabled": true },
+        { "value": "exa",    "label": "Exa (Phase 1)",   "disabled": true }
+      ],
+      "default": "tavily",
+      "helperText": "{{t:search.provider.helper}}"
+    },
+    {
+      "id": "max_results",
+      "tab": "search",
+      "type": "number",
+      "label": "{{t:search.max_results.label}}",
+      "bind": "mcp.research.search.max_results",
+      "min": 1,
+      "max": 20,
+      "default": 10
+    },
+    {
+      "id": "include_answer",
+      "tab": "search",
+      "type": "toggle",
+      "label": "{{t:search.include_answer.label}}",
+      "bind": "mcp.research.search.include_answer",
+      "default": true,
+      "helperText": "{{t:search.include_answer.helper}}"
+    },
+    {
+      "id": "answer_display",
+      "tab": "search",
+      "type": "markdown",
+      "label": "{{t:search.answer.label}}",
+      "bind": "state.search_result.answer",
+      "visible_when": "$search_result != null && $search_result.answer != null"
+    },
+    {
+      "id": "results_table",
+      "tab": "search",
+      "type": "table",
+      "label": "{{t:search.results.label}}",
+      "bind": "state.search_result.results",
+      "columns": [
+        { "key": "title",   "label": "{{t:search.col.title}}"   },
+        { "key": "url",     "label": "{{t:search.col.url}}"     },
+        { "key": "snippet", "label": "{{t:search.col.snippet}}" }
+      ],
+      "selectable": "multi",
+      "selection_bind": "state.selected_results",
+      "row_click_bind": "state.focused_result",
+      "visible_when": "$search_result != null && $search_result.results.length > 0"
+    },
+
+    {
+      "_comment_section": "=== Tab 2: Read ===",
+      "id": "read_content",
+      "tab": "read",
+      "type": "markdown",
+      "label": "{{t:read.content.label}}",
+      "bind": "state.focused_read.content_markdown",
+      "visible_when": "$focused_result != null"
+    },
+
+    {
+      "_comment_section": "=== Tab 3: Pool Export ===",
+      "id": "export_tags",
+      "tab": "pool-export",
+      "type": "multi-select",
+      "label": "{{t:export.tags.label}}",
+      "bind": "state.export_tags",
+      "creatable": true,
+      "default": ["research", "web-search"],
+      "helperText": "{{t:export.tags.helper}}"
+    },
+    {
+      "id": "export_note",
+      "tab": "pool-export",
+      "type": "textarea",
+      "label": "{{t:export.note.label}}",
+      "placeholder": "{{t:export.note.placeholder}}",
+      "bind": "state.export_note",
+      "maxLength": 1000
+    },
+    {
+      "id": "export_summary",
+      "tab": "pool-export",
+      "type": "markdown",
+      "label": "{{t:export.preview.label}}",
+      "bind": "state.export_summary_md",
+      "visible_when": "$selected_results != null && $selected_results.length > 0"
+    }
+  ],
+
+  "actions": [
+
+    {
+      "id": "run_search",
+      "tab": "search",
+      "label": "{{t:action.search.label}}",
+      "kind": "primary",
+      "mcp": {
+        "tool": "research.search",
+        "args": {
+          "query": "$query",
+          "provider": "$provider",
+          "max_results": "$max_results",
+          "include_answer": "$include_answer"
+        },
+        "result_bind": "state.search_result"
+      },
+      "enabled_when": "$query != null && $query.length > 0",
+      "on_success": {
+        "toast": "{{t:toast.search_done}}"
+      },
+      "on_error": {
+        "toast": "{{t:toast.error}}: {{error}}"
+      }
+    },
+
+    {
+      "id": "read_focused",
+      "tab": "search",
+      "label": "{{t:action.read.label}}",
+      "kind": "secondary",
+      "mcp": {
+        "tool": "research.deep_read",
+        "args": {
+          "url": "$focused_result.url",
+          "provider": "$provider"
+        },
+        "result_bind": "state.focused_read"
+      },
+      "enabled_when": "$focused_result != null",
+      "on_success": {
+        "navigate_tab": "read",
+        "toast": "{{t:toast.read_loaded}}"
+      },
+      "on_error": {
+        "toast": "{{t:toast.error}}: {{error}}"
+      }
+    },
+
+    {
+      "id": "quote_to_writer",
+      "tab": "read",
+      "label": "{{t:action.quote.label}}",
+      "kind": "secondary",
+      "type": "handoff",
+      "handoff": {
+        "to": "com.akari.example.writer",
+        "intent": "quote-from-research",
+        "payload": {
+          "query": "$query",
+          "items": [
+            {
+              "title": "$focused_result.title",
+              "url": "$focused_result.url",
+              "snippet": "$focused_result.snippet",
+              "body": "$focused_read.content_markdown"
+            }
+          ],
+          "answer": "$search_result.answer"
+        }
+      },
+      "hitl": {
+        "require": true,
+        "preview": "text-summary",
+        "preview_template": "{{t:hitl.quote_to_writer}} ({{$focused_result.title}})"
+      },
+      "enabled_when": "$focused_result != null",
+      "on_error": {
+        "toast": "{{t:toast.handoff_error}}: {{error}}"
+      }
+    },
+
+    {
+      "id": "save_selected_to_pool",
+      "tab": "pool-export",
+      "label": "{{t:action.save_pool.label}}",
+      "kind": "primary",
+      "mcp": {
+        "tool": "research.save_to_pool",
+        "args": {
+          "query": "$query",
+          "provider": "$provider",
+          "items": "$selected_results",
+          "tags": "$export_tags",
+          "note": "$export_note"
+        }
+      },
+      "hitl": {
+        "require": true,
+        "preview": "text-summary",
+        "preview_template": "{{t:hitl.save_pool_count}}: {{$selected_results.length}}"
+      },
+      "enabled_when": "$selected_results != null && $selected_results.length > 0",
+      "on_success": {
+        "toast": "{{t:toast.saved_to_pool}}",
+        "clear_fields": ["export_note"]
+      },
+      "on_error": {
+        "toast": "{{t:toast.error}}: {{error}}"
+      }
+    },
+
+    {
+      "id": "save_answer_to_pool",
+      "tab": "search",
+      "label": "{{t:action.save_answer.label}}",
+      "kind": "ghost",
+      "mcp": {
+        "tool": "research.save_to_pool",
+        "args": {
+          "query": "$query",
+          "provider": "$provider",
+          "items": [
+            {
+              "kind": "answer",
+              "title": "{{t:export.answer_title}}: $query",
+              "body": "$search_result.answer",
+              "answer_sources": "$search_result.answer_sources"
+            }
+          ],
+          "tags": ["ai-answer"]
+        }
+      },
+      "hitl": {
+        "require": true,
+        "preview": "text-summary",
+        "preview_template": "{{t:hitl.save_answer}}"
+      },
+      "enabled_when": "$search_result != null && $search_result.answer != null",
+      "on_success": {
+        "toast": "{{t:toast.saved_to_pool}}"
+      },
+      "on_error": {
+        "toast": "{{t:toast.error}}: {{error}}"
+      }
+    }
+  ]
+}
