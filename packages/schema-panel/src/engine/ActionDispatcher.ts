@@ -19,7 +19,7 @@
 
 import type { Action, McpCall, HandoffCall, OnSuccess, OnError } from "../types/schema";
 import type { McpClient, AppClient, NavigationClient, ToastClient } from "../types/context";
-import { resolveActionArgs } from "./BindingResolver";
+import { resolveActionArgs, type BindingResolver } from "./BindingResolver";
 import { I18nResolver } from "./I18nResolver";
 
 // ---------------------------------------------------------------------------
@@ -49,6 +49,12 @@ export interface ActionDispatcherOptions {
   i18nResolver: I18nResolver;
   /** HITL preview UI を表示するコールバック */
   showHitlPreview: ShowHitlPreview;
+  /**
+   * Panel state の書き込みに使う BindingResolver。optional だが、
+   * `action.mcp.result_bind` / `on_success.bind_result` を扱うなら必須。
+   * 未指定の場合は state 書込みは行わず警告のみ。
+   */
+  bindingResolver?: BindingResolver;
 }
 
 /**
@@ -67,6 +73,7 @@ export class ActionDispatcher {
   private toast: ToastClient;
   private i18n: I18nResolver;
   private showHitlPreview: ShowHitlPreview;
+  private bindingResolver?: BindingResolver;
 
   constructor(options: ActionDispatcherOptions) {
     this.mcp = options.mcpClient;
@@ -75,6 +82,7 @@ export class ActionDispatcher {
     this.toast = options.toastClient;
     this.i18n = options.i18nResolver;
     this.showHitlPreview = options.showHitlPreview;
+    this.bindingResolver = options.bindingResolver;
   }
 
   /**
@@ -180,6 +188,20 @@ export class ActionDispatcher {
   ): Promise<void> {
     try {
       const result = await this.mcp.call(tool, resolvedArgs);
+      // 結果を Panel state に書き込む。`action.mcp.result_bind` を優先し、
+      // 無ければ `on_success.bind_result` を使う（両者とも state.* 前提）。
+      const bindTarget =
+        action.mcp?.result_bind ?? action.on_success?.bind_result;
+      if (bindTarget) {
+        if (this.bindingResolver) {
+          await this.bindingResolver.write(bindTarget, result);
+        } else {
+          console.warn(
+            `[ActionDispatcher] result_bind "${bindTarget}" is declared but ` +
+              `no bindingResolver is provided; state write skipped.`,
+          );
+        }
+      }
       await this.handleSuccess(action, result, fieldValues);
     } catch (err) {
       this.handleError(action, err, fieldValues);

@@ -136,9 +136,25 @@ export class BindingResolver {
         // amp.<kind>.<field> → AMP レコードのフィールドを返す
         return this.resolveAmp(parsed.segments);
 
-      case "state":
-        // state.<key> → Zustand store から読み取る
-        return this.state.get(parsed.path);
+      case "state": {
+        // state.<key> → Zustand store から読み取る。
+        // dotted path（例: `state.search_result.answer`）の場合、先頭の
+        // segment を flat key として get し、残りを object walk で辿る。
+        // ActionDispatcher が `state.search_result` に object を set すると、
+        // `state.search_result.answer` で object.answer を取れる。
+        const segs = parsed.segments;
+        if (segs.length <= 1) {
+          return this.state.get(parsed.path);
+        }
+        const head = segs[0]!;
+        let value: unknown = this.state.get(head);
+        for (let i = 1; i < segs.length; i++) {
+          if (value == null || typeof value !== "object") return undefined;
+          const seg = segs[i]!;
+          value = (value as Record<string, unknown>)[seg];
+        }
+        return value;
+      }
 
       case "const":
         // const.<value> → リテラル値（数値変換を試みる）

@@ -276,6 +276,11 @@ export type ActionType =
 export interface McpCall {
   tool: string;
   args: Record<string, FieldRef | unknown>;
+  /**
+   * tool 応答を Panel state に書き込む先（state.* binding）。
+   * `on_success.bind_result` と等価（両方ある場合は result_bind が優先）。
+   */
+  result_bind?: BindingPattern;
 }
 
 export interface HandoffCall {

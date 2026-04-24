@@ -133,6 +133,7 @@ export const SchemaPanel: React.FC<SchemaPanelProps> = ({
     toastClient: context.toastClient,
     i18nResolver,
     showHitlPreview,
+    bindingResolver,
   });
 
   // --- Widget registry ---
