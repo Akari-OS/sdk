@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "akari dev",
-    "build": "tsup mcp-server/index.ts --format esm --target node18 --outDir dist/mcp-server --clean",
+    "build": "tsup",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
