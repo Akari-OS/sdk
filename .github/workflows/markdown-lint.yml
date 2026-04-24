@@ -1,0 +1,20 @@
+name: Markdown Lint
+
+# Akari-OS/.github の reusable workflow を呼び出す薄いラッパー。
+# 詳細: https://github.com/Akari-OS/.github/blob/main/.github/workflows/markdown-lint.yml
+
+on:
+  pull_request:
+    paths:
+      - '**/*.md'
+      - '.markdownlint-cli2.jsonc'
+  push:
+    branches: [main]
+    paths:
+      - '**/*.md'
+      - '.markdownlint-cli2.jsonc'
+  workflow_dispatch:
+
+jobs:
+  markdown:
+    uses: Akari-OS/.github/.github/workflows/markdown-lint.yml@main

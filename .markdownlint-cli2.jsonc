@@ -1,0 +1,20 @@
+{
+  "config": {
+    "MD013": false,
+    "MD033": false,
+    "MD041": false,
+    "MD034": false,
+    "MD036": false,
+    "MD024": { "siblings_only": true }
+  },
+  "globs": ["**/*.md"],
+  "ignores": [
+    "node_modules/**",
+    "target/**",
+    "dist/**",
+    "build/**",
+    ".next/**",
+    "out/**",
+    "CHANGELOG.md"
+  ]
+}
