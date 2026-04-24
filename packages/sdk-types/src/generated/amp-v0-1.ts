@@ -45,13 +45,98 @@ export interface AMPMCPToolInputSchemas {
  * Merge related memories (§3.2.4)
  */
 export interface AmpConsolidate {
-    provenance?: { [key: string]: any };
+    provenance?: Provenance;
     sourceIds:   string[];
     /**
      * Consolidation strategy name (provider-defined)
      */
     strategy?: string;
 }
+
+export interface Provenance {
+    agent: Agent;
+    /**
+     * Full provenance chain for audit
+     */
+    chain?: MemoryRecor[];
+    /**
+     * Source memory IDs if this memory was consolidated
+     */
+    consolidatedFrom?: string[];
+    /**
+     * Session or conversation ID
+     */
+    sessionId?: string;
+    source:     Source;
+    /**
+     * Source memory ID if this memory was transformed
+     */
+    transformedFrom?: string;
+    [property: string]: any;
+}
+
+export interface Agent {
+    /**
+     * Unique agent identifier
+     */
+    id: string;
+    /**
+     * Human-readable agent name
+     */
+    name: string;
+    /**
+     * Agent framework or platform (e.g., 'claude-code', 'langchain', 'crewai')
+     */
+    platform?: string;
+    [property: string]: any;
+}
+
+export interface MemoryRecor {
+    agent:        Agent;
+    description?: string;
+    operation:    Operation;
+    timestamp:    Date;
+    [property: string]: any;
+}
+
+export type Operation = "encode" | "reinforce" | "consolidate" | "transform" | "import";
+
+export interface Source {
+    /**
+     * Source-specific confidence
+     */
+    confidence?: number;
+    /**
+     * External system name (when kind is 'import')
+     */
+    externalSystem?: string;
+    /**
+     * How this memory was created
+     */
+    kind: Kind;
+    /**
+     * Transform method (when kind is 'transform')
+     */
+    method?: string;
+    /**
+     * Source memory ID (when kind is 'transform')
+     */
+    sourceId?: string;
+    /**
+     * Source memory IDs (when kind is 'consolidation')
+     */
+    sourceIds?: string[];
+    /**
+     * Tool name (when kind is 'tool_result')
+     */
+    toolName?: string;
+    [property: string]: any;
+}
+
+/**
+ * How this memory was created
+ */
+export type Kind = "user_statement" | "observation" | "inference" | "tool_result" | "consolidation" | "transform" | "import";
 
 /**
  * Remove a memory (§3.2.6)
@@ -68,14 +153,69 @@ export interface AmpDelete {
  * Create a new MemoryRecord (§3.2.1)
  */
 export interface AmpEncode {
-    access?:    { [key: string]: any };
+    access?:    Access;
     content:    string;
     metadata?:  { [key: string]: any };
-    provenance: { [key: string]: any };
-    relations?: { [key: string]: any }[];
+    provenance: Provenance;
+    relations?: MCPTool[];
     tags?:      string[];
     type:       TypeElement;
 }
+
+export interface Access {
+    /**
+     * PII classification level
+     */
+    pii: Pii;
+    /**
+     * Agent IDs with read access
+     */
+    readers?: string[];
+    /**
+     * Visibility scope
+     */
+    scope: Scope;
+    /**
+     * Agent IDs with write access
+     */
+    writers?: string[];
+    [property: string]: any;
+}
+
+/**
+ * PII classification level
+ */
+export type Pii = "none" | "personal" | "sensitive" | "restricted";
+
+/**
+ * Visibility scope
+ */
+export type Scope = "private" | "agent" | "team" | "public";
+
+export interface MCPTool {
+    /**
+     * Human-readable label
+     */
+    label?: string;
+    /**
+     * Relation strength
+     */
+    strength: number;
+    /**
+     * Target memory ID or external URI
+     */
+    target: string;
+    /**
+     * Relation type
+     */
+    type: RelationType;
+    [property: string]: any;
+}
+
+/**
+ * Relation type
+ */
+export type RelationType = "related_to" | "derived_from" | "contradicts" | "supersedes" | "part_of" | "depends_on" | "co_occurred";
 
 /**
  * Memory type based on cognitive science taxonomy
@@ -94,7 +234,7 @@ export interface AmpInfo {
 export interface AmpReinforce {
     additionalContent?: string;
     id:                 string;
-    provenance:         { [key: string]: any };
+    provenance:         Provenance;
 }
 
 /**
@@ -172,7 +312,7 @@ export interface AMPMemoryRecord {
     /**
      * Relations to other memories or external entities
      */
-    relations: RelationElement[];
+    relations: MCPTool[];
     /**
      * Memory status
      */
@@ -191,146 +331,6 @@ export interface AMPMemoryRecord {
     updatedAt: Date;
     [property: string]: any;
 }
-
-export interface Access {
-    /**
-     * PII classification level
-     */
-    pii: Pii;
-    /**
-     * Agent IDs with read access
-     */
-    readers?: string[];
-    /**
-     * Visibility scope
-     */
-    scope: Scope;
-    /**
-     * Agent IDs with write access
-     */
-    writers?: string[];
-    [property: string]: any;
-}
-
-/**
- * PII classification level
- */
-export type Pii = "none" | "personal" | "sensitive" | "restricted";
-
-/**
- * Visibility scope
- */
-export type Scope = "private" | "agent" | "team" | "public";
-
-export interface Provenance {
-    agent: Agent;
-    /**
-     * Full provenance chain for audit
-     */
-    chain?: ChainElement[];
-    /**
-     * Source memory IDs if this memory was consolidated
-     */
-    consolidatedFrom?: string[];
-    /**
-     * Session or conversation ID
-     */
-    sessionId?: string;
-    source:     Source;
-    /**
-     * Source memory ID if this memory was transformed
-     */
-    transformedFrom?: string;
-    [property: string]: any;
-}
-
-export interface Agent {
-    /**
-     * Unique agent identifier
-     */
-    id: string;
-    /**
-     * Human-readable agent name
-     */
-    name: string;
-    /**
-     * Agent framework or platform (e.g., 'claude-code', 'langchain', 'crewai')
-     */
-    platform?: string;
-    [property: string]: any;
-}
-
-export interface ChainElement {
-    agent:        Agent;
-    description?: string;
-    operation:    Operation;
-    timestamp:    Date;
-    [property: string]: any;
-}
-
-export type Operation = "encode" | "reinforce" | "consolidate" | "transform" | "import";
-
-export interface Source {
-    /**
-     * Source-specific confidence
-     */
-    confidence?: number;
-    /**
-     * External system name (when kind is 'import')
-     */
-    externalSystem?: string;
-    /**
-     * How this memory was created
-     */
-    kind: Kind;
-    /**
-     * Transform method (when kind is 'transform')
-     */
-    method?: string;
-    /**
-     * Source memory ID (when kind is 'transform')
-     */
-    sourceId?: string;
-    /**
-     * Source memory IDs (when kind is 'consolidation')
-     */
-    sourceIds?: string[];
-    /**
-     * Tool name (when kind is 'tool_result')
-     */
-    toolName?: string;
-    [property: string]: any;
-}
-
-/**
- * How this memory was created
- */
-export type Kind = "user_statement" | "observation" | "inference" | "tool_result" | "consolidation" | "transform" | "import";
-
-export interface RelationElement {
-    /**
-     * Human-readable label
-     */
-    label?: string;
-    /**
-     * Relation strength
-     */
-    strength: number;
-    /**
-     * Target memory ID or external URI
-     */
-    target: string;
-    /**
-     * Relation type
-     */
-    type: RelationType;
-    [property: string]: any;
-}
-
-/**
- * Relation type
- */
-export type RelationType = "related_to" | "derived_from" | "contradicts" | "supersedes" | "part_of" | "depends_on" | "co_occurred";
 
 /**
  * Memory status

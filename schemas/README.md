@@ -23,16 +23,22 @@ schemas/
 - 同期タイミング: 上流の spec 本文（`.md`）や `.schema.json` が変わった PR をマージしたタイミング。`akari-sdk` 側で別 PR を立てる
 - 同期時は `version` / `protocolVersion` を見て、SemVer breaking に該当するなら sdk-types 側も major bump する
 
-## 各 schema の上流コミット（初回同期時点）
+## 各 schema の上流コミット（最終同期）
+
+> 本表は `pnpm sync-schemas` が自動で更新する。**手で編集しない**。
+
+<!-- upstream-commit-table:start -->
 
 | schema | 上流 | 同期日 | 上流コミット |
 |---|---|---|---|
-| amp/v0.1/schema.json | `Akari-OS/amp` `spec/v0.1/schema.json` | 2026-04-24 | b7bf2bd |
-| amp/v0.1/error.schema.json | 〃 | 2026-04-24 | b7bf2bd |
-| amp/v0.1/mcp-tools.schema.json | 〃 | 2026-04-24 | b7bf2bd |
+| amp/v0.1/schema.json | `Akari-OS/amp` `spec/v0.1/schema.json` | 2026-04-24 | 5f9b180 |
+| amp/v0.1/error.schema.json | `Akari-OS/amp` `spec/v0.1/error.schema.json` | 2026-04-24 | 5f9b180 |
+| amp/v0.1/mcp-tools.schema.json | `Akari-OS/amp` `spec/v0.1/mcp-tools.schema.json` | 2026-04-24 | 5f9b180 |
 | m2c/v0.2/schema.json | `Akari-OS/m2c` `spec/v0.2/schema.json` | 2026-04-24 | 6ee2b27 |
-| m2c/v0.2/capabilities.schema.json | 〃 | 2026-04-24 | 6ee2b27 |
-| m2c/v0.2/request.schema.json | 〃 | 2026-04-24 | 6ee2b27 |
+| m2c/v0.2/capabilities.schema.json | `Akari-OS/m2c` `spec/v0.2/capabilities.schema.json` | 2026-04-24 | 6ee2b27 |
+| m2c/v0.2/request.schema.json | `Akari-OS/m2c` `spec/v0.2/request.schema.json` | 2026-04-24 | 6ee2b27 |
+
+<!-- upstream-commit-table:end -->
 
 ## codegen 出力
 

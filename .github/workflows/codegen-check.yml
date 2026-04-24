@@ -1,0 +1,61 @@
+name: Codegen Drift Check
+
+# schemas/ を入力にした pnpm codegen が既存の
+# packages/sdk-types/src/generated/ と一致することを検証する。
+# 差分があると CI fail。ローカルで pnpm codegen && commit して修正する。
+#
+# 発火: schemas/ / scripts/ / codegen 出力の変更 + 手動
+
+on:
+  pull_request:
+    paths:
+      - 'schemas/**'
+      - 'scripts/codegen.mjs'
+      - 'scripts/sync-schemas.mjs'
+      - 'packages/sdk-types/src/generated/**'
+      - '.github/workflows/codegen-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'schemas/**'
+      - 'scripts/codegen.mjs'
+      - 'scripts/sync-schemas.mjs'
+      - 'packages/sdk-types/src/generated/**'
+      - '.github/workflows/codegen-check.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Verify generated types are in sync
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Re-run codegen
+        run: pnpm codegen
+
+      - name: Verify no diff in generated output
+        run: |
+          if ! git diff --exit-code --stat packages/sdk-types/src/generated/; then
+            echo ""
+            echo "::error::generated/ is out of sync with schemas/."
+            echo "Run 'pnpm codegen' locally and commit the diff."
+            exit 1
+          fi
+          echo "OK — generated/ matches schemas/"

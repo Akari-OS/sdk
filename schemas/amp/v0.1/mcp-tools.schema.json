@@ -19,17 +19,13 @@
       "enum": ["episodic", "semantic", "procedural", "working"]
     },
     "provenanceInput": {
-      "type": "object",
-      "description": "Source provenance for an encode or reinforce call. Full structure is defined in the main MemoryRecord schema.",
-      "additionalProperties": true
+      "$ref": "https://amp-protocol.org/schema/v0.1/memory-record.json#/$defs/Provenance"
     },
     "accessPolicy": {
-      "type": "object",
-      "additionalProperties": true
+      "$ref": "https://amp-protocol.org/schema/v0.1/memory-record.json#/$defs/AccessPolicy"
     },
     "relationInput": {
-      "type": "object",
-      "additionalProperties": true
+      "$ref": "https://amp-protocol.org/schema/v0.1/memory-record.json#/$defs/Relation"
     },
     "amp_encode": {
       "type": "object",
