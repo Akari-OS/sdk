@@ -20,4 +20,13 @@ export default defineConfig({
   clean: true,
   // runtime 依存を全て bundle に内包（node_modules 非配布でも subprocess が動く）
   noExternal: [/^@modelcontextprotocol\//, /^@tavily\//, "zod"],
+  // ESM bundle 内で CommonJS ライブラリが `require("util")` 等を呼ぶケースに対応。
+  // tavily-core とその依存（form-data / node-fetch 系）の一部が dynamic require を
+  // 使うため、`createRequire` を top-level に注入して require を解決可能にする。
+  banner: {
+    js: [
+      `import { createRequire as __akariCreateRequire } from "module";`,
+      `const require = __akariCreateRequire(import.meta.url);`,
+    ].join("\n"),
+  },
 });
