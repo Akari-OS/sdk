@@ -20,7 +20,9 @@ category = "research"               # HUB-005 v0.2 Research category
 [mcp]
 # Relative path to the MCP server entry point (Node.js process).
 # The Shell spawns this process and communicates via stdio (StdioServerTransport).
-server = "mcp-server/index.ts"
+# NOTE: The shell runs this file directly via `node <path>`, so it must point to
+# a pre-built ESM artifact (run `pnpm build` to emit `dist/mcp-server/index.js`).
+server = "dist/mcp-server/index.js"
 
 # Every tool listed here MUST be implemented in mcp-server/ AND referenced in panel.schema.json.
 # akari app certify verifies this triple-consistency automatically.

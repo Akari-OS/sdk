@@ -21,7 +21,9 @@ sdk      = ">=0.1.0 <1.0"
 #   extend each tool. Switch to Option A when you don't need customisation.
 # ---------------------------------------------------------------------------
 [mcp]
-server = "mcp-server/index.ts"
+# NOTE: The shell runs this file directly via `node <path>`, so it must point to
+# a pre-built ESM artifact (run `pnpm build` to emit `dist/mcp-server/index.js`).
+server = "dist/mcp-server/index.js"
 tools  = [
   "notion.search",
   "notion.query_database",
