@@ -36,7 +36,7 @@ import type { PanelSchema, Field, Action, LayoutType } from "./types/schema";
 import type { RenderContext } from "./types/context";
 import { I18nResolver } from "./engine/I18nResolver";
 import { ExpressionEvaluator } from "./engine/ExpressionEvaluator";
-import { BindingResolver } from "./engine/BindingResolver";
+import { BindingResolver, parseBinding } from "./engine/BindingResolver";
 import { ActionDispatcher } from "./engine/ActionDispatcher";
 import type { ShowHitlPreview } from "./engine/ActionDispatcher";
 import {
@@ -166,9 +166,45 @@ export const SchemaPanel: React.FC<SchemaPanelProps> = ({
       fieldValues
     );
 
+    // Widget に渡す value を決定する:
+    //   field.bind が `state.<key>[.<subkey>...]` の場合は stateAccessor から
+    //   dotted path walk で読む（例: `state.search_result.results` →
+    //   fieldValues["search_result"].results）。
+    //   bind 未指定 or state 以外は従来どおり fieldValues[field.id]。
+    //
+    //   これにより display widget（markdown / table など）が action 結果で
+    //   書き込まれた state object の sub-field を表示できる。
+    const bindField = (field as { bind?: string }).bind;
+    let widgetValue: unknown;
+    if (typeof bindField === "string") {
+      // parseBinding は BindingPattern 型を要求するが、実行時には string として
+      // 渡る。内部で prefix チェックするため cast で渡す。
+      const parsed = parseBinding(bindField as Parameters<typeof parseBinding>[0]);
+      if (parsed && parsed.kind === "state") {
+        const segs = parsed.segments;
+        if (segs.length <= 1) {
+          widgetValue = fieldValues[parsed.path];
+        } else {
+          let v: unknown = fieldValues[segs[0]!];
+          for (let i = 1; i < segs.length; i++) {
+            if (v == null || typeof v !== "object") {
+              v = undefined;
+              break;
+            }
+            v = (v as Record<string, unknown>)[segs[i]!];
+          }
+          widgetValue = v;
+        }
+      } else {
+        widgetValue = fieldValues[field.id];
+      }
+    } else {
+      widgetValue = fieldValues[field.id];
+    }
+
     const widgetProps: WidgetProps = {
       field,
-      value: fieldValues[field.id] ?? undefined,
+      value: widgetValue ?? undefined,
       onChange: (value) => {
         store.getState().setFieldValue(field.id, value);
         // state.* バインディングは Zustand に書く（他の bind は別途処理）
