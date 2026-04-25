@@ -5,6 +5,8 @@
 > Connect your app to AKARI OS — the AI-native overlay OS for individual creators.
 > Your App gets access to the shared memory layer, agent runtime, and Shell UI
 > that every official AKARI app uses. No special privileges. Same SDK, same contract.
+>
+> 🛠 **Type: SDK / Implementation** — TypeScript / Rust packages with working tooling. Use this repo to build your own AKARI App.
 
 ---
 
