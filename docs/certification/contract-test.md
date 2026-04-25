@@ -4,6 +4,11 @@ updated: 2026-04-19
 related: [HUB-024 §8, HUB-025]
 ---
 
+<!-- markdownlint-disable MD051 -->
+<!-- TODO: 目次の anchor が日英バイリンガル見出し（"## N. JP / EN"）の slug 末尾と一致しない。
+     anchor を `#n-jp--en` 形式に揃えるリファクタは別 PR で対応予定。
+     (差分監査 2026-04-25 sdk-fix-wave で MD051 を file-level 一時 disable) -->
+
 # Contract Test — 7 API 契約テストスイート / Contract Test Suite
 
 > Certification 第 2 層。App が AKARI Core の **7 API の契約**を正しく実装しているかを
@@ -689,6 +694,7 @@ tools = ["x.post", "x.schedule", "x.draft"]
 `[permissions] external-network = false` が宣言されている場合、ネットワークを完全にブロックした状態で App の基本機能（Panel 描画 / Agent 呼び出し / Memory アクセス）が動作すること。
 
 **テスト手順**:
+
 1. モックランナーがネットワーク呼び出しを全ブロック
 2. App を起動
 3. Panel が mount される

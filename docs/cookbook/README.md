@@ -244,7 +244,7 @@ Certification の Contract Test を通したい
 |---|---|---|
 | AKARI-HUB-024 App SDK | [App SDK spec (Hub)](https://github.com/Akari-OS/.github/blob/main/VISION.md) | SDK 全体仕様・7 API・Guidelines・Certification |
 | AKARI-HUB-025 Panel Schema | [Panel Schema spec (Hub)](https://github.com/Akari-OS/.github/blob/main/VISION.md) | Panel Schema v0 規格 |
-| Shell App Model (internal spec) | Shell + App 全体モデル |
+| Shell App Model (internal) | (Hub 内部 spec) | Shell + App 全体モデル |
 
 ---
 

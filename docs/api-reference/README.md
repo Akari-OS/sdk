@@ -313,6 +313,7 @@ App の処理フロー（例: Writer が下書きを仕上げて X Sender に渡
 ```
 
 この図が示す原則：
+
 - **UI → Permission → Agent → Memory → Inter-App → Permission（HITL）** の順序が典型的な安全フロー
 - bytes ではなく ID だけが App 間を流れる（Inter-App の原則）
 - すべての判断が AMP に記録される（監査可能性）

@@ -11,6 +11,7 @@
   "config": {
     "MD013": false,                       // 行長 — 日本語 + 英語混在で破綻する
     "MD024": { "siblings_only": true },   // 同階層内の重複のみ禁止
+    "MD025": { "front_matter_title": "" },// 単一 H1 だが frontmatter の title: は H1 として数えない
     "MD033": false,                       // inline HTML — バッジ等で使用
     "MD034": false,                       // bare URL — 識字的には可
     "MD036": false,                       // emphasis as heading — 記法差は許容
@@ -19,12 +20,12 @@
   },
   "globs": ["**/*.md"],
   "ignores": [
-    "node_modules/**",
-    "target/**",
-    "dist/**",
-    "build/**",
-    ".next/**",
-    "out/**",
+    "**/node_modules/**",
+    "**/target/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.next/**",
+    "**/out/**",
     "CHANGELOG.md"
   ]
 }

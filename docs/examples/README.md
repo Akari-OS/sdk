@@ -14,6 +14,7 @@
 | **Notion** | AKARI-HUB-026 | MCP-Declarative | Documents | ✅ `@notionhq/mcp` | ★★☆ 中級 | [notion.md](./notion.md) |
 
 **凡例**:
+
 - **Tier**: `MCP-Declarative` = MCP サーバー + Panel Schema のみで構成。React コード不要
 - **公式 MCP**: ✅ = 公式 MCP サーバーを使用、△ = 自前または公式どちらも可、❌ = 自前実装
 - **難易度**: ★☆☆ 初級 / ★★☆ 中級 / ★★★ 上級
@@ -157,6 +158,7 @@ related-specs: [AKARI-HUB-005, AKARI-HUB-024, AKARI-HUB-025, AKARI-HUB-007]
 ### ガイドの書き方テンプレート
 
 各ガイドは以下の構造で書く（x-sender.md / notion.md を参照）:
+
 1. App 概要（Tier / カテゴリ / 公式 MCP / Phase）
 2. `akari.toml` の読みどころ
 3. MCP tools 一覧と HITL 設定の解説

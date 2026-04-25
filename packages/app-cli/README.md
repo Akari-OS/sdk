@@ -86,11 +86,13 @@ AKARI apps come in two tiers (AKARI-HUB-024 §6.2):
 | **Typical use** | Writer, Video, rich editor UX | SNS posting, API wrappers, form-driven tools |
 
 **When to use MCP-Declarative:**
+
 - Your UI fits forms / lists / tabs (standard widgets cover 90% of cases)
 - You want the lightest review path to Marketplace
 - You are wrapping an existing MCP server or REST API
 
 **When to use Full:**
+
 - You need custom React components beyond standard widgets
 - You need a Rust-backed panel (e.g. video editing, heavy computation)
 - You need fine-grained control over Shell panel layout
@@ -115,6 +117,7 @@ my-app/
 ```
 
 Example generated `akari.toml`:
+
 ```toml
 [app]
 id   = "com.user.my-app"
@@ -143,6 +146,7 @@ my-app/
 ```
 
 Example generated `akari.toml`:
+
 ```toml
 [app]
 id   = "com.user.my-app"

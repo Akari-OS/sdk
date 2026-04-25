@@ -128,6 +128,7 @@ spec §4.1〜4.2 から Phase 0 スコープの 4 ツールを解説する。
 ```
 
 **注目点**:
+
 - `required: ["text"]` — `text` だけ必須、`media` と `dry_run` は任意
 - `media` は Pool item id の配列（最大 4 件）。バイト列ではなく ID を渡す設計
 - `dry_run: true` にすると API を叩かずログのみ出力（テスト用）
@@ -344,6 +345,7 @@ X Sender Panel
 Writer が下書きを AMP に保存済みであれば、X Sender は `draft_ref` を使って AMP から本文を取得する。
 
 この設計の利点:
+
 - App 間の結合が「ID の受け渡し」に限定される（インターフェースが薄い）
 - AMP / Pool が Single Source of Truth として機能する
 - handoff の payload をログに記録しても credential や本文が漏れない

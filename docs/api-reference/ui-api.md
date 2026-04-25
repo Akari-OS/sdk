@@ -278,7 +278,7 @@ interface TextSelection {
 shell.dialog.show(options: DialogOptions): Promise<DialogResult>
 ```
 
-#### DialogOptions
+### DialogOptions
 
 ```typescript
 interface DialogOptions {
@@ -503,7 +503,7 @@ HITL（Human-in-the-Loop）Preview は、不可逆な外部操作（投稿・送
 shell.preview.show(options: HITLPreviewOptions): Promise<HITLPreviewResult>
 ```
 
-#### HITLPreviewOptions
+### HITLPreviewOptions
 
 ```typescript
 interface HITLPreviewOptions {
@@ -634,7 +634,7 @@ shell.theme.get(): ThemeInfo
 shell.theme.onChange(callback: (theme: ThemeInfo) => void): Unsubscribe
 ```
 
-#### ThemeInfo
+### ThemeInfo
 
 ```typescript
 interface ThemeInfo {
@@ -686,7 +686,7 @@ shell.i18n.locale: string               // 読み取り専用
 shell.i18n.onLocaleChange(callback: (locale: string) => void): Unsubscribe
 ```
 
-#### 使用例
+### 使用例
 
 ```typescript
 import { shell } from "@akari/sdk"
@@ -736,6 +736,7 @@ my-app/
 ```
 
 **フォールバック規則**:
+
 1. 現在のロケールでキーが見つかれば、その値を返す
 2. 見つからない場合は英語（`en.json`）にフォールバック
 3. 英語でも見つからない場合は **キー文字列をそのまま表示**（開発時に未定義を気づけるよう）
@@ -751,7 +752,7 @@ shell.workspace.current: WorkspaceContext
 shell.workspace.onChange(callback: (context: WorkspaceContext) => void): Unsubscribe
 ```
 
-#### WorkspaceContext
+### WorkspaceContext
 
 ```typescript
 interface WorkspaceContext {

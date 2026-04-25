@@ -29,7 +29,7 @@ Full Tier App の開発に必要なすべてを 1 ドキュメントに集約し
 8. [ネイティブ機能呼び出し / Native Capabilities via Tauri](#8-ネイティブ機能呼び出し--native-capabilities-via-tauri)
 9. [SchemaPanel の部分利用 / Embedding SchemaPanel](#9-schemapanel-の部分利用--embedding-schemapanel)
 10. [ベストプラクティス / Best Practices](#10-ベストプラクティス--best-practices)
-11. [Writer を参考実装として読む / Reading Writer as Reference](#11-writer-hub-003-を参考実装として読む--reading-writer-as-reference)
+11. [Writer を参考実装として読む / Reading Writer as Reference](#11-writer-を参考実装として読む--reading-writer-as-reference)
 12. [よくある落とし穴 / Common Pitfalls](#12-よくある落とし穴--common-pitfalls)
 13. [次に読む / What to Read Next](#13-次に読む--what-to-read-next)
 

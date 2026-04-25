@@ -4,6 +4,11 @@ updated: 2026-04-19
 related: [HUB-024, HUB-025, ADR-011, ADR-012, ADR-013]
 ---
 
+<!-- markdownlint-disable MD051 -->
+<!-- TODO: 目次の anchor が日英バイリンガル見出し（"## N. JP / EN"）の slug 末尾と一致しない。
+     anchor を `#n-jp--en` 形式に揃えるリファクタは別 PR で対応予定。
+     (差分監査 2026-04-25 sdk-fix-wave で MD051 を file-level 一時 disable) -->
+
 # Automated Lint — Lint ルール全一覧 / Complete Lint Rule Reference
 
 > `akari app certify` の第 1 層。App が AKARI の規格・Guidelines に準拠しているかを
@@ -116,6 +121,7 @@ id = "io.github.user.tool"
 ```
 
 **ルール詳細**:
+
 - 最低 3 セグメント（`<tld>.<org>.<name>`）
 - 各セグメントは `[a-z0-9][a-z0-9-]*` のみ（小文字英数字とハイフン）
 - ドット区切り
@@ -295,6 +301,7 @@ Full Tier のみ適用。
 **チェック内容**: `[agents]` セクションの各キー（エージェント ID）が `<app-short-id>_` で始まること。
 
 `app-short-id` の導出ルール（ADR-011 §1）:
+
 1. `[app] id` の最後のセグメントを取る（例: `com.akari.writer` → `writer`）
 2. kebab-case → snake_case 変換（例: `pdf-reader` → `pdf_reader`）
 
@@ -322,6 +329,7 @@ writer_proofreader = "agents/proofreader.md"
 **チェック内容**: `[agents]` のキーが Core の 7 デフォルトエージェント ID と一致しないこと。
 
 禁止 ID リスト:
+
 ```
 partner / studio / operator / researcher / guardian / memory / analyst
 ```
@@ -476,6 +484,7 @@ Action:
 ```
 
 **シュガー記法のパース規則**:
+
 - `$<field_id>` → `{ "var": "<field_id>" }`
 - `!=` / `==` / `>` / `<` / `>=` / `<=` → 対応する JSONLogic 演算子
 - `&&` / `||` / `!` → `and` / `or` / `!`
@@ -602,12 +611,14 @@ Action:
 **チェック内容**: `[app] category` の値が Core 11 カテゴリのいずれか、または `x-<slug>` 形式であること。
 
 **Core 11 カテゴリ（固定 enum）**:
+
 ```
 publishing / documents / design / asset-gen / research /
 translation / analytics / notification / storage / commerce / community
 ```
 
 **拡張カテゴリのルール**（ADR-013 §Decision）:
+
 - `x-` プレフィックス必須
 - 以降は lowercase kebab-case: `x-[a-z][a-z0-9-]+`
 - 例: `x-education` / `x-health` / `x-legal`

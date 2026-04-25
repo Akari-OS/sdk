@@ -15,7 +15,7 @@ updated: 2026-04-22
 
 ---
 
-# AKARI App SDK — 開発者ガイド集 / Developer Guide Hub
+## AKARI App SDK — 開発者ガイド集 / Developer Guide Hub
 
 > AKARI OS 上で動く App を作るための、すべての入口。
 > iOS にとっての UIKit + Human Interface Guidelines に相当する、開発者向けの契約書。

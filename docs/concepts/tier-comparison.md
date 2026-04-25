@@ -149,15 +149,19 @@ AKARI に載せたいものは何か？
 ### MCP-Declarative Tier が向いているもの
 
 **Publishing カテゴリ**（テキスト + 添付 + 予約 の UI で十分）:
+
 - X (Twitter) / Threads / Bluesky / Mastodon / Note / LINE
 
 **Documents カテゴリ**（フォーム + テーブル表示 + ブロック操作）:
+
 - Notion / Google Workspace / Microsoft 365 / Airtable / Coda
 
 **Asset Generation**（プロンプト入力 → 生成 → Pool 保存）:
+
 - DALL-E / ElevenLabs / Runway / Stable Diffusion
 
 **Research / Translation / Analytics**（入力 → 実行 → 結果表示）:
+
 - Perplexity / DeepL / Google Analytics / Mixpanel
 
 既存の API や MCP サーバーが**ある場合はゼロコスト**に近い。

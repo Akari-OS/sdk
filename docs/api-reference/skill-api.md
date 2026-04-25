@@ -691,6 +691,7 @@ handler の先頭に置く。詳細は [Permission API リファレンス](./per
 ---
 
 > **関連 spec**:
+>
 > - [AKARI-HUB-024](https://github.com/Akari-OS/.github/blob/main/VISION.md) — App SDK（Skill API §5.7 の正典）
 > - Skill / Workflow / Template framework (internal spec) — 着ぐるみ Skill のフレームワーク
 > - Feedback Learning Loop (internal spec) — Feedback を Skill に還元する自動進化ループ

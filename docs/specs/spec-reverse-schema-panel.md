@@ -157,6 +157,7 @@ const registry = { ...defaultWidgetRegistry, "pool-picker": MyPoolPicker };
 | `submit` | `mcp.invoke` の簡略形 |
 
 HITL フロー（`hitl.require = true`の場合）:
+
 1. `showHitlPreview` コールバックで `PreviewDialog` を開く
 2. ユーザーが承認 → MCP ツール呼び出し実行
 3. ユーザーが却下 → キャンセル（ログのみ）

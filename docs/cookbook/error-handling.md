@@ -7,6 +7,7 @@ related: [HUB-024, HUB-005, ADR-010]
 # Cookbook — Error Handling（エラー処理）
 
 > **このレシピで学ぶこと**:
+>
 > - AKARI のエラー階層（NetworkError / PermissionError / ValidationError / AppError）
 > - ユーザー向けエラー UX（toast / dialog / retry）
 > - Silent retry（Core の retry / deadletter — ADR-010）

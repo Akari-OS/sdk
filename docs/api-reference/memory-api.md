@@ -75,6 +75,7 @@ interface PoolPutInput {
 **戻り値**: `ContentHash`（blake3 ハッシュ、16 進数文字列）
 
 **動作**:
+
 - Core が blake3 でハッシュを計算し、`ContentHash` を返す
 - 同一内容を二重 put しても同じ ID が返る（冪等）
 - tier ポリシーに従い Hot/Warm/Cold のどこかに格納される（App は意識しない）
@@ -124,6 +125,7 @@ interface PoolItem {
 ```
 
 **動作**:
+
 - Hot tier にあれば即座に返る
 - Cold tier にある場合は自動 rehydration が走る（後述 §5 参照）
 - 見つからない場合は `PoolItemNotFound` エラー
@@ -207,6 +209,7 @@ await memory.pool.delete(id: ContentHash): Promise<void>
 ```
 
 **動作**:
+
 - Hot / Warm / Cold 全 tier から削除
 - `pinned: true` のアイテムは削除前に Core が確認プロンプトを出す
 - 削除は永続的（AMP に自動で削除ログが残る）

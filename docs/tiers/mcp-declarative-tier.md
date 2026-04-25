@@ -8,8 +8,7 @@ related-specs: [AKARI-HUB-024, AKARI-HUB-025, AKARI-HUB-005, AKARI-HUB-026, AKAR
 ai-context: claude-code
 ---
 
-# MCP-Declarative Tier 開発者ガイド
-# MCP-Declarative Tier Developer Guide
+# MCP-Declarative Tier 開発者ガイド / Developer Guide
 
 > **対象読者**: AKARI App を初めて作る開発者、既存 MCP サーバーを AKARI に載せたい開発者
 > **前提スキル**: TypeScript 基礎、JSON Schema の読み書き、MCP プロトコルの概念理解
@@ -893,6 +892,7 @@ Notion App のオフライン書き込みキュー例：
    - `post`（即時）/ `schedule`（予約）/ `draft`（下書き）の 3 アクション
 
 2. **HITL が `custom-markdown` preview で内容確認**
+
    ```json
    "hitl": {
      "require": true,
@@ -902,12 +902,14 @@ Notion App のオフライン書き込みキュー例：
    ```
 
 3. **`enabled_when` でボタンを文脈的に切り替え**
+
    ```json
    "enabled_when": "$text != null && $text.length > 0 && $when == null"  // 「投稿」ボタン
    "enabled_when": "$text != null && $text.length > 0 && $when != null"  // 「予約投稿」ボタン
    ```
 
 4. **Writer からの handoff を受け取る**
+
    ```
    Writer → app.handoff({ to: "com.akari.x-sender", intent: "post-draft",
                           payload: { draft_ref: <ampId>, assets: [<poolId>] } })
@@ -921,6 +923,7 @@ Notion App のオフライン書き込みキュー例：
 より複雑な MCP-Declarative App の例です。ポイント：
 
 1. **公式 MCP を `npm:@notionhq/mcp` で参照（自前実装ゼロ）**
+
    ```toml
    [mcp]
    server = "npm:@notionhq/mcp"
@@ -931,6 +934,7 @@ Notion App のオフライン書き込みキュー例：
    - DB Query / Page Editor / Pool → Notion（Export）/ Notion → Pool（Import）
 
 3. **Documents カテゴリ固有の HITL ポリシー**
+
    | アクション | preview 種別 |
    |---|---|
    | 新規ページ作成 | `text-summary` |
@@ -939,6 +943,7 @@ Notion App のオフライン書き込みキュー例：
    | ブロック削除 | `custom-markdown`（全文表示） |
 
 4. **クロスオーバー（Writer / Research との連携）**
+
    ```
    Writer → Notion App handoff（下書き → Notion ページ化）
    Research → Notion App handoff（AMP 収集結果 → database 行追加）
@@ -946,6 +951,7 @@ Notion App のオフライン書き込みキュー例：
    ```
 
 5. **`options_source` で動的な選択肢をバインド**
+
    ```json
    {
      "type":           "select",

@@ -39,6 +39,7 @@ Open a Pull Request directly — no issue needed.
 ### Bug reports
 
 Use the bug report issue template. Include:
+
 - SDK version (`@akari-os/sdk` version from `package.json`)
 - Node.js version
 - Tier (Full or MCP-Declarative)
@@ -190,6 +191,7 @@ Follow the same Conventional Commits format as commit messages.
 ### Bug report
 
 Include:
+
 1. **Description** — what happened vs. what you expected
 2. **Reproduction** — minimal code that reproduces the issue
 3. **Environment** — OS, Node.js version, `@akari-os/sdk` version
@@ -198,6 +200,7 @@ Include:
 ### Feature request
 
 Include:
+
 1. **Problem** — what problem does this solve?
 2. **Proposed solution** — how would it work?
 3. **Alternatives considered** — what else did you think about?
@@ -210,6 +213,7 @@ Include:
 ### MCP-Declarative Tier
 
 Good entry points for new contributors:
+
 - Add new `panel.schema.json` widget types
 - Improve error messages in the schema validator
 - Add Cookbook recipes for popular REST APIs
@@ -218,6 +222,7 @@ Good entry points for new contributors:
 ### Full Tier
 
 Requires deeper SDK knowledge:
+
 - Extend Agent API (`defineAgent`, `invoke`, `spawn`)
 - Improve Memory API (`pool.search` ranking, AMP query performance)
 - Add new Inter-App handoff patterns
@@ -225,6 +230,7 @@ Requires deeper SDK knowledge:
 ### Cross-cutting
 
 Available to all contributors:
+
 - Documentation improvements (English ↔ Japanese translation)
 - Test coverage additions
 - Example implementations in `examples/`

@@ -7,6 +7,7 @@ related: [HUB-005, HUB-024, HUB-026]
 # Cookbook — Cross-over Handoff（App 間連携）
 
 > **このレシピで学ぶこと**:
+>
 > - `app.handoff()` の仕組みと payload 設計の原則
 > - Writer / Research / Video → Publishing / Documents の典型的な cross-over パターン
 > - Notion → Pool への素材取り込み

@@ -7,6 +7,7 @@ related: [HUB-024, HUB-025, ADR-007]
 # Cookbook — State Management（状態管理）
 
 > **このレシピで学ぶこと**:
+>
 > - Full Tier での Zustand 推奨パターン（ADR-007）
 > - MCP-Declarative Tier での Panel Schema `state.*` binding
 > - 永続化の線引き（local state / AMP / Pool）
