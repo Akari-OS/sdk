@@ -11,8 +11,15 @@
  */
 
 import { WriterStudio } from "./WriterStudio";
+import { Phase0WriterApp } from "./phase0-tiny/Phase0WriterApp";
 import "./styles.css";
 
+// Feature flag: set to true to use Phase 0 MVP Tiny Writer
+const USE_PHASE0_TINY_WRITER = false;
+
 export default function WriterApp() {
-  return <WriterStudio />;
+  return USE_PHASE0_TINY_WRITER ? <Phase0WriterApp /> : <WriterStudio />;
 }
+
+// Phase 0 export for explicit opt-in
+export { Phase0WriterApp } from "./phase0-tiny/Phase0WriterApp";
