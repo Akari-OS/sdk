@@ -12,6 +12,7 @@
 |---|---|---|---|:-:|---|---|
 | **X Sender** | AKARI-HUB-007 | MCP-Declarative | Publishing | △ (X 公式 MCP / 自前選択) | ★★☆ 中級 | [x-sender.md](./x-sender.md) |
 | **Notion** | AKARI-HUB-026 | MCP-Declarative | Documents | ✅ `@notionhq/mcp` | ★★☆ 中級 | [notion.md](./notion.md) |
+| **Web Search** | AKARI-SDK-004 | MCP-Declarative | Research | △ (`@tavily/core` / 差し替え可能) | ★★☆ 中級 | [web-search.md](./web-search.md) |
 
 **凡例**:
 
@@ -30,7 +31,12 @@
    - Publishing カテゴリの典型パターン（HITL プレビュー・OAuth PKCE・AMP 記録）が揃っている
    - spec 本体（HUB-007）が他の spec より短く、読み切れる
 
-2. **次に [notion.md](./notion.md) を読む**
+2. **次に [web-search.md](./web-search.md) を読む**
+   - Research カテゴリの最小構成。Provider 抽象化とステーブルパターンが学べる
+   - Tavily の `include_answer` で独自 LLM なしに AI 要約を実装するパターン
+   - API key 認証のみ（OAuth 不要）の参考実装
+
+3. **最後に [notion.md](./notion.md) を読む**
    - Panel 4 枚・Tools 10 個とスケールが上がり、Documents カテゴリ固有の HITL ポリシーも学べる
    - 公式 MCP (`@notionhq/mcp`) の活用パターン、Cross-over（Writer / Research / Pool との連携）を確認する
    - オフライン挙動（キャッシュ + 書き込みキュー）は他の Documents App でも再利用できる設計
@@ -40,14 +46,17 @@
 | やりたいこと | 読む先 |
 |---|---|
 | MCP-Declarative Tier の最小構成を理解したい | x-sender.md §2 akari.toml / §3 Panel Schema |
+| OAuth 無し・API key 認証の実装パターンを見たい | web-search.md §2 akari.toml（keychain 設定） |
 | OAuth 2.0 PKCE フローの実装パターンを見たい | x-sender.md §5 OAuth 2.0 PKCE フロー |
-| HITL プレビュー（承認ダイアログ）の種別を知りたい | x-sender.md §4 HITL / notion.md §7 HITL ポリシー |
-| Inter-App handoff（App 間連携）を学びたい | x-sender.md §6 Writer handoff / notion.md §8 Cross-over |
-| AMP への記録パターンを見たい | x-sender.md §7 AMP 記録 |
+| Provider 抽象化（差し替え可能な実装）を学びたい | web-search.md §3 Provider 抽象化のキモ |
+| HITL プレビュー（承認ダイアログ）の種別を知りたい | x-sender.md §4 HITL / web-search.md / notion.md §7 HITL ポリシー |
+| Inter-App handoff（App 間連携）を学びたい | x-sender.md §6 Writer handoff / web-search.md §7 Research → Writer / notion.md §8 Cross-over |
+| AMP への記録パターンを見たい | x-sender.md §7 AMP 記録 / web-search.md §8 research-action 記録 |
 | 公式 MCP を活用した省コスト実装を見たい | notion.md §3 MCP ツール一覧 |
 | オフライン挙動の設計パターンを見たい | notion.md §9 オフライン挙動 |
-| Panel Schema の複雑な構造（タブ / 動的フィールド）を学びたい | notion.md §5 Panel Schema 詳解 |
+| Panel Schema の複雑な構造（タブ / 動的フィールド）を学びたい | web-search.md §5 Panel 3 タブ / notion.md §5 Panel Schema 詳解 |
 | 自分で Publishing App を作りたい（LINE / Threads など） | x-sender.md §10 真似するポイント |
+| 自分で Research App を作りたい（arxiv / scholar など） | web-search.md §10 真似するポイント |
 | 自分で Documents App を作りたい（Google Docs など） | notion.md §10 真似するポイント |
 
 ---
@@ -121,6 +130,7 @@ App コードが credential の文字列を直接保持することは禁止。
 | ガイド | spec ファイルパス | panel schema ファイルパス |
 |---|---|---|
 | x-sender.md | `spec-x-sender-phase0.md (AKARI-HUB-007, Hub)` | `panels/x-sender.schema.json`（spec 内に inline） |
+| web-search.md | `spec-example-web-search.md (AKARI-SDK-004, SDK)` | `examples/web-search/panel.schema.json` |
 | notion.md | `spec-app-notion-reference.md (AKARI-HUB-026, Hub)` | `notion-app-panel.schema.json (Hub)` |
 
 spec 本体の spec-id / status / related-specs の frontmatter は以下の通り:
@@ -131,6 +141,12 @@ spec-id: AKARI-HUB-007
 version: 0.2.0
 status: draft
 related-specs: [AKARI-HUB-005, AKARI-HUB-024, AKARI-HUB-025]
+
+# SDK-004
+spec-id: AKARI-SDK-004
+version: 0.1.0
+status: accepted
+related-specs: [AKARI-SDK-001, AKARI-SDK-002, AKARI-SDK-003, AKARI-HUB-007]
 
 # HUB-026
 spec-id: AKARI-HUB-026
