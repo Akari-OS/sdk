@@ -1,0 +1,44 @@
+{
+  "panel.title": "Notion",
+  "panel.subtitle": "Documents and database management",
+
+  "main.search.label": "Search",
+  "main.search.placeholder": "Search pages & databases",
+  "main.search.helper": "Search by title or content",
+
+  "main.create.label": "Create new page",
+  "main.create.placeholder": "Page title",
+
+  "database.view.label": "Database",
+  "database.view.helper": "Select a database and view entries",
+
+  "settings.oauth.label": "Notion Authentication",
+  "settings.oauth.description": "Connect to Notion via OAuth 2.0",
+  "settings.oauth.button": "Sign in with Notion",
+  "settings.oauth.connected": "Connected",
+
+  "settings.integration_token.label": "Integration Token (Alternative)",
+  "settings.integration_token.placeholder": "Token starting with secret_...",
+  "settings.integration_token.helper": "Use this only with Personal API Key",
+
+  "action.create.label": "Create",
+  "action.save.label": "Save",
+  "action.cancel.label": "Cancel",
+  "action.delete.label": "Delete",
+  "action.import.label": "Import to Pool",
+
+  "hitl.create.title": "Create page",
+  "hitl.create.subtitle": "Confirm content",
+  "hitl.update.title": "Update properties",
+  "hitl.append.title": "Add blocks",
+  "hitl.delete.title": "Delete block",
+  "hitl.delete.warning": "This action must be restored in Notion",
+
+  "toast.created": "Page created",
+  "toast.updated": "Properties updated",
+  "toast.appended": "Blocks added",
+  "toast.deleted": "Block deleted",
+  "toast.imported": "Imported to Pool",
+  "toast.error": "An error occurred",
+  "toast.offline": "You are offline. Writing will be saved as draft"
+}

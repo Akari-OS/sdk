@@ -1,0 +1,21 @@
+{
+  "name": "@akari-os/app-notion",
+  "version": "0.1.0",
+  "description": "Notion — AKARI MCP-Declarative App reference implementation (Documents category, HUB-026)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "akari dev",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@notionhq/mcp": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
