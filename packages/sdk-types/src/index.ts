@@ -1,9 +1,10 @@
 /**
  * @file index.ts
- * Public API surface for `@akari-os/sdk` — TypeScript type definitions.
+ * Public API surface for `@akari-os/sdk` — TypeScript type definitions + Phase 0 implementations.
  *
  * All types for the seven AKARI App SDK API groups, Panel Schema v0,
- * the App Manifest, and shared error types are re-exported from here.
+ * the App Manifest, shared error types, and Phase 0 skeleton implementations
+ * are re-exported from here.
  *
  * @example
  * ```typescript
@@ -13,6 +14,7 @@
  *   PanelSchema,
  *   PermissionScope,
  * } from "@akari-os/sdk"
+ * import { createAkariSDK } from "@akari-os/sdk"
  * ```
  */
 
@@ -21,6 +23,16 @@
 // ---------------------------------------------------------------------------
 export type { AkariError } from "./errors.js"
 export { AkariErrorCode } from "./errors.js"
+
+// ---------------------------------------------------------------------------
+// Phase 0 API implementations (skeleton)
+// ---------------------------------------------------------------------------
+export type { AkariSDK } from "./api/index.js"
+export {
+  createAkariSDK,
+  initializeSDK,
+  getSDK,
+} from "./api/index.js"
 
 // ---------------------------------------------------------------------------
 // (1) Agent API
