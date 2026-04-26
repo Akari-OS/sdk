@@ -1,0 +1,44 @@
+{
+  "panel.title": "Notion",
+  "panel.subtitle": "ドキュメント・データベース管理",
+
+  "main.search.label": "検索",
+  "main.search.placeholder": "ページ・データベースを検索",
+  "main.search.helper": "タイトル・本文で検索",
+
+  "main.create.label": "新規ページを作成",
+  "main.create.placeholder": "ページタイトル",
+
+  "database.view.label": "データベース",
+  "database.view.helper": "データベースを選択して一覧表示",
+
+  "settings.oauth.label": "Notion 認証",
+  "settings.oauth.description": "OAuth 2.0 で Notion に接続",
+  "settings.oauth.button": "Notion にログイン",
+  "settings.oauth.connected": "接続済み",
+
+  "settings.integration_token.label": "Integration Token（代替）",
+  "settings.integration_token.placeholder": "secret_... で始まる token",
+  "settings.integration_token.helper": "Personal API Key を使う場合のみ",
+
+  "action.create.label": "作成",
+  "action.save.label": "保存",
+  "action.cancel.label": "キャンセル",
+  "action.delete.label": "削除",
+  "action.import.label": "Pool に取り込む",
+
+  "hitl.create.title": "ページを作成",
+  "hitl.create.subtitle": "作成内容を確認",
+  "hitl.update.title": "プロパティを更新",
+  "hitl.append.title": "ブロックを追加",
+  "hitl.delete.title": "ブロックを削除",
+  "hitl.delete.warning": "削除後は Notion で復元する必要があります",
+
+  "toast.created": "ページを作成しました",
+  "toast.updated": "プロパティを更新しました",
+  "toast.appended": "ブロックを追加しました",
+  "toast.deleted": "ブロックを削除しました",
+  "toast.imported": "Pool に取り込みました",
+  "toast.error": "エラーが発生しました",
+  "toast.offline": "オフライン中です。書き込みを下書きとして保存します"
+}

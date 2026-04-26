@@ -1,0 +1,67 @@
+# AKARI App Manifest — Notion MCP-Declarative App (HUB-026)
+# Reference implementation for the Documents category.
+#
+# This file demonstrates:
+#   - tier = "mcp-declarative": Shell handles rendering, HITL, Permission API
+#   - [mcp]: external npm MCP server (Notion official @notionhq/mcp)
+#   - [permissions]: network/oauth/keychain/pool/amp access declarations
+#   - [panels]: JSON Schema–based UI declaration (no React needed)
+#
+# Related: AKARI-HUB-005 (Declarative Capability Apps, Documents category §7.1b)
+#          AKARI-HUB-024 (App SDK, MCP-Declarative Tier §6.2)
+#          AKARI-HUB-025 (Panel Schema v0)
+
+[app]
+id       = "com.akari.notion"
+name     = "Notion"
+version  = "0.1.0"
+author   = "akari-os"
+tier     = "mcp-declarative"        # MCP server + panel.schema.json are enough
+sdk      = ">=0.1.0 <1.0"           # Core SDK compatibility range
+category = "documents"              # HUB-005 v0.2 Documents category
+
+[mcp]
+# Notion official MCP server (npm-packaged).
+# The Shell spawns this process and communicates via stdio (StdioServerTransport).
+# ADR-002: Prefer official MCP servers; no custom wrapper needed.
+server = "npm:@notionhq/mcp"
+
+# Every tool listed here MUST match Notion MCP's actual tool names.
+# akari app certify verifies tool availability & panel.schema.json consistency.
+tools = [
+  "notion.search",
+  "notion.query_database",
+  "notion.create_page",
+  "notion.update_page_properties",
+  "notion.append_block_children",
+  "notion.retrieve_page",
+  "notion.retrieve_database",
+  "notion.list_users",
+  "notion.retrieve_block_children",
+  "notion.delete_block",
+]
+
+[panels]
+# Shell's generic Schema Renderer reads these JSON Schemas and draws the UI.
+# No React code required — the Shell handles all widget rendering.
+main     = { title = "Notion",          schema = "panels/notion-main.schema.json" }
+database = { title = "Database View",   schema = "panels/notion-database.schema.json" }
+settings = { title = "Notion Settings", schema = "panels/notion-settings.schema.json" }
+
+[permissions]
+# Default deny. Declare only what this app actually needs.
+# Shell blocks any operation not listed here; akari app certify also verifies this.
+
+# External HTTP — restricted to Notion API domains only
+external-network = ["api.notion.com"]
+
+# OAuth — allowed to initiate OAuth 2.0 PKCE flow for Notion
+oauth = ["notion.com"]
+
+# Keychain — restricted to this app's own service name
+# (MCP server stores access_token / workspace_id / integration_token here)
+keychain = ["com.akari.notion"]
+
+# Memory layer — Pool for Notion content caching & imports; AMP for operation records
+pool = ["read", "write"]
+amp  = ["read", "write"]
