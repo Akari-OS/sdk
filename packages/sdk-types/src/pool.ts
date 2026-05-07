@@ -47,6 +47,8 @@ export interface PoolItemSummary {
   source_work_id?: string | null
   /** ADR-084 metadata: 出力元 Work タイトル snapshot。グループ header 表示用 */
   source_work_title?: string | null
+  /** ADR-085 D-5': true = Reference 経路（user 元 path 参照）/ false = Copy 経路 */
+  is_referenced?: boolean
 }
 
 export interface PoolSearchResult {

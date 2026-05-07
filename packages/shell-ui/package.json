@@ -11,6 +11,7 @@
     "./ImagePreview": "./src/ImagePreview.tsx",
     "./RadarChart": "./src/RadarChart.tsx",
     "./DelegationAccordion": "./src/DelegationAccordion.tsx",
+    "./MaterialPanel": "./src/MaterialPanel.tsx",
     "./cn": "./src/lib/cn.ts"
   },
   "scripts": {
@@ -26,10 +27,12 @@
     "tailwind-merge": "^3.5.0"
   },
   "peerDependencies": {
+    "@tauri-apps/api": "^2",
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19"
   },
   "devDependencies": {
+    "@tauri-apps/api": "^2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "react": "^19.0.0",
