@@ -23,6 +23,11 @@ export interface LibraryInfo {
   item_count: number
   created_at: string | null
   archived_at?: string | null
+  /**
+   * system-managed library (ADR-084) — `akari-outputs` 等の Shell が管理する出力先。
+   * UI 側は true の場合に rename / archive / purge ボタンを抑制すべき。
+   */
+  is_system_managed?: boolean
 }
 
 export interface PoolItemSummary {
