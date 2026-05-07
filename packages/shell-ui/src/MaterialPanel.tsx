@@ -25,7 +25,7 @@ import {
   useState,
   type DragEvent,
 } from "react";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, Upload } from "lucide-react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import {
   listWorkspaces,
@@ -42,6 +42,8 @@ export interface MaterialPick {
   name: string;
   itemType: string;
   url: string;
+  /** Pool 由来の library 名 (design canvas drop 等で必要) */
+  library?: string;
 }
 
 interface MaterialPanelProps {
@@ -49,6 +51,25 @@ interface MaterialPanelProps {
   workId?: string;
   /** Click / drop で本文に挿入するときに呼ばれる */
   onInsert: (pick: MaterialPick) => void;
+  /**
+   * アップロード button を有効化する。Shell 接続時のみ動作（dev mode は noop）。
+   * `onUpload` が指定された場合のみ表示される。
+   */
+  onUpload?: (files: File[]) => void;
+  /** アップロード可能な MIME accept (default: "image/*") */
+  uploadAccept?: string;
+  /** uploads button のラベル文言 (default: "画像をアップロード") */
+  uploadLabel?: string;
+  /** drag&drop の追加 mime payload。design は AKARI_POOL_ITEM_MIME 互換 mime を要求 */
+  extraDragMimes?: { mime: string; payload: string }[];
+  /** thumbnail grid の列数 (default 2) */
+  gridCols?: 2 | 3;
+  /** ヘッダ/コンテナ表示フラグ */
+  enableScopeTab?: boolean;
+  /** 検索バー表示 (default true) */
+  enableSearch?: boolean;
+  /** 既定 library override */
+  defaultLibrary?: string;
 }
 
 const POOL_LIBRARIES_FALLBACK = ["akari-uploads", "akari-outputs"];
@@ -56,8 +77,23 @@ const AKARI_POOL_ITEM_MIME = "application/x-akari-pool-item";
 
 type Scope = "this-work" | "all";
 
-export function MaterialPanel({ workId, onInsert }: MaterialPanelProps) {
-  const [libraries, setLibraries] = useState<string[]>(POOL_LIBRARIES_FALLBACK);
+export function MaterialPanel({
+  workId,
+  onInsert,
+  onUpload,
+  uploadAccept = "image/*",
+  uploadLabel = "画像をアップロード",
+  extraDragMimes,
+  gridCols = 2,
+  enableScopeTab = true,
+  enableSearch = true,
+  defaultLibrary,
+}: MaterialPanelProps) {
+  const [libraries, setLibraries] = useState<string[]>(
+    defaultLibrary ? [defaultLibrary] : POOL_LIBRARIES_FALLBACK,
+  );
+  // PoolItemSummary に紐付く library を逆引き（fullCache から取れないため記録）
+  const itemLibraryRef = useRef<Map<string, string>>(new Map());
   const [scope, setScope] = useState<Scope>(workId ? "this-work" : "all");
   const [items, setItems] = useState<PoolItemSummary[]>([]);
   const [fullCache, setFullCache] = useState<Map<string, PoolItemFull>>(new Map());
@@ -82,7 +118,9 @@ export function MaterialPanel({ workId, onInsert }: MaterialPanelProps) {
   }, [query]);
 
   // ライブラリ一覧（akari-uploads / akari-outputs を優先表示、その他もある分は集約）
+  // defaultLibrary 指定時は固定 1 件で fetch skip。
   useEffect(() => {
+    if (defaultLibrary) return;
     let cancelled = false;
     (async () => {
       try {
@@ -105,7 +143,7 @@ export function MaterialPanel({ workId, onInsert }: MaterialPanelProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [defaultLibrary]);
 
   // 素材一覧取得（全 library を集約）
   const refresh = useCallback(async () => {
@@ -161,6 +199,7 @@ export function MaterialPanel({ workId, onInsert }: MaterialPanelProps) {
       for (const lib of libraries) {
         try {
           const full = await getItem(lib, item.id);
+          itemLibraryRef.current.set(item.id, lib);
           setFullCache((prev) => new Map(prev).set(item.id, full));
           return;
         } catch {
@@ -219,6 +258,7 @@ export function MaterialPanel({ workId, onInsert }: MaterialPanelProps) {
         name: item.name,
         itemType: full.item_type,
         url,
+        library: itemLibraryRef.current.get(item.id),
       });
     },
     [fullCache, thumbCache, onInsert],
@@ -234,60 +274,109 @@ export function MaterialPanel({ workId, onInsert }: MaterialPanelProps) {
         JSON.stringify({
           source: "shell",
           itemId: item.id,
+          library: itemLibraryRef.current.get(item.id),
           fallbackUrl: url,
         }),
       );
+      // design 等の互換 mime（旧 application/x-akari-image 等）を追加
+      if (extraDragMimes) {
+        for (const { mime, payload } of extraDragMimes) {
+          e.dataTransfer.setData(mime, payload);
+        }
+      }
       e.dataTransfer.setData("text/uri-list", url);
       e.dataTransfer.effectAllowed = "copy";
     },
-    [thumbCache],
+    [thumbCache, extraDragMimes],
   );
+
+  // file input handler
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const fl = e.target.files;
+      if (!fl || fl.length === 0 || !onUpload) return;
+      onUpload(Array.from(fl));
+      // 同じ file を連続選択可能にするため value を reset
+      e.target.value = "";
+    },
+    [onUpload],
+  );
+
+  const gridClass =
+    gridCols === 3 ? "grid grid-cols-3 gap-1.5" : "grid grid-cols-2 gap-1.5";
 
   return (
     <div className="flex flex-col h-full gap-2 p-2">
-      {/* scope tab */}
-      <div className="flex items-center gap-1 text-[11px]">
-        <button
-          type="button"
-          onClick={() => setScope("this-work")}
-          disabled={!workId}
-          className={`flex-1 px-2 py-1 rounded border ${
-            scope === "this-work"
-              ? "bg-primary/10 border-primary text-primary font-medium"
-              : "border-border text-muted-foreground hover:text-foreground"
-          } ${!workId ? "opacity-50 cursor-not-allowed" : ""}`}
-          title={
-            workId
-              ? "この Work に紐付いた素材"
-              : "Work を選択すると有効になります"
-          }
-        >
-          この Work の素材
-        </button>
-        <button
-          type="button"
-          onClick={() => setScope("all")}
-          className={`flex-1 px-2 py-1 rounded border ${
-            scope === "all"
-              ? "bg-primary/10 border-primary text-primary font-medium"
-              : "border-border text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          全 Pool
-        </button>
-      </div>
+      {/* scope tab (optional) */}
+      {enableScopeTab && (
+        <div className="flex items-center gap-1 text-[11px]">
+          <button
+            type="button"
+            onClick={() => setScope("this-work")}
+            disabled={!workId}
+            className={`flex-1 px-2 py-1 rounded border ${
+              scope === "this-work"
+                ? "bg-primary/10 border-primary text-primary font-medium"
+                : "border-border text-muted-foreground hover:text-foreground"
+            } ${!workId ? "opacity-50 cursor-not-allowed" : ""}`}
+            title={
+              workId
+                ? "この Work に紐付いた素材"
+                : "Work を選択すると有効になります"
+            }
+          >
+            この Work の素材
+          </button>
+          <button
+            type="button"
+            onClick={() => setScope("all")}
+            className={`flex-1 px-2 py-1 rounded border ${
+              scope === "all"
+                ? "bg-primary/10 border-primary text-primary font-medium"
+                : "border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            全 Pool
+          </button>
+        </div>
+      )}
 
-      {/* 検索 */}
-      <div className="flex items-center gap-1.5 px-2 py-1 rounded border border-border bg-muted/40">
-        <Search className="w-3 h-3 text-muted-foreground shrink-0" />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="素材を検索"
-          className="flex-1 bg-transparent text-[11px] focus:outline-none"
-        />
-      </div>
+      {/* upload button (optional) */}
+      {onUpload && (
+        <>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded border border-dashed border-border text-[11px] text-muted-foreground hover:text-foreground hover:border-primary transition"
+          >
+            <Upload className="w-3 h-3" />
+            {uploadLabel}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={uploadAccept}
+            multiple
+            className="hidden"
+            onChange={handleFileChange}
+          />
+        </>
+      )}
+
+      {/* 検索 (optional) */}
+      {enableSearch && (
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded border border-border bg-muted/40">
+          <Search className="w-3 h-3 text-muted-foreground shrink-0" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="素材を検索"
+            className="flex-1 bg-transparent text-[11px] focus:outline-none"
+          />
+        </div>
+      )}
 
       {/* 一覧 */}
       <div className="flex-1 min-h-0 overflow-y-auto">
@@ -302,7 +391,7 @@ export function MaterialPanel({ workId, onInsert }: MaterialPanelProps) {
               : "Pool に素材がありません。"}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-1.5">
+          <div className={gridClass}>
             {filteredItems.map((item) => (
               <MaterialThumb
                 key={item.id}
