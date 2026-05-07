@@ -8,4 +8,9 @@ export { ImagePreviewModal } from "./ImagePreview"
 export { RadarChart, STAT_KEYS, type RadarChartProps } from "./RadarChart"
 export { DelegationAccordion } from "./DelegationAccordion"
 export { MaterialPanel, type MaterialPick } from "./MaterialPanel"
+export {
+  useWorkStateSync,
+  type UseWorkStateSyncOptions,
+  type WorkStateSyncApp,
+} from "./use-work-state-sync"
 export { cn } from "./lib/cn"

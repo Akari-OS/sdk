@@ -12,6 +12,7 @@
     "./RadarChart": "./src/RadarChart.tsx",
     "./DelegationAccordion": "./src/DelegationAccordion.tsx",
     "./MaterialPanel": "./src/MaterialPanel.tsx",
+    "./use-work-state-sync": "./src/use-work-state-sync.ts",
     "./cn": "./src/lib/cn.ts"
   },
   "scripts": {
