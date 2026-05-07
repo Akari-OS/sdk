@@ -215,6 +215,30 @@ export async function addItem(
   })) as PoolItemSummary
 }
 
+/**
+ * Pool に Item を upsert する（ADR-084 v5）。
+ *
+ * 同じ `dedupKey` で active (archived_at IS NULL) な Item があれば archive してから
+ * 新規 add する。`dedupKey` は client が決める string（AKARI 推奨:
+ * `${source_app}:${source_work_id}:${variant_id}`）。
+ *
+ * pool-impl 側は schema v5 で `pool_items.dedup_key` カラム + 部分 unique index
+ * (active item のみで unique) を持つ。
+ */
+export async function upsertItem(
+  library: string,
+  filePath: string,
+  dedupKey: string,
+  name?: string,
+): Promise<PoolItemSummary> {
+  return (await invoke("pool_upsert_item", {
+    library,
+    filePath,
+    name: name ?? null,
+    dedupKey,
+  })) as PoolItemSummary
+}
+
 export async function analyzeItem(
   library: string,
   id: string,
