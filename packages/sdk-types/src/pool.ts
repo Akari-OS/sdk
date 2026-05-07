@@ -41,6 +41,10 @@ export interface PoolItemSummary {
   created_at: string
   updated_at: string
   archived_at?: string | null
+  /** ADR-084 metadata: 出力元 app ("design"/"video"/"writer"/...)。 */
+  source_app?: string | null
+  /** ADR-084 metadata: 出力元 Work id。 */
+  source_work_id?: string | null
 }
 
 export interface PoolSearchResult {
