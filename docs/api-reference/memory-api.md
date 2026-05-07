@@ -1,7 +1,7 @@
 ---
 title: Memory API リファレンス
 spec-ref: AKARI-HUB-024 §5.2 (§6.6-2)
-updated: 2026-04-22
+updated: 2026-05-08
 related: [HUB-024]
 ---
 
@@ -934,6 +934,145 @@ async function handoffToVideo(draftId: ContentHash, assetIds: ContentHash[]) {
       goal_ref: "com.akari.writer",  // goal_ref を継承
     },
   })
+}
+```
+
+### 2.X `pool.addItem()` / `pool.upsertItem()` — Pool Item の追加・更新（ADR-085 実装）
+
+Pool への素材追加・更新 API。v0.2 以降は `contextJson` 引数で Work / App コンテキストの自動記録をサポート。
+
+```typescript
+async addItem(req: PoolAddItemRequest): Promise<PoolItem>
+async upsertItem(req: PoolUpsertItemRequest): Promise<PoolItem>
+```
+
+**AddItemRequest** — 新規 Item 追加
+
+```typescript
+interface PoolAddItemRequest {
+  /** Pool library 名（デフォルト: "default"） */
+  library?: string
+
+  /** ローカルファイル path or binary */
+  source: string | Uint8Array
+
+  /** ファイル名（source が path の場合は自動取得） */
+  name?: string
+
+  /** 保存モード */
+  storage_mode?: "reference" | "copy" | "auto"  // デフォルト: "reference"
+
+  /** AI タグ・要約（自動分析 off の場合は手動指定） */
+  ai_tags?: string[]
+  ai_summary?: string
+
+  /** Work / App コンテキスト（session 61 新規） */
+  contextJson?: {
+    attached_to_work?: string  // この Item が使われている Work ID
+    source_work_id?: string    // Item の出典 Work（成果物の場合）
+    source_app?: string        // Item を生成した App（"design" / "video" / "writer"）
+    scope?: "personal" | "work"  // Personal Pool か Work-attached か
+  }
+}
+```
+
+**UpsertItemRequest** — 既存 Item の上書き（重複排除）
+
+```typescript
+interface PoolUpsertItemRequest extends PoolAddItemRequest {
+  /** 重複排除 key（同じ key の Item は 1 件だけ Pool に残す） */
+  dedup_key: string  // 例: "<workId>_<appName>_state"
+
+  /** 同じ key の古い Item を削除するか */
+  delete_obsolete?: boolean  // デフォルト: true
+}
+```
+
+**戻り値**: `PoolItem` — 作成・更新された Item メタデータ
+
+**使用例** — Work state の live sync（useWorkStateSync hook 内部）
+
+```typescript
+const item = await pool.upsertItem({
+  source: JSON.stringify(fabricState),  // state JSON を string で渡す
+  name: `design-state-${workId}.json`,
+  storage_mode: "copy",  // state は Pool に複製
+  dedup_key: `${workId}_design_fabric_state`,
+  delete_obsolete: true,
+  contextJson: {
+    attached_to_work: workId,
+    source_app: "design",
+    scope: "work"
+  }
+})
+```
+
+---
+
+### 2.Y PoolItem データ構造の拡張（ADR-085 実装）
+
+**PoolItemSummary** （≒ search results で返される Item 抄録）に source tracking 情報を追加:
+
+```typescript
+interface PoolItemSummary {
+  id: string
+  name: string
+  type: "image" | "video" | "audio" | "text" | "code" | "pdf" | "document" | "unknown"
+  mime: string
+  size_bytes: number
+  created_at: Date
+  updated_at: Date
+
+  // ADR-085 新規フィールド
+  source_app?: string  // Item を生成した App ("design" | "video" | "writer" | undefined)
+  source_work_id?: string  // Item の出典 Work ID（成果物の場合）
+
+  ai_tags?: string[]
+  ai_summary?: string
+  is_referenced?: boolean  // Storage mode = "reference" の場合 true
+  thumbnail_url?: string
+}
+```
+
+使用例 — Pool browser で「成果物」vs「素材」を filter
+
+```typescript
+// 「成果物」= source_app 有り
+const artworks = items.filter(i => i.source_app !== undefined)
+
+// 「素材」= source_app 無し（手動 upload / import）
+const materials = items.filter(i => !i.source_app)
+```
+
+---
+
+### 2.Z LibraryInfo の拡張（ADR-085 実装）
+
+```typescript
+interface LibraryInfo {
+  name: string
+  display_name: string
+  type: "personal" | "work" | "system"
+
+  // ADR-085 新規フィールド
+  is_system_managed?: boolean  // true = Shell が自動管理（ユーザー編集不可）
+
+  // Storage mode 設定
+  default_storage_mode?: "reference" | "copy" | "auto"
+
+  // Quota 設定
+  quota_bytes?: number
+  current_usage_copied?: number
+  current_usage_referenced?: number
+}
+```
+
+使用例 — Per-library storage mode override
+
+```typescript
+const lib = await pool.getLibraryInfo("outputs-design")
+if (lib.default_storage_mode === "reference") {
+  // Design の出力は大ファイルなので reference 既定
 }
 ```
 

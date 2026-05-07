@@ -1,6 +1,6 @@
 ---
 title: AKARI App SDK — 開発者ガイド集
-updated: 2026-04-22
+updated: 2026-05-08
 ---
 
 # AKARI App SDK Documentation

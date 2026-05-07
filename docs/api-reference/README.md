@@ -2,10 +2,10 @@
 title: API Reference — 入口
 spec-id: AKARI-HUB-024
 section: sdk/api-reference
-version: 0.1.0
+version: 0.1.1
 status: draft
 created: 2026-04-19
-updated: 2026-04-22
+updated: 2026-05-08
 ---
 
 # API Reference

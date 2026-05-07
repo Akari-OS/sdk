@@ -1,10 +1,10 @@
 ---
 title: UI API リファレンス
 spec-ref: AKARI-HUB-024, AKARI-HUB-025
-version: 0.1.0
+version: 0.2.0
 status: draft
 created: 2026-04-19
-updated: 2026-04-22
+updated: 2026-05-08
 related:
   - HUB-024 (App SDK spec (AKARI-HUB-024, Hub)) — §5.4 UI API
   - HUB-025 (Panel Schema spec (AKARI-HUB-025, Hub)) — Panel Schema v0
@@ -1106,3 +1106,170 @@ Full Tier App が `<SchemaPanel>` を部分利用する方法は §2.2 を参照
 | [AKARI-HUB-025](https://github.com/Akari-OS/.github/blob/main/VISION.md) | Panel Schema v0 — Widget Catalog / Binding / HITL |
 | Shell Panel Framework (internal spec) | Shell Panel Framework — PanelRegistry / LayoutEngine |
 | Shell Workspace UI (internal spec) | Shell Workspace UI — WorkspaceHost / 4 スロット |
+
+---
+
+## 12. 共通 UI コンポーネント — MaterialPanel（shell-ui）
+
+### 概要
+
+`@akari-os/shell-ui` から提供される共通コンポーネント **`MaterialPanel`**（素材パネル）。design / video / writer の 3 app で統一された **Pool ブラウザ UI** を提供。ADR-085 D-7 で仕様化、session 61 で実装完了。
+
+#### 役割
+
+- Work 内の素材（アップロード / import / 成果物）と全 Pool を一覧表示
+- **Scope フィルタ**: 「この Work の素材」「全 Pool」切替
+- **Type フィルタ**: chip で type 別フィルタリング（画像 / 動画 / 文章 / コード等）
+- **DnD**: 素材をワークエリアにドラッグして挿入
+- **右クリック menu**: 「📌 Personal Pool に昇格」「分析」「削除」等
+- **dangling badge**: Reference モードで file_path が無効化した場合に「⚠」表示
+
+#### Import
+
+```typescript
+import { MaterialPanel } from "@akari-os/shell-ui"
+```
+
+#### Props
+
+```typescript
+interface MaterialPanelProps {
+  /** 現在のワーク ID */
+  workId: string
+
+  /** 現在のワーク scope pool（null = 全 Pool を表示） */
+  workPoolId?: string | null
+
+  /** アップロード / DnD 時のコールバック */
+  onAddItem?: (req: PoolAddItemRequest) => Promise<void>
+
+  /** Item 削除時のコールバック */
+  onDeleteItem?: (itemId: string) => Promise<void>
+
+  /** Item の「📌 昇格」時のコールバック */
+  onPromoteToPersonal?: (itemId: string) => Promise<void>
+
+  /** Item クリック時（デフォルト: 詳細パネル表示） */
+  onSelectItem?: (item: PoolItem) => void
+
+  /** Type フィルタの chip リスト（デフォルト: 全 type） */
+  visibleTypes?: ("image" | "video" | "audio" | "text" | "code" | "pdf" | "document")[]
+
+  /** Scope tab の表示（デフォルト: true）。false = 「この Work 」のみ表示 */
+  showScopeTab?: boolean
+}
+```
+
+#### 使用例（writer）
+
+```typescript
+// WriterLeftPanel.tsx
+import { MaterialPanel } from "@akari-os/shell-ui"
+import { useWorkState } from "@akari-os/sdk"
+
+export function WriterLeftPanel() {
+  const { workId } = useWorkState()
+
+  return (
+    <div className="left-panel">
+      <MaterialPanel
+        workId={workId}
+        onAddItem={async (req) => {
+          // アップロード時の処理
+          await pool.addItem(req)
+        }}
+        onSelectItem={(item) => {
+          // 素材クリック時、markdown に挿入
+          insertImageMarkdown(item.name, item.file_path)
+        }}
+      />
+    </div>
+  )
+}
+```
+
+---
+
+## 13. Work State Sync Hook — useWorkStateSync（shell-ui）
+
+### 概要
+
+`@akari-os/shell-ui` から提供される React hook **`useWorkStateSync`**。App の Work state（編集中の canvas / timeline / document 状態）を Pool に自動 live sync する基盤。ADR-085 D-1 で仕様化、session 61 で実装完了。
+
+#### 役割
+
+- Work の **appState JSON** を autosave debounce（既定: 200〜500ms）で Pool に push
+- **dedup_key** による上書き制御（同一 Work の複数 state 更新を merge）
+- **live preview** の基盤（他 App が Work state JSON から headless render）
+- Writer ↔ Design ↔ Video の Work 共同編集 UX 実現
+
+#### Import
+
+```typescript
+import { useWorkStateSync } from "@akari-os/shell-ui"
+```
+
+#### API
+
+```typescript
+function useWorkStateSync(options: UseWorkStateSyncOptions): void
+
+interface UseWorkStateSyncOptions {
+  /** 現在のワーク ID */
+  workId: string
+
+  /** 同期対象の state（any），通常は編集 state JSON */
+  state: any
+
+  /** autosave debounce interval (ms)。デフォルト: 300 */
+  debounceMs?: number
+
+  /** 上書き制御用 key（例: "design_fabric_state"）。デフォルト: "<workId>_<appName>" */
+  dedup_key?: string
+
+  /** 同期失敗時の callback */
+  onError?: (error: Error) => void
+}
+```
+
+#### 使用例（design）
+
+```typescript
+// DesignStudio.tsx
+import { useWorkStateSync } from "@akari-os/shell-ui"
+import { useWorkState } from "@akari-os/sdk"
+import { useFabricState } from "./lib/fabric"
+
+export function DesignStudio() {
+  const { workId } = useWorkState()
+  const [fabricState, setFabricState] = useFabricState()
+
+  // Fabric state を Pool に live sync
+  useWorkStateSync({
+    workId,
+    state: fabricState,
+    dedup_key: "design_fabric_state",
+    debounceMs: 300,
+  })
+
+  return (
+    <div>
+      {/* Fabric canvas... */}
+    </div>
+  )
+}
+```
+
+#### 実装詳細
+
+- **debounce**: 最後の state 변化から `debounceMs` ms 経過後に 1 回の pool.upsertItem を実行
+- **dedup_key**: 複数の state 이 同時 update の場合、同じ key は最新 state だけ Pool に保存（古い中间 state は削除）
+- **Context JSON**: pool.upsertItem 呼び出し時に `context_json.source_app = "design"` / `source_work_id = workId` / `last_sync_at` を自動セット
+- **Error handling**: 네트워크 오류 や permission deny 時は onError callback を発火
+
+#### 関連
+
+- [ADR-085 D-1](https://github.com/Akari-OS/.github) — Design Decision（Pool live state sync）
+- [ADR-085 D-2](https://github.com/Akari-OS/.github) — Phase D-1 実装（session 61）
+- [Pool API リファレンス](./memory-api.md) — `pool.upsertItem()` 仕様
+- handoff session 61 — Phase D-1 実装の詳細
