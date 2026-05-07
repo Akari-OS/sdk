@@ -45,6 +45,8 @@ export interface PoolItemSummary {
   source_app?: string | null
   /** ADR-084 metadata: 出力元 Work id。 */
   source_work_id?: string | null
+  /** ADR-084 metadata: 出力元 Work タイトル snapshot。グループ header 表示用 */
+  source_work_title?: string | null
 }
 
 export interface PoolSearchResult {
@@ -212,15 +214,24 @@ export async function listRelations(
   return (await invoke("pool_list_relations", { library })) as PoolRelation[]
 }
 
+/**
+ * Pool に Item を追加する。
+ *
+ * `contextJson` は Optional。ADR-084 metadata (source_app / source_work_id /
+ * source_work_title / exported_at / variant_spec 等) を埋めることで、Pool Browser
+ * の chip filter / グループ化が機能するようになる。
+ */
 export async function addItem(
   library: string,
   filePath: string,
   name?: string,
+  contextJson?: Record<string, unknown> | null,
 ): Promise<PoolItemSummary> {
   return (await invoke("pool_add_item", {
     library,
     filePath,
     name: name ?? null,
+    contextJson: contextJson ?? null,
   })) as PoolItemSummary
 }
 
@@ -231,6 +242,8 @@ export async function addItem(
  * 新規 add する。`dedupKey` は client が決める string（AKARI 推奨:
  * `${source_app}:${source_work_id}:${variant_id}`）。
  *
+ * `contextJson` は Optional。ADR-084 metadata (source_app / source_work_id 等)。
+ *
  * pool-impl 側は schema v5 で `pool_items.dedup_key` カラム + 部分 unique index
  * (active item のみで unique) を持つ。
  */
@@ -239,12 +252,14 @@ export async function upsertItem(
   filePath: string,
   dedupKey: string,
   name?: string,
+  contextJson?: Record<string, unknown> | null,
 ): Promise<PoolItemSummary> {
   return (await invoke("pool_upsert_item", {
     library,
     filePath,
     name: name ?? null,
     dedupKey,
+    contextJson: contextJson ?? null,
   })) as PoolItemSummary
 }
 
