@@ -202,6 +202,30 @@ export type {
 } from "./manifest.js"
 
 // ---------------------------------------------------------------------------
+// Compatibility Manifest (compatibility.toml)
+// ---------------------------------------------------------------------------
+export type {
+  ComponentName,
+  SemVerVersion,
+  VersionRange,
+  DependencyConstraints,
+  ProvidesMap,
+  ComponentSpec,
+  CompatibilityManifest,
+  ParsedVersion,
+  ValidationError,
+  ValidationResult,
+} from "./compatibility.js"
+
+export {
+  validateCompatibilityManifest,
+  isValidSemVer,
+  isValidVersionRange,
+  parseSemVer,
+  compareVersions,
+} from "./compatibility.js"
+
+// ---------------------------------------------------------------------------
 // Generated from upstream JSON Schemas (AMP v0.1 / M2C v0.2)
 // Do not edit manually. Regenerate with `pnpm codegen` at repo root.
 // Upstream SSOT: akari-amp/spec/v0.1/*.schema.json, akari-m2c/spec/v0.2/*.schema.json

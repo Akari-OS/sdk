@@ -19,6 +19,7 @@
     "./panel-schema": "./src/panel-schema.ts",
     "./manifest": "./src/manifest.ts",
     "./errors": "./src/errors.ts",
+    "./compatibility": "./src/compatibility.ts",
     "./mcp": "./src/mcp.ts",
     "./pool": "./src/pool.ts",
     "./models": "./src/models.ts",
@@ -30,7 +31,8 @@
   },
   "files": [
     "src/",
-    "dist/"
+    "dist/",
+    "../../schemas/compatibility.schema.json"
   ],
   "scripts": {
     "build": "tsc",

@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://akari-os.app/schema/compatibility/v1.0.0",
+  "title": "AKARI Compatibility Manifest",
+  "description": "Compatibility manifest for AKARI OS components. Declares a component's version and its dependency version ranges.\n\nUsed to validate and resolve dependencies across AKARI OS components (Shell, Agents, Pool, SDK, and protocols).\n\nRef: spec-os-update-and-compatibility.md §6.4",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["component"],
+  "properties": {
+    "component": {
+      "type": "object",
+      "description": "Component identification (name and version)",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Component identifier (e.g., 'shell', 'agents', 'pool_impl', 'sdk'). Should match directory/repo name in kebab-case or snake_case.",
+          "minLength": 1,
+          "pattern": "^[a-z0-9_-]+$"
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version of the component (e.g., '0.4.2'). Must follow SemVer 2.0.0.",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+        }
+      }
+    },
+    "requires": {
+      "type": "object",
+      "description": "Required versions of upstream dependencies. Maps component name to version range constraint.\n\nExample: requires = { agents = \">=0.3.0, <0.5.0\", pool_impl = \">=0.5.0, <0.7.0\" }",
+      "additionalProperties": {
+        "type": "string",
+        "description": "Version range constraint (e.g., '>=0.3.0, <0.5.0', '^0.2', '~1.0')"
+      }
+    },
+    "provides": {
+      "type": "object",
+      "description": "API surface provided by this component and their versions. Maps API name to version number.\n\nExample: provides = { shell_api = \"0.4\", window_manager_api = \"0.2\" }",
+      "additionalProperties": {
+        "type": "string",
+        "description": "API version (SemVer format, e.g., '0.4')",
+        "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+      }
+    }
+  },
+  "examples": [
+    {
+      "component": {
+        "name": "shell",
+        "version": "0.4.2"
+      },
+      "requires": {
+        "agents": ">=0.3.0, <0.5.0",
+        "pool_impl": ">=0.5.0, <0.7.0",
+        "pool_schema": ">=1, <=2",
+        "sdk": ">=0.5.0, <0.6.0",
+        "m2c_protocol": "^0.2",
+        "amp_protocol": "^0.3"
+      },
+      "provides": {
+        "shell_api": "0.4"
+      }
+    },
+    {
+      "component": {
+        "name": "agents",
+        "version": "0.3.7"
+      },
+      "requires": {
+        "pool_impl": ">=0.5.0, <1.0.0",
+        "sdk": ">=0.5.0, <0.6.0"
+      },
+      "provides": {
+        "agents_api": "0.3"
+      }
+    }
+  ]
+}
