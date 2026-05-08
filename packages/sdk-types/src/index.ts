@@ -202,6 +202,25 @@ export type {
 } from "./manifest.js"
 
 // ---------------------------------------------------------------------------
+// App-provided Settings (akari.toml [[settings.section]])
+// AKARI-HUB-064 Phase 1b
+// ---------------------------------------------------------------------------
+export type {
+  AppSettingsToggleField,
+  AppSettingsTextField,
+  AppSettingsNumberField,
+  AppSettingsSliderField,
+  AppSettingsSelectField,
+  AppSettingsSelectOption,
+  AppSettingsColorField,
+  AppSettingsPathField,
+  AppSettingsField,
+  AppSettingsValue,
+  AppSettingsSection,
+  AppSettingsSchema,
+} from "./app-settings.js"
+
+// ---------------------------------------------------------------------------
 // Compatibility Manifest (compatibility.toml)
 // ---------------------------------------------------------------------------
 export type {
