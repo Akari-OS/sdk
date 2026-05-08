@@ -1,0 +1,18 @@
+# AKARI Compatibility Manifest — akari-sdk
+#
+# 規約: AKARI-HUB-033 §6.4 / ADR-093
+# Schema:  packages/sdk-types/src/compatibility.ts
+#          schemas/compatibility.schema.json
+#
+# Layer: SDK は AKARI 基盤層。他 AKARI Component には依存しない。
+# 配布: @akari-os/sdk として npm 公開（License: MIT / Layer 3）。
+
+[component]
+name = "sdk"
+version = "0.1.0"
+
+# SDK は他 AKARI Component に依存しない（peerDependencies で
+# Tauri / React を optional 扱いするのは package.json 側で別途宣言）。
+
+[provides]
+sdk_api = "0.1"
