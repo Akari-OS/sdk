@@ -17,6 +17,9 @@ importers:
 
   ../akari-design:
     dependencies:
+      '@akari-os/headless-render':
+        specifier: workspace:*
+        version: link:../akari-sdk/packages/headless-render
       '@akari-os/shell-ui':
         specifier: workspace:*
         version: link:../akari-sdk/packages/shell-ui
@@ -330,6 +333,26 @@ importers:
         version: 8.5.1(postcss@8.5.10)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.3)
       typescript:
         specifier: ^5.4.0
+        version: 5.9.3
+
+  packages/headless-render:
+    dependencies:
+      '@akari-os/sdk':
+        specifier: workspace:*
+        version: link:../sdk-types
+    optionalDependencies:
+      fabric:
+        specifier: ^6.0.0
+        version: 6.9.1
+      node-canvas:
+        specifier: ^2.9.0
+        version: 2.9.0
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.39
+      typescript:
+        specifier: ^5.7.0
         version: 5.9.3
 
   packages/markdown-core:
@@ -2915,6 +2938,10 @@ packages:
   neo-async@2.6.2:
     resolution: {integrity: sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==}
 
+  node-canvas@2.9.0:
+    resolution: {integrity: sha512-QYqBq9vm+hWrPyqRUyIRYlrWCWL8IysaDuvM79ZLx694ojctbpHQ4Iu45SZZYSBgiGtSuP2oil9ae1xQloeC9Q==}
+    engines: {node: '>=6'}
+
   node-fetch@2.7.0:
     resolution: {integrity: sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==}
     engines: {node: 4.x || >=6.0.0}
@@ -5314,15 +5341,15 @@ snapshots:
 
   '@types/jsonfile@6.1.4':
     dependencies:
-      '@types/node': 22.19.17
+      '@types/node': 25.6.0
 
   '@types/mute-stream@0.0.4':
     dependencies:
-      '@types/node': 22.19.17
+      '@types/node': 25.6.0
 
   '@types/node-fetch@2.6.13':
     dependencies:
-      '@types/node': 22.19.17
+      '@types/node': 25.6.0
       form-data: 4.0.5
 
   '@types/node@20.19.39':
@@ -5347,7 +5374,7 @@ snapshots:
 
   '@types/through@0.0.33':
     dependencies:
-      '@types/node': 22.19.17
+      '@types/node': 25.6.0
 
   '@types/turndown@5.0.6': {}
 
@@ -6321,6 +6348,9 @@ snapshots:
   negotiator@1.0.0: {}
 
   neo-async@2.6.2: {}
+
+  node-canvas@2.9.0:
+    optional: true
 
   node-fetch@2.7.0:
     dependencies:

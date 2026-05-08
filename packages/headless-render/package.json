@@ -1,0 +1,36 @@
+{
+  "name": "@akari-os/headless-render",
+  "version": "0.1.0",
+  "description": "AKARI Headless Renderer — canvas-based app (design / video) を画像に出力する SSR 機能",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Akari-OS/sdk"
+  },
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./design": "./src/design/index.ts",
+    "./video": "./src/video/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@akari-os/sdk": "workspace:*"
+  },
+  "optionalDependencies": {
+    "fabric": "^6.0.0",
+    "node-canvas": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
