@@ -1,59 +1,72 @@
-/** Render output format */
-export type RenderFormat = "png" | "jpeg" | "webp";
-
-/** App type (canvas-based only) */
-export type AppType = "design" | "video";
-
 /** Render result */
 export interface RenderResult {
   /** Output width in pixels */
   width: number;
   /** Output height in pixels */
   height: number;
-  /** Rendered image blob */
+  /** Rendered blob */
   blob: Blob;
+  /** MIME type of blob */
+  mimeType: string;
 }
 
-/** Common render options */
-export interface RenderOptions {
-  /** Output format */
-  format?: RenderFormat;
-  /** JPEG/WebP quality (0-100) */
+// ============== Design render types ==============
+
+export type DesignRenderFormat = "png" | "jpeg" | "webp" | "svg" | "pdf";
+
+export interface DesignRenderOptions {
+  format?: DesignRenderFormat;
   quality?: number;
-  /** Output width */
   width?: number;
-  /** Output height */
   height?: number;
-  /** DPI scale factor */
   scale?: number;
-  /** Timeout in milliseconds */
+  background?: "transparent" | string;
   timeout?: number;
 }
 
-/** Main render API params */
-export interface RenderVariantParams {
-  /** App type */
-  app: AppType;
-  /** Serialized work state (JSON) */
+export interface DesignRenderInput {
+  app: "design";
   workState: Record<string, unknown>;
-  /** Render options */
-  options?: RenderOptions;
+  options?: DesignRenderOptions;
 }
 
-/** Design-specific render params */
+// ============== Video render types ==============
+
+export type VideoRenderFormat = "png" | "mp4" | "frame-strip";
+export type VideoEncoderProfile = "fast" | "quality";
+export type VideoAspectRatio = "original" | "youtube" | "tiktok" | "ig_post" | "ig_square";
+
+export interface VideoRenderOptions {
+  format?: VideoRenderFormat;
+  frameAt?: number; // ms (PNG frame thumb)
+  range?: { start: number; end: number }; // ms (mp4 部分書き出し)
+  bitrate?: { video: number; audio: number }; // kbps
+  encoderProfile?: VideoEncoderProfile;
+  aspect?: VideoAspectRatio;
+  timeout?: number;
+}
+
+export interface VideoRenderInput {
+  app: "video";
+  workState: Record<string, unknown>;
+  options?: VideoRenderOptions;
+}
+
+// ============== Unified discriminated union ==============
+
+export type RenderVariantInput = DesignRenderInput | VideoRenderInput;
+
+export type RenderVariantParams = RenderVariantInput; // Alias for backward compat
+
+// ============== Legacy types (for backward compat) ==============
+
 export interface RenderDesignVariantParams {
-  /** Work state */
   workState: Record<string, unknown>;
-  /** Options */
-  options?: RenderOptions;
+  options?: DesignRenderOptions;
 }
 
-/** Video-specific frame render params */
 export interface RenderVideoFrameParams {
-  /** Work state */
   workState: Record<string, unknown>;
-  /** Frame index (0-based) */
-  frameIndex: number;
-  /** Options */
-  options?: RenderOptions;
+  frameIndex?: number;
+  options?: VideoRenderOptions;
 }
