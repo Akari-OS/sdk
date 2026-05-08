@@ -274,10 +274,10 @@ export function validateCompatibilityManifest(
             field: `provides.${key}`,
             message: `provides.${key} must be a string, got ${typeof value}`,
           })
-        } else if (!isValidSemVer(value)) {
+        } else if (!isValidLooseVersion(value)) {
           errors.push({
             field: `provides.${key}`,
-            message: `provides.${key} "${value}" is not valid SemVer`,
+            message: `provides.${key} "${value}" is not a valid version (expected X / X.Y / X.Y.Z)`,
           })
         }
       }
@@ -311,6 +311,29 @@ export function isValidSemVer(version: string): boolean {
 }
 
 /**
+ * Checks if a string is a valid "loose" version (X / X.Y / X.Y.Z).
+ *
+ * AKARI compatibility manifests accept three version shapes:
+ * - Bare integer: "1"  → schema versions (e.g., `pool_schema = ">=1, <=2"`)
+ * - Two-part:    "0.4" → API surface / protocol minor (e.g., `provides.shell_api = "0.4"`, `^0.3`)
+ * - Strict:      "1.2.3" → standard SemVer (e.g., `component.version = "0.4.2"`)
+ *
+ * Used by:
+ * - `provides` value validation (allows X / X.Y for API surface declarations)
+ * - `isValidVersionRange` parts (allows `^0.3`, `>=1, <=2` etc.)
+ *
+ * Strict SemVer (X.Y.Z required) is enforced only on `component.version`.
+ *
+ * @see spec-os-update-and-compatibility.md §6.4
+ */
+export function isValidLooseVersion(version: string): boolean {
+  // Accepts: X / X.Y / X.Y.Z optionally with -prerelease and/or +metadata
+  const looseRegex =
+    /^(0|[1-9]\d*)(?:\.(0|[1-9]\d*)(?:\.(0|[1-9]\d*))?)?(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/
+  return looseRegex.test(version)
+}
+
+/**
  * Checks if a string is a valid version range (SemVer constraint).
  *
  * Accepts:
@@ -336,19 +359,17 @@ export function isValidVersionRange(range: string): boolean {
   for (const part of parts) {
     if (!part) return false
 
-    // Check for exact version (^X.Y.Z or ~X.Y.Z or plain X.Y.Z)
-    if (/^[\^~]?/.test(part)) {
-      // Caret or tilde prefix
-      const versionPart = part.replace(/^[\^~]/, "")
-      if (!isValidSemVer(versionPart)) return false
+    // Strip leading operator (^, ~, >=, <=, >, <, =) then validate as loose version.
+    // Loose accepts X / X.Y / X.Y.Z so "^0.3", ">=1, <=2", "1.2.3" all pass.
+    let versionPart: string
+    if (/^[\^~]/.test(part)) {
+      versionPart = part.replace(/^[\^~]/, "")
     } else if (/^(>=|<=|>|<|=)/.test(part)) {
-      // Comparison operator
-      const versionPart = part.replace(/^(>=|<=|>|<|=)/, "")
-      if (!isValidSemVer(versionPart)) return false
+      versionPart = part.replace(/^(>=|<=|>|<|=)/, "")
     } else {
-      // Assume it's a bare version
-      if (!isValidSemVer(part)) return false
+      versionPart = part
     }
+    if (!isValidLooseVersion(versionPart)) return false
   }
 
   return true

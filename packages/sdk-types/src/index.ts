@@ -220,6 +220,7 @@ export type {
 export {
   validateCompatibilityManifest,
   isValidSemVer,
+  isValidLooseVersion,
   isValidVersionRange,
   parseSemVer,
   compareVersions,
