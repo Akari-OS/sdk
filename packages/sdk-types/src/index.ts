@@ -214,6 +214,7 @@ export type {
   AppSettingsSelectOption,
   AppSettingsColorField,
   AppSettingsPathField,
+  AppSettingsSecretField,
   AppSettingsField,
   AppSettingsValue,
   AppSettingsSection,

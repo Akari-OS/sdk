@@ -13,7 +13,7 @@
  */
 
 // ---------------------------------------------------------------------------
-// Fields (7 kinds)
+// Fields (8 kinds)
 // ---------------------------------------------------------------------------
 
 interface AppSettingsFieldBase {
@@ -76,7 +76,20 @@ export interface AppSettingsPathField extends AppSettingsFieldBase {
 }
 
 /**
- * Discriminated union over the 7 supported field kinds.
+ * Secret value (API key, token, etc.) persisted to the OS Keychain — **never**
+ * to `settings.json`. The Shell stores via `keychain_set` under
+ * `senderId = "app:${appId}"`, `account = ${field.id}`. App runtime fetches
+ * via `keychain_get` (or the helper exposed in the SDK).
+ *
+ * AKARI-HUB-064 Phase 1c.
+ */
+export interface AppSettingsSecretField extends AppSettingsFieldBase {
+  kind: "secret"
+  placeholder?: string
+}
+
+/**
+ * Discriminated union over the 8 supported field kinds.
  * The Shell renders each kind with the matching React control.
  */
 export type AppSettingsField =
@@ -87,6 +100,7 @@ export type AppSettingsField =
   | AppSettingsSelectField
   | AppSettingsColorField
   | AppSettingsPathField
+  | AppSettingsSecretField
 
 /** Default value type for a given field kind. */
 export type AppSettingsValue = boolean | string | number
