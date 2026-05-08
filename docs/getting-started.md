@@ -6,6 +6,10 @@ related: [HUB-024, HUB-025, HUB-007]
 
 # Getting Started — 最初の App を 5 分で作る / Build Your First App in 5 Minutes
 
+> **より広い AKARI Onboarding (visitor / end-user / developer の総合導線)**:
+> [`Akari-OS/.github/docs/onboarding/`](https://github.com/Akari-OS/.github/tree/main/docs/onboarding)
+> 本ガイドは App SDK 開発者向けの 5 分チュートリアル。
+
 > MCP-Declarative Tier で「Hello App」を作り、AKARI Shell で動かすまでのチュートリアル。
 > React・Rust・独自 DB は一切不要。MCP サーバー + JSON だけで始める。
 
