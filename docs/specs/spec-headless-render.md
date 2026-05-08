@@ -1,10 +1,11 @@
 ---
-spec-id: AKARI-SDK-001
-version: 0.1.0
+spec-id: AKARI-SDK-005
+version: 0.1.1
 status: implemented
 created: 2026-05-08
 updated: 2026-05-08
-related-specs: ["AKARI-HUB-031", "AKARI-DESIGN-001"]
+related-specs: ["AKARI-HUB-031", "AKARI-HUB-032", "AKARI-DESIGN-009", "AKARI-VIDEO-001", "AKARI-WRITER-006"]
+related-adrs: [ADR-085]
 ai-context: claude-code
 ---
 
