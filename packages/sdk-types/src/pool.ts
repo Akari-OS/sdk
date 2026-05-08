@@ -325,6 +325,12 @@ export async function getItemFilePath(
   return (await invoke("pool_get_file_path", { library, id })) as string
 }
 
+/**
+ * 画像 / 動画のサムネイルの**絶対ファイルパス**を返す（disk cache 済 JPEG, 最大 400px）。
+ *
+ * 性能対策（perf fix 2026-05-08）で base64 data URL → ファイルパス返却に変更。
+ * `<img src>` には `convertFileSrc(path)` で変換すること。
+ */
 export async function getItemThumbnail(
   library: string,
   id: string,
