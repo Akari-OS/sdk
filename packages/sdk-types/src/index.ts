@@ -203,7 +203,7 @@ export type {
 
 // ---------------------------------------------------------------------------
 // App-provided Settings (akari.toml [[settings.section]])
-// AKARI-HUB-064 Phase 1b
+// AKARI-HUB-064 Phase 1b (types) / Phase 1c (Zod runtime validation)
 // ---------------------------------------------------------------------------
 export type {
   AppSettingsToggleField,
@@ -219,6 +219,26 @@ export type {
   AppSettingsValue,
   AppSettingsSection,
   AppSettingsSchema,
+  AppSettingsValues,
+} from "./app-settings.js"
+
+export {
+  appSettingsToggleFieldSchema,
+  appSettingsTextFieldSchema,
+  appSettingsNumberFieldSchema,
+  appSettingsSliderFieldSchema,
+  appSettingsSelectOptionSchema,
+  appSettingsSelectFieldSchema,
+  appSettingsColorFieldSchema,
+  appSettingsPathFieldSchema,
+  appSettingsSecretFieldSchema,
+  appSettingsFieldSchema,
+  appSettingsValueSchema,
+  appSettingsSectionSchema,
+  appSettingsSchemaSchema,
+  appSettingsValuesSchema,
+  parseAppSettings,
+  parseAppSettingsValues,
 } from "./app-settings.js"
 
 // ---------------------------------------------------------------------------
