@@ -13,4 +13,23 @@ export {
   type UseWorkStateSyncOptions,
   type WorkStateSyncApp,
 } from "./use-work-state-sync"
+// AKARI-HUB-071 Phase 1
+export {
+  PoolBadge,
+  type PoolBadgeProps,
+  type PoolBadgeVariant,
+} from "./PoolBadge"
+export {
+  StageView,
+  STAGE_ORDER,
+  type StageViewProps,
+  type StageViewLayout,
+} from "./StageView"
+export type {
+  PoolKind,
+  StageKind,
+  PoolDisplay,
+  StageDisplay,
+  ContextPaneState,
+} from "./types/pool"
 export { cn } from "./lib/cn"
