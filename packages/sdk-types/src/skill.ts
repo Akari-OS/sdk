@@ -147,6 +147,37 @@ export interface SkillDef<
   idempotent?: boolean
 
   /**
+   * AKARI-HUB-072 (T-7) — Workflow Step.tool が呼ぶ Tool / Skill が消費する
+   * 推定 token 数。Workflow Engine（akari-agents）が実行前に Step 別 + 累積で
+   * 集計し、`ContextBudgetBar` 等で「コップから水があふれる UI」として表示する。
+   *
+   * 使い分け（spec §6 / AC-9〜AC-12 / AC-12 / spec §9 Risks）:
+   *   - 静的に推定可能なら `estimated_tokens` に固定値を入れる
+   *   - 入力依存で動的に算出したい場合は `estimateTokens(input)` を実装する
+   *     （実装側は `estimated_tokens` を omit してよい）
+   *   - 両方未指定の場合、Workflow Engine 側は `0` を default にしてもよいが、
+   *     Context Budget の精度が落ちるため可能な限りどちらか実装する
+   *
+   * 既存利用箇所への impact 最小化のため両方とも optional（後方互換）。
+   *
+   * @see akari-os/docs/sdd/specs/spec-workflow-checkpoint-context-budget-learning-loop.md
+   */
+  estimated_tokens?: number
+
+  /**
+   * 入力依存で token 推定を動的に算出する optional method。
+   * `estimated_tokens` の固定値で表現できない場合に実装する。
+   *
+   * Workflow Engine（akari-agents）の `engine.estimate_context_budget()` から
+   * 実行前に呼ばれる。実装は同期かつ side-effect free を期待される
+   * （実 LLM 呼び出しを行わず、heuristic で推定する）。
+   *
+   * @param input - `SkillDef.input` schema を通った input
+   * @returns 推定 token 数
+   */
+  estimateTokens?: (input: unknown) => number
+
+  /**
    * Implementation function.
    * `input` is automatically validated and typed via the schema generics.
    * `ctx` provides scoped Pool / AMP access and runtime metadata.

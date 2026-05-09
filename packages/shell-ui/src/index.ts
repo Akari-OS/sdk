@@ -95,4 +95,15 @@ export type {
   UseContextPaneResult,
   UseContextToggleResult,
 } from "./types/context-attach"
+// AKARI-HUB-072 Phase 1 (T-1): Workflow / Step / Trace 共有型
+export type {
+  Workflow,
+  Step,
+  CheckpointUI,
+  ParallelAggregation,
+  ParallelVariantStrategy,
+  ChangelogEntry,
+  Trace,
+  TraceEvent,
+} from "./types/workflow"
 export { cn } from "./lib/cn"

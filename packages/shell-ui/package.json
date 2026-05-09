@@ -26,6 +26,7 @@
     "./types/pool": "./src/types/pool.ts",
     "./types/variant": "./src/types/variant.ts",
     "./types/context-attach": "./src/types/context-attach.ts",
+    "./types/workflow": "./src/types/workflow.ts",
     "./use-work-state-sync": "./src/use-work-state-sync.ts",
     "./cn": "./src/lib/cn.ts"
   },
