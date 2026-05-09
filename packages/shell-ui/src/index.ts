@@ -106,4 +106,26 @@ export type {
   Trace,
   TraceEvent,
 } from "./types/workflow"
+// AKARI-HUB-072 Phase 1 (T-4): Checkpoint Step の inline 表示 component
+export {
+  CheckpointInline,
+  type CheckpointInlineProps,
+  type CheckpointInlineStep,
+  type HumanResponse,
+} from "./CheckpointInline"
+// AKARI-HUB-072 Phase 1 (T-5): Workflow 編集 UI（Step list + 右パネル inspector）
+export {
+  WorkflowEditor,
+  type WorkflowEditorProps,
+  type WorkflowEditorLayout,
+  type WorkflowEditorWorkflow,
+  type EditableStep,
+} from "./WorkflowEditor"
+// AKARI-HUB-072 Phase 1 (T-6): Context budget 進捗バー + Step 別 breakdown
+export {
+  ContextBudgetBar,
+  computeBudgetUsage,
+  type ContextBudgetBarProps,
+  type BudgetUsage,
+} from "./ContextBudgetBar"
 export { cn } from "./lib/cn"
