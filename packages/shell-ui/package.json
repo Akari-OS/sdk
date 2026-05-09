@@ -12,20 +12,27 @@
     "./RadarChart": "./src/RadarChart.tsx",
     "./DelegationAccordion": "./src/DelegationAccordion.tsx",
     "./MaterialPanel": "./src/MaterialPanel.tsx",
+    "./PoolBrowserView": "./src/PoolBrowserView.tsx",
     "./PoolBadge": "./src/PoolBadge.tsx",
     "./StageView": "./src/StageView.tsx",
     "./VariantTabBar": "./src/VariantTabBar.tsx",
     "./VariantContextMenu": "./src/VariantContextMenu.tsx",
     "./CrossVariantCompareView": "./src/CrossVariantCompareView.tsx",
     "./use-variant": "./src/use-variant.ts",
+    "./ContextPane": "./src/ContextPane.tsx",
+    "./hooks/useContextPane": "./src/hooks/useContextPane.ts",
+    "./hooks/useContextToggle": "./src/hooks/useContextToggle.ts",
+    "./lib/in-memory-context-adapter": "./src/lib/in-memory-context-adapter.ts",
     "./types/pool": "./src/types/pool.ts",
     "./types/variant": "./src/types/variant.ts",
+    "./types/context-attach": "./src/types/context-attach.ts",
     "./use-work-state-sync": "./src/use-work-state-sync.ts",
     "./cn": "./src/lib/cn.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@akari-os/sdk": "workspace:*",

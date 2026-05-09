@@ -25,6 +25,11 @@ export {
   type StageViewProps,
   type StageViewLayout,
 } from "./StageView"
+export {
+  PoolBrowserView,
+  POOL_PIN_MAX,
+  type PoolBrowserViewProps,
+} from "./PoolBrowserView"
 export type {
   PoolKind,
   StageKind,
@@ -59,4 +64,35 @@ export type {
   CompareViewState,
   VariantAction,
 } from "./types/variant"
+// AKARI-HUB-071 Phase 1 (T-6 / T-7 / T-8): ContextPane + hooks + adapter
+export {
+  ContextPane,
+  CONTEXT_PANE_COLLAPSED_LS_KEY,
+  poolTarget,
+  stageTarget,
+  assetTarget,
+  type ContextPaneProps,
+} from "./ContextPane"
+export {
+  useContextPane,
+  __internalRecordsToPaneState,
+  type UseContextPaneOptions,
+} from "./hooks/useContextPane"
+export {
+  useContextToggle,
+  type UseContextToggleOptions,
+} from "./hooks/useContextToggle"
+export {
+  createInMemoryContextAdapter,
+  type InMemoryContextAdapter,
+} from "./lib/in-memory-context-adapter"
+export type {
+  ContextAttachAdapter,
+  ContextAttachRecord,
+  ContextDisplayResolver,
+  ContextTargetKind,
+  ContextToggleTarget,
+  UseContextPaneResult,
+  UseContextToggleResult,
+} from "./types/context-attach"
 export { cn } from "./lib/cn"
