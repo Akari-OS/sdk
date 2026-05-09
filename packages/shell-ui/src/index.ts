@@ -143,6 +143,12 @@ export {
   STYLE_DOMAIN_FILTER_ORDER,
   type StylePanelProps,
 } from "./StylePanel"
+// AKARI-HUB-073 Phase 1 (T-3): Style 3 層編集 UI（reference / extracted / overrides）
+export {
+  StyleEditor,
+  type StyleEditorProps,
+  type StyleEditorStyle,
+} from "./StyleEditor"
 // AKARI-HUB-073 Phase 1 (T-6): Workflow Step に Style を attach する picker
 export {
   StyleAttachPicker,
