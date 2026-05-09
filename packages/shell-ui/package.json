@@ -27,9 +27,11 @@
     "./types/variant": "./src/types/variant.ts",
     "./types/context-attach": "./src/types/context-attach.ts",
     "./types/workflow": "./src/types/workflow.ts",
+    "./types/style": "./src/types/style.ts",
     "./CheckpointInline": "./src/CheckpointInline.tsx",
     "./WorkflowEditor": "./src/WorkflowEditor.tsx",
     "./ContextBudgetBar": "./src/ContextBudgetBar.tsx",
+    "./StylePanel": "./src/StylePanel.tsx",
     "./use-work-state-sync": "./src/use-work-state-sync.ts",
     "./cn": "./src/lib/cn.ts"
   },
