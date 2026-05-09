@@ -28,10 +28,13 @@
     "./types/context-attach": "./src/types/context-attach.ts",
     "./types/workflow": "./src/types/workflow.ts",
     "./types/style": "./src/types/style.ts",
+    "./types/style-extract": "./src/types/style-extract.ts",
     "./CheckpointInline": "./src/CheckpointInline.tsx",
     "./WorkflowEditor": "./src/WorkflowEditor.tsx",
     "./ContextBudgetBar": "./src/ContextBudgetBar.tsx",
     "./StylePanel": "./src/StylePanel.tsx",
+    "./use-style-extract": "./src/use-style-extract.ts",
+    "./lib/local-storage-style-extract-adapter": "./src/lib/local-storage-style-extract-adapter.ts",
     "./use-work-state-sync": "./src/use-work-state-sync.ts",
     "./cn": "./src/lib/cn.ts"
   },

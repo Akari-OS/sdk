@@ -156,4 +156,22 @@ export {
   formatStyleRef,
   type StyleAttachPickerProps,
 } from "./StyleAttachPicker"
+// AKARI-HUB-073 Phase 1 (T-5): Style 抽出 trigger hook + adapter
+export {
+  useStyleExtract,
+  type UseStyleExtractOptions,
+} from "./use-style-extract"
+export {
+  createLocalStorageStyleExtractAdapter,
+  type LocalStorageStyleExtractAdapter,
+  type StyleExtractScenario,
+} from "./lib/local-storage-style-extract-adapter"
+export type {
+  StyleExtractAdapter,
+  AssetSummary,
+  ExtractTriggerKind,
+  ExtractRulesRequest,
+  ExtractRulesResponse,
+  UseStyleExtractResult,
+} from "./types/style-extract"
 export { cn } from "./lib/cn"
