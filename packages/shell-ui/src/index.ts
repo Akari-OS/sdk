@@ -25,11 +25,6 @@ export {
   type StageViewProps,
   type StageViewLayout,
 } from "./StageView"
-export {
-  PoolBrowserView,
-  POOL_PIN_MAX,
-  type PoolBrowserViewProps,
-} from "./PoolBrowserView"
 export type {
   PoolKind,
   StageKind,
@@ -37,4 +32,31 @@ export type {
   StageDisplay,
   ContextPaneState,
 } from "./types/pool"
+// AKARI-HUB-071 Phase 1 v0.2.0 (T-14〜T-17): Variant 並列創作ブランチ UI
+export {
+  VariantTabBar,
+  type VariantTabBarProps,
+  type NewVariantChoice,
+} from "./VariantTabBar"
+export {
+  VariantContextMenu,
+  type VariantContextMenuProps,
+} from "./VariantContextMenu"
+export {
+  CrossVariantCompareView,
+  type CrossVariantCompareViewProps,
+} from "./CrossVariantCompareView"
+export {
+  useVariantList,
+  useActiveVariant,
+  useVariantAction,
+  type VariantBackend,
+} from "./use-variant"
+export type {
+  VariantDisplay,
+  VariantList,
+  WorkContext,
+  CompareViewState,
+  VariantAction,
+} from "./types/variant"
 export { cn } from "./lib/cn"
