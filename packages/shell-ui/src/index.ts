@@ -143,4 +143,11 @@ export {
   STYLE_DOMAIN_FILTER_ORDER,
   type StylePanelProps,
 } from "./StylePanel"
+// AKARI-HUB-073 Phase 1 (T-6): Workflow Step に Style を attach する picker
+export {
+  StyleAttachPicker,
+  parseStyleRef,
+  formatStyleRef,
+  type StyleAttachPickerProps,
+} from "./StyleAttachPicker"
 export { cn } from "./lib/cn"

@@ -33,6 +33,8 @@ import type {
   ParallelAggregation,
   ParallelVariantStrategy,
 } from "./types/workflow"
+import type { StyleAsset } from "./types/style"
+import { StyleAttachPicker } from "./StyleAttachPicker"
 
 // ─── 型 ────────────────────────────────────────────────────────────────────
 
@@ -92,6 +94,19 @@ export interface WorkflowEditorProps {
    * / "stacked"（縦並び、横幅狭い時）
    */
   layout?: WorkflowEditorLayout
+  /**
+   * AKARI-HUB-073 T-6: tool Step inspector で Style attach picker に渡す候補。
+   *
+   * 渡された場合、`ToolStepFields` の `style_ref` 入力は free-text textbox から
+   * `StyleAttachPicker`（select + version pin）に切り替わる。
+   * 未指定（undefined）の場合は既存の free-text 動作を維持する（後方互換）。
+   *
+   * 呼び出し側（Shell / app）が pool-impl `list_styles` を叩いて取得する想定。
+   * 大規模 / 検索が要る場合は呼び出し側で予め filter してから渡す。
+   *
+   * 関連 spec: AKARI-HUB-073 §3 AC-8 / AC-9, §6 Components, §7 T-6
+   */
+  availableStyles?: StyleAsset[]
 }
 
 // ─── 定数 / ユーティリティ ──────────────────────────────────────────────────
@@ -322,10 +337,16 @@ function ToolStepFields({
   step,
   onChange,
   readOnly,
+  availableStyles,
 }: {
   step: Extract<Step, { type: "tool" }>
   onChange: (next: Step) => void
   readOnly: boolean
+  /**
+   * AKARI-HUB-073 T-6: 渡された場合は free-text 入力を StyleAttachPicker に
+   * 差し替える。未指定なら既存の textbox を維持（後方互換）。
+   */
+  availableStyles?: StyleAsset[]
 }) {
   const id = useId()
   return (
@@ -367,17 +388,27 @@ function ToolStepFields({
         />
       </FieldRow>
       <FieldRow label="style_ref" htmlFor={`${id}-style`}>
-        <input
-          id={`${id}-style`}
-          type="text"
-          disabled={readOnly}
-          value={step.style_ref ?? ""}
-          placeholder="（省略可）"
-          onChange={(e) =>
-            onChange({ ...step, style_ref: e.target.value || undefined })
-          }
-          className={INPUT_CLS}
-        />
+        {availableStyles ? (
+          // AKARI-HUB-073 T-6: Style attach picker（select + version pin）
+          <StyleAttachPicker
+            availableStyles={availableStyles}
+            selectedStyleRef={step.style_ref}
+            onSelect={(ref) => onChange({ ...step, style_ref: ref })}
+            disabled={readOnly}
+          />
+        ) : (
+          <input
+            id={`${id}-style`}
+            type="text"
+            disabled={readOnly}
+            value={step.style_ref ?? ""}
+            placeholder="（省略可）"
+            onChange={(e) =>
+              onChange({ ...step, style_ref: e.target.value || undefined })
+            }
+            className={INPUT_CLS}
+          />
+        )}
       </FieldRow>
       <FieldRow label="params (JSON)" htmlFor={`${id}-params`}>
         <textarea
@@ -699,6 +730,8 @@ interface StepInspectorProps {
   onDelete: () => void
   onDuplicate: () => void
   renderStepInspector?: (step: Step) => React.ReactNode
+  /** AKARI-HUB-073 T-6: tool Step の Style attach picker 候補（任意） */
+  availableStyles?: StyleAsset[]
 }
 
 /**
@@ -712,6 +745,7 @@ function StepInspector({
   onDelete,
   onDuplicate,
   renderStepInspector,
+  availableStyles,
 }: StepInspectorProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -749,6 +783,7 @@ function StepInspector({
           step={step}
           onChange={onChange}
           readOnly={readOnly}
+          availableStyles={availableStyles}
         />
       )}
       {step.type === "checkpoint" && (
@@ -991,6 +1026,7 @@ export function WorkflowEditor({
   className,
   readOnly = false,
   layout = "split",
+  availableStyles,
 }: WorkflowEditorProps): React.ReactElement {
   const [internalSelectedId, setInternalSelectedId] = useState<string | null>(
     null,
@@ -1079,6 +1115,7 @@ export function WorkflowEditor({
       onDelete={() => handleStepDelete(selectedStep.id)}
       onDuplicate={() => handleStepDuplicate(selectedStep)}
       renderStepInspector={renderStepInspector}
+      availableStyles={availableStyles}
     />
   ) : (
     <div className="flex h-full items-center justify-center py-12 text-[11px] text-muted-foreground">
