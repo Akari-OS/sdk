@@ -25,6 +25,11 @@ export {
   type StageViewProps,
   type StageViewLayout,
 } from "./StageView"
+export {
+  PoolBrowserView,
+  POOL_PIN_MAX,
+  type PoolBrowserViewProps,
+} from "./PoolBrowserView"
 export type {
   PoolKind,
   StageKind,

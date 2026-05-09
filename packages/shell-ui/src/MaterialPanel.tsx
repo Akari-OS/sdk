@@ -1,20 +1,42 @@
 /**
- * MaterialPanel — 全 app 共通の「素材」パネル（左サイド）。
+ * MaterialPanel — 全 app 共通の「素材」パネル (左サイド)。
  *
- * ADR-085 D-7「全 app 左パネルに『素材』タブ」+ D-8「この Work / 全 Pool は
- * filter view」を共通 component として実装。writer / design / 将来の app から
- * 利用される。
+ * AKARI-HUB-071 Phase 1 (T-5) で 3 領域 (Personal Pool / Work Pool / Pool)
+ * layout に再構成。内部 layout は `PoolBrowserView` (T-4) に委譲し、本ファイルは
+ * pool-impl からの asset 取得 + 分類 + thumbnail / drag&drop / onInsert といった
+ * picker 責務だけを担う。
  *
- * 機能:
- *   - listItems / searchItems を `@akari-os/sdk/pool` 経由で叩いて素材一覧
- *   - scope tab: 「この Work」 = attached_to_work === workId || source_work_id === workId
- *   - 検索 (debounce 200ms)
- *   - thumbnail grid + click で `onInsert` callback（本文挿入 / canvas 配置）
- *   - drag start で `application/x-akari-pool-item` mime を書き出し（design 等の
- *     drop target と整合）
+ * 後方互換 (HUB-071 spec §6 / brief 「既存 prop は引き続き受け付ける」):
+ *   - すべての既存 props (workId / onInsert / onUpload / uploadAccept /
+ *     uploadLabel / extraDragMimes / gridCols / enableScopeTab / enableSearch /
+ *     defaultLibrary) は同じ shape で受け付ける
+ *   - `enableScopeTab=false` のときは Personal / Work 領域を非表示にして
+ *     旧来の単一 grid 風 UI に近づける (Cross-Work 領域だけが残る)
+ *   - `defaultLibrary` 指定時は libraries fetch を skip して当該 1 件だけ扱う
  *
- * 各 app は `onInsert` で受け取った `MaterialPick` を自前の挿入経路にマップする。
- * Tauri 環境前提（`@tauri-apps/api/core::convertFileSrc` を使用）。
+ * 振る舞い (新):
+ *   - 上段 Personal Pool: ctx.scope === 'personal' な item を picker thumb で表示
+ *     - ADR-085 D-4 で導入された Personal Pool 昇格 (`updateItemContext` で
+ *       scope=personal 化) と整合。未分類の item は Cross-Work に残る
+ *   - 中段 Work Pool: workId が指定されたとき表示。Upload/WorkState/Output の
+ *     固定 3 段 stage で picker thumb を grouping
+ *     - Upload: ctx.attached_to_work === workId
+ *     - WorkState: 現状空 (HUB-074 schema migration で work_states 確立後に拡張)
+ *     - Output: ctx.source_work_id === workId
+ *   - 下段 Cross-Work Pool: library ごとに 1 entry。先頭 2 件を pinned 扱いと
+ *     して常時表示、それ以外は recent。pin 上限 (10) 超過時は警告 banner
+ *
+ * Lazy classification:
+ *   - context_json は PoolItemFull にしか含まれず list 取得時には来ないため、
+ *     fullCache 未ロードの item は Cross-Work / first library に default 振り分け。
+ *     thumbnail mount で `ensureFull` が走り context_json が読めた時点で
+ *     Personal / Work 領域に再分類される (UI が小さく jitter する余地はあるが、
+ *     pool-impl 側の summary 拡張までは MVP として許容)
+ *
+ * 関連 spec / ADR:
+ *   - spec-pool-ui-redesign-stage-context-pane (AKARI-HUB-071) §6
+ *   - ADR-085 D-4 / D-7 / D-8 (Personal Pool 昇格 / 全 app 左パネル素材 / scope filter)
+ *   - ADR-094 (6 概念モデル) / ADR-079 (Pool 統合)
  */
 
 import {
@@ -36,6 +58,8 @@ import {
   type PoolItemSummary,
   type PoolItemFull,
 } from "@akari-os/sdk/pool";
+import { PoolBrowserView } from "./PoolBrowserView";
+import type { PoolDisplay, StageDisplay, StageKind } from "./types/pool";
 
 export interface MaterialPick {
   id: string;
@@ -47,7 +71,7 @@ export interface MaterialPick {
 }
 
 interface MaterialPanelProps {
-  /** ADR-085 D-8: scope tab の「この Work」 で filter する Work id */
+  /** ADR-085 D-8: Work Pool 領域の filter 対象となる Work id */
   workId?: string;
   /** Click / drop で本文に挿入するときに呼ばれる */
   onInsert: (pick: MaterialPick) => void;
@@ -64,7 +88,11 @@ interface MaterialPanelProps {
   extraDragMimes?: { mime: string; payload: string }[];
   /** thumbnail grid の列数 (default 2) */
   gridCols?: 2 | 3;
-  /** ヘッダ/コンテナ表示フラグ */
+  /**
+   * 旧 scope tab を表示するか (default true)。
+   * HUB-071 で 3 領域 layout に変わったため、true は「Personal / Work 領域を表示」
+   * の意味になり、false は「Cross-Work 領域のみ」を表示する。
+   */
   enableScopeTab?: boolean;
   /** 検索バー表示 (default true) */
   enableSearch?: boolean;
@@ -74,8 +102,6 @@ interface MaterialPanelProps {
 
 const POOL_LIBRARIES_FALLBACK = ["akari-uploads", "akari-outputs"];
 const AKARI_POOL_ITEM_MIME = "application/x-akari-pool-item";
-
-type Scope = "this-work" | "all";
 
 export function MaterialPanel({
   workId,
@@ -92,21 +118,24 @@ export function MaterialPanel({
   const [libraries, setLibraries] = useState<string[]>(
     defaultLibrary ? [defaultLibrary] : POOL_LIBRARIES_FALLBACK,
   );
-  // PoolItemSummary に紐付く library を逆引き（fullCache から取れないため記録）
+  // PoolItemSummary に紐付く library を逆引き
   const itemLibraryRef = useRef<Map<string, string>>(new Map());
-  const [scope, setScope] = useState<Scope>(workId ? "this-work" : "all");
   const [items, setItems] = useState<PoolItemSummary[]>([]);
-  const [fullCache, setFullCache] = useState<Map<string, PoolItemFull>>(new Map());
+  const [fullCache, setFullCache] = useState<Map<string, PoolItemFull>>(
+    new Map(),
+  );
   const [thumbCache, setThumbCache] = useState<Map<string, string>>(new Map());
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // workId が後から付くケース（Work 切替）に対応
-  useEffect(() => {
-    setScope(workId ? "this-work" : "all");
-  }, [workId]);
+  // Cross-Work 領域での選択 pool (library 名が ID)
+  const [selectedCrossWorkPool, setSelectedCrossWorkPool] = useState<
+    string | null
+  >(null);
+  // 現在開いている Stage (default Upload)
+  const [selectedStage, setSelectedStage] = useState<StageKind>("upload");
 
   // 検索 debounce 200ms
   useEffect(() => {
@@ -117,8 +146,7 @@ export function MaterialPanel({
     };
   }, [query]);
 
-  // ライブラリ一覧（akari-uploads / akari-outputs を優先表示、その他もある分は集約）
-  // defaultLibrary 指定時は固定 1 件で fetch skip。
+  // ライブラリ一覧 (akari-uploads / akari-outputs を優先)
   useEffect(() => {
     if (defaultLibrary) return;
     let cancelled = false;
@@ -131,13 +159,12 @@ export function MaterialPanel({
           .filter(
             (n): n is string => typeof n === "string" && n.length > 0,
           );
-        // 既知 library 優先 + その他
         const known = POOL_LIBRARIES_FALLBACK.filter((n) => names.includes(n));
         const others = names.filter((n) => !POOL_LIBRARIES_FALLBACK.includes(n));
         const merged = [...known, ...others];
         setLibraries(merged.length > 0 ? merged : POOL_LIBRARIES_FALLBACK);
       } catch {
-        // dev mode (Shell 未接続) は fallback そのまま
+        // dev mode は fallback そのまま
       }
     })();
     return () => {
@@ -145,7 +172,14 @@ export function MaterialPanel({
     };
   }, [defaultLibrary]);
 
-  // 素材一覧取得（全 library を集約）
+  // 初期 selectedCrossWorkPool の同期 (libraries の 1 件目を default)
+  useEffect(() => {
+    if (selectedCrossWorkPool == null && libraries.length > 0) {
+      setSelectedCrossWorkPool(libraries[0]);
+    }
+  }, [libraries, selectedCrossWorkPool]);
+
+  // 素材一覧取得 (全 library を集約)
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
@@ -154,7 +188,6 @@ export function MaterialPanel({
         try {
           if (debouncedQuery.trim()) {
             const hits = await searchItems(debouncedQuery.trim(), lib, 50);
-            // SearchHit を Summary 形に揃える
             for (const h of hits) {
               all.push({
                 id: h.item_id,
@@ -168,6 +201,10 @@ export function MaterialPanel({
                 updated_at: new Date(0).toISOString(),
                 is_referenced: false,
               });
+              // 検索 hit の library を記録 (lazy ensureFull の前 fallback)
+              if (!itemLibraryRef.current.has(h.item_id)) {
+                itemLibraryRef.current.set(h.item_id, lib);
+              }
             }
           } else {
             const list = await listItems(lib, {
@@ -175,6 +212,12 @@ export function MaterialPanel({
               sortOrder: "desc",
               limit: 100,
             });
+            // list で取得した item には library を即時記録
+            for (const it of list) {
+              if (!itemLibraryRef.current.has(it.id)) {
+                itemLibraryRef.current.set(it.id, lib);
+              }
+            }
             all.push(...list);
           }
         } catch (err) {
@@ -191,12 +234,16 @@ export function MaterialPanel({
     void refresh();
   }, [refresh]);
 
-  // scope filter（item は context_json を持たないので full を引きに行く lazy ロード）
+  // full / thumbnail の lazy ロード
   const ensureFull = useCallback(
     async (item: PoolItemSummary) => {
       if (fullCache.has(item.id)) return;
-      // 各 item の library を特定する必要がある — 単純化のため全 library を順に試す
-      for (const lib of libraries) {
+      // libraryRef から優先的に試し、ダメなら全 library
+      const knownLib = itemLibraryRef.current.get(item.id);
+      const tryOrder = knownLib
+        ? [knownLib, ...libraries.filter((l) => l !== knownLib)]
+        : libraries;
+      for (const lib of tryOrder) {
         try {
           const full = await getItem(lib, item.id);
           itemLibraryRef.current.set(item.id, lib);
@@ -210,14 +257,16 @@ export function MaterialPanel({
     [libraries, fullCache],
   );
 
-  // thumbnail / file URL の取得（image / video のみ）
   const ensureThumb = useCallback(
     async (item: PoolItemSummary, full: PoolItemFull | undefined) => {
       if (thumbCache.has(item.id) || !full) return;
       const type = (full.item_type ?? "").toLowerCase();
       if (!["image", "video"].includes(type)) return;
-      // 各 library を試す（full から library を逆引きできないため）
-      for (const lib of libraries) {
+      const knownLib = itemLibraryRef.current.get(item.id);
+      const tryOrder = knownLib
+        ? [knownLib, ...libraries.filter((l) => l !== knownLib)]
+        : libraries;
+      for (const lib of tryOrder) {
         try {
           const path = await getItemFilePath(lib, item.id);
           if (path) {
@@ -233,21 +282,131 @@ export function MaterialPanel({
     [libraries, thumbCache],
   );
 
-  const filteredItems = useMemo(() => {
-    if (scope === "all" || !workId) return items;
-    return items.filter((i) => {
-      const full = fullCache.get(i.id);
-      const ctx = (full?.context_json ?? null) as
-        | Record<string, unknown>
-        | null;
-      if (!ctx) return false;
-      return (
-        ctx.attached_to_work === workId || ctx.source_work_id === workId
-      );
-    });
-  }, [items, scope, workId, fullCache]);
+  /* ----- 分類 (lazy classification, fullCache に依存) ----- */
 
-  // 素材を本文に挿入（click）
+  const ctxOf = useCallback(
+    (item: PoolItemSummary): Record<string, unknown> | null => {
+      const f = fullCache.get(item.id);
+      const ctx = f?.context_json;
+      return ctx && typeof ctx === "object"
+        ? (ctx as Record<string, unknown>)
+        : null;
+    },
+    [fullCache],
+  );
+
+  const personalItems = useMemo(
+    () => items.filter((i) => ctxOf(i)?.scope === "personal"),
+    [items, ctxOf],
+  );
+
+  const workUploadItems = useMemo(() => {
+    if (!workId) return [];
+    return items.filter((i) => {
+      const ctx = ctxOf(i);
+      return ctx?.attached_to_work === workId;
+    });
+  }, [items, ctxOf, workId]);
+
+  const workOutputItems = useMemo(() => {
+    if (!workId) return [];
+    return items.filter((i) => {
+      const ctx = ctxOf(i);
+      return ctx?.source_work_id === workId;
+    });
+  }, [items, ctxOf, workId]);
+
+  /**
+   * Cross-Work 領域は「分類済を除いた残り」を library ごとに振り分け。
+   * これにより同じ item が Personal / Work / Cross-Work に重複表示されない。
+   */
+  const crossWorkItemsByLib = useMemo(() => {
+    const m = new Map<string, PoolItemSummary[]>();
+    libraries.forEach((lib) => m.set(lib, []));
+    const claimed = new Set<string>([
+      ...personalItems.map((i) => i.id),
+      ...workUploadItems.map((i) => i.id),
+      ...workOutputItems.map((i) => i.id),
+    ]);
+    for (const item of items) {
+      if (claimed.has(item.id)) continue;
+      const lib =
+        itemLibraryRef.current.get(item.id) ?? libraries[0] ?? "default";
+      if (!m.has(lib)) m.set(lib, []);
+      m.get(lib)!.push(item);
+    }
+    return m;
+  }, [items, libraries, personalItems, workUploadItems, workOutputItems]);
+
+  /* ----- PoolDisplay synthesis ----- */
+
+  const nowIso = useMemo(() => new Date().toISOString(), []);
+
+  const personalPool: PoolDisplay = useMemo(
+    () => ({
+      id: "personal",
+      kind: "personal",
+      name: "Personal Pool",
+      is_system: true,
+      is_pinned: false,
+      is_archived: false,
+      // ADR-075: Personal Pool は ambient で常時 attach
+      is_active: true,
+      last_activity: nowIso,
+    }),
+    [nowIso],
+  );
+
+  const workPool = useMemo(() => {
+    if (!workId) return null;
+    const stages: Partial<Record<StageKind, StageDisplay>> = {
+      upload: {
+        kind: "upload",
+        is_active: true,
+        asset_refs: workUploadItems.map((i) => i.id),
+      },
+      workstate: {
+        kind: "workstate",
+        is_active: false,
+        asset_refs: [],
+      },
+      output: {
+        kind: "output",
+        is_active: workOutputItems.length > 0,
+        asset_refs: workOutputItems.map((i) => i.id),
+      },
+    };
+    return {
+      pool: {
+        id: `work:${workId}`,
+        kind: "work" as const,
+        name: "この Work",
+        is_system: true,
+        is_pinned: false,
+        is_archived: false,
+        is_active: true,
+        last_activity: nowIso,
+      },
+      stages,
+    };
+  }, [workId, workUploadItems, workOutputItems, nowIso]);
+
+  const crossWorkPools: PoolDisplay[] = useMemo(() => {
+    return libraries.map((lib, idx) => ({
+      id: lib,
+      kind: "cross-work",
+      name: lib,
+      is_system: false,
+      // 既知 library (akari-uploads / akari-outputs) は pinned として扱う
+      is_pinned: idx < POOL_LIBRARIES_FALLBACK.length,
+      is_archived: false,
+      is_active: false,
+      last_activity: nowIso,
+    }));
+  }, [libraries, nowIso]);
+
+  /* ----- 素材操作 (click / drag) ----- */
+
   const handleClick = useCallback(
     async (item: PoolItemSummary) => {
       const full = fullCache.get(item.id);
@@ -264,7 +423,6 @@ export function MaterialPanel({
     [fullCache, thumbCache, onInsert],
   );
 
-  // drag start (design / shell の mime と整合)
   const handleDragStart = useCallback(
     (e: DragEvent<HTMLDivElement>, item: PoolItemSummary) => {
       const url = thumbCache.get(item.id);
@@ -278,7 +436,6 @@ export function MaterialPanel({
           fallbackUrl: url,
         }),
       );
-      // design 等の互換 mime（旧 application/x-akari-image 等）を追加
       if (extraDragMimes) {
         for (const { mime, payload } of extraDragMimes) {
           e.dataTransfer.setData(mime, payload);
@@ -290,65 +447,131 @@ export function MaterialPanel({
     [thumbCache, extraDragMimes],
   );
 
-  // file input handler
   const fileInputRef = useRef<HTMLInputElement>(null);
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const fl = e.target.files;
       if (!fl || fl.length === 0 || !onUpload) return;
       onUpload(Array.from(fl));
-      // 同じ file を連続選択可能にするため value を reset
       e.target.value = "";
     },
     [onUpload],
   );
 
+  /* ----- thumbnail grid renderer (region content として使う) ----- */
+
   const gridClass =
     gridCols === 3 ? "grid grid-cols-3 gap-1.5" : "grid grid-cols-2 gap-1.5";
 
-  return (
-    <div className="flex flex-col h-full gap-2 p-2">
-      {/* scope tab (optional) */}
-      {enableScopeTab && (
-        <div className="flex items-center gap-1 text-[11px]">
-          <button
-            type="button"
-            onClick={() => setScope("this-work")}
-            disabled={!workId}
-            className={`flex-1 px-2 py-1 rounded border ${
-              scope === "this-work"
-                ? "bg-primary/10 border-primary text-primary font-medium"
-                : "border-border text-muted-foreground hover:text-foreground"
-            } ${!workId ? "opacity-50 cursor-not-allowed" : ""}`}
-            title={
-              workId
-                ? "この Work に紐付いた素材"
-                : "Work を選択すると有効になります"
-            }
-          >
-            この Work の素材
-          </button>
-          <button
-            type="button"
-            onClick={() => setScope("all")}
-            className={`flex-1 px-2 py-1 rounded border ${
-              scope === "all"
-                ? "bg-primary/10 border-primary text-primary font-medium"
-                : "border-border text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            全 Pool
-          </button>
+  const renderThumbGrid = useCallback(
+    (subset: PoolItemSummary[], emptyMessage: string) => {
+      if (subset.length === 0) {
+        return (
+          <div className="text-[10px] text-muted-foreground px-1 py-2">
+            {emptyMessage}
+          </div>
+        );
+      }
+      return (
+        <div className={gridClass}>
+          {subset.map((item) => (
+            <MaterialThumb
+              key={item.id}
+              item={item}
+              fullCache={fullCache}
+              thumbCache={thumbCache}
+              onMount={async () => {
+                await ensureFull(item);
+                const f = fullCache.get(item.id);
+                void ensureThumb(item, f);
+              }}
+              onClick={() => void handleClick(item)}
+              onDragStart={(e) => handleDragStart(e, item)}
+            />
+          ))}
         </div>
-      )}
+      );
+    },
+    [
+      gridClass,
+      fullCache,
+      thumbCache,
+      ensureFull,
+      ensureThumb,
+      handleClick,
+      handleDragStart,
+    ],
+  );
 
+  /* ----- PoolBrowserView の render-prop ----- */
+
+  const renderStageContent = useCallback(
+    (stage: StageKind, _display: StageDisplay) => {
+      if (stage === "upload") {
+        return renderThumbGrid(
+          workUploadItems,
+          "この Work に紐付いた Upload はまだありません",
+        );
+      }
+      if (stage === "output") {
+        return renderThumbGrid(
+          workOutputItems,
+          "この Work からの Output はまだありません",
+        );
+      }
+      // workstate: HUB-074 schema migration 後に有効化予定
+      return (
+        <div className="text-[10px] text-muted-foreground px-1 py-2">
+          WorkState は HUB-074 schema migration 後に有効化予定
+        </div>
+      );
+    },
+    [renderThumbGrid, workUploadItems, workOutputItems],
+  );
+
+  const renderPoolContent = useCallback(
+    (pool: PoolDisplay) => {
+      if (pool.kind === "personal") {
+        return renderThumbGrid(
+          personalItems,
+          "Personal Pool にまだ素材がありません。素材を「📌 Personal Pool に昇格」で追加できます。",
+        );
+      }
+      if (pool.kind === "cross-work") {
+        const subset = crossWorkItemsByLib.get(pool.id) ?? [];
+        return renderThumbGrid(subset, `${pool.name} は空です`);
+      }
+      return null;
+    },
+    [renderThumbGrid, personalItems, crossWorkItemsByLib],
+  );
+
+  const handlePoolClick = useCallback(
+    (pool: PoolDisplay) => {
+      if (pool.kind === "cross-work") {
+        setSelectedCrossWorkPool((prev) =>
+          prev === pool.id ? prev : pool.id,
+        );
+      }
+      // Personal / Work pool クリックは現状 no-op (将来 toggle attach 等へ)
+    },
+    [],
+  );
+
+  const showPersonalAndWork = enableScopeTab;
+
+  return (
+    <div
+      className="flex flex-col h-full gap-2 p-2"
+      data-component="MaterialPanel"
+    >
       {/* upload button (optional) */}
       {onUpload && (
         <>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-2 py-1.5 rounded border border-dashed border-border text-[11px] text-muted-foreground hover:text-foreground hover:border-primary transition"
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded border border-dashed border-border text-[11px] text-muted-foreground hover:text-foreground hover:border-primary transition shrink-0"
           >
             <Upload className="w-3 h-3" />
             {uploadLabel}
@@ -366,7 +589,7 @@ export function MaterialPanel({
 
       {/* 検索 (optional) */}
       {enableSearch && (
-        <div className="flex items-center gap-1.5 px-2 py-1 rounded border border-border bg-muted/40">
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded border border-border bg-muted/40 shrink-0">
           <Search className="w-3 h-3 text-muted-foreground shrink-0" />
           <input
             type="text"
@@ -375,41 +598,32 @@ export function MaterialPanel({
             placeholder="素材を検索"
             className="flex-1 bg-transparent text-[11px] focus:outline-none"
           />
+          {loading && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
         </div>
       )}
 
-      {/* 一覧 */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        {loading && items.length === 0 ? (
-          <div className="flex items-center justify-center py-4 text-muted-foreground">
-            <Loader2 className="w-4 h-4 animate-spin" />
-          </div>
-        ) : filteredItems.length === 0 ? (
-          <div className="text-[10px] text-muted-foreground px-1 py-2">
-            {scope === "this-work"
-              ? "この Work に紐付いた素材はまだありません。「全 Pool」タブで他の素材を探すか、画像をアップロードしてください。"
-              : "Pool に素材がありません。"}
-          </div>
-        ) : (
-          <div className={gridClass}>
-            {filteredItems.map((item) => (
-              <MaterialThumb
-                key={item.id}
-                item={item}
-                fullCache={fullCache}
-                thumbCache={thumbCache}
-                onMount={async () => {
-                  await ensureFull(item);
-                  const f = fullCache.get(item.id);
-                  void ensureThumb(item, f);
-                }}
-                onClick={() => void handleClick(item)}
-                onDragStart={(e) => handleDragStart(e, item)}
-              />
-            ))}
-          </div>
-        )}
+      {/* 3 領域 layout (PoolBrowserView) */}
+      <div className="flex-1 min-h-0">
+        <PoolBrowserView
+          personalPool={showPersonalAndWork ? personalPool : null}
+          workPool={showPersonalAndWork ? workPool : null}
+          crossWorkPools={crossWorkPools}
+          selectedPoolId={selectedCrossWorkPool}
+          selectedStage={selectedStage}
+          onSelectStage={setSelectedStage}
+          onPoolClick={handlePoolClick}
+          renderStageContent={renderStageContent}
+          renderPoolContent={renderPoolContent}
+          stageLayout="tabs"
+        />
       </div>
+
+      {/* 全体 loading 表示 (initial) */}
+      {loading && items.length === 0 && (
+        <div className="flex items-center justify-center py-2 text-muted-foreground shrink-0">
+          <Loader2 className="w-4 h-4 animate-spin" />
+        </div>
+      )}
     </div>
   );
 }
