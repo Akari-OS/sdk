@@ -251,17 +251,50 @@ export function LibraryListingsView({
             >
               <div
                 style={{
-                  fontSize: 32,
-                  textAlign: "center",
-                  padding: "12px 0",
+                  width: "100%",
+                  aspectRatio: "1 / 1",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "#0e0e0e",
+                  borderRadius: 4,
+                  overflow: "hidden",
                   position: "relative",
                 }}
               >
                 {isPicking ? (
                   <Loader2 className="animate-spin" size={28} />
-                ) : (
-                  (FORMAT_ICONS[listing.format_id] ?? "📦")
-                )}
+                ) : listing.preview_url ? (
+                  <img
+                    src={listing.preview_url}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    draggable={false}
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "100%",
+                      objectFit: "contain",
+                      display: "block",
+                    }}
+                    onError={(e) => {
+                      // signed URL 失効 / 画像欠落時は icon fallback に倒す
+                      const img = e.currentTarget;
+                      img.style.display = "none";
+                      const sibling = img.nextElementSibling as HTMLElement | null;
+                      if (sibling) sibling.style.display = "block";
+                    }}
+                  />
+                ) : null}
+                {/* fallback icon (preview_url 失敗時 onError で表示) */}
+                <span
+                  style={{
+                    fontSize: 32,
+                    display: listing.preview_url ? "none" : "block",
+                  }}
+                >
+                  {FORMAT_ICONS[listing.format_id] ?? "📦"}
+                </span>
               </div>
               <p
                 style={{

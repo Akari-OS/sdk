@@ -32,6 +32,14 @@ export interface LibraryListing {
   published_at: string;
   /** listing-level の download count */
   download_count: number;
+  /**
+   * 一覧 card 用のサムネイル URL (HUB-079 session 96)。
+   * cloud 側 /api/library/listings が解決:
+   *   - preview_assets[0] が R2 key なら public CDN URL (auth 不要、 download_count に影響なし)
+   *   - asset_content + image format なら bundle 自体を signed URL (15 分) で fallback
+   *   - 上記いずれも無ければ undefined → frontend は icon fallback
+   */
+  preview_url?: string;
 }
 
 export interface LibraryFilter {
