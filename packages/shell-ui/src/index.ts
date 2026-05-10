@@ -149,6 +149,11 @@ export {
   type StyleEditorProps,
   type StyleEditorStyle,
 } from "./StyleEditor"
+// AKARI-HUB-073 Phase 2 (T-11): Style version timeline + rollback ワンクリック
+export {
+  StyleVersionTimeline,
+  type StyleVersionTimelineProps,
+} from "./StyleVersionTimeline"
 // AKARI-HUB-073 Phase 1 (T-6): Workflow Step に Style を attach する picker
 export {
   StyleAttachPicker,

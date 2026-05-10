@@ -35,6 +35,7 @@ import * as React from "react"
 import { useCallback, useId, useMemo, useState } from "react"
 import { cn } from "./lib/cn"
 import { Button } from "./button"
+import { StyleVersionTimeline } from "./StyleVersionTimeline"
 import type {
   ExtractedRule,
   StyleAsset,
@@ -125,6 +126,12 @@ export interface StyleEditorProps {
   dropMimeTypes?: readonly string[]
   /** read-only モード（trace 表示等） */
   readOnly?: boolean
+  /**
+   * version timeline の rollback ボタンが押された時の callback (HUB-073 Phase 2 T-11)。
+   * 引数は changelog 上の対象 version semver。省略すると rollback ボタン非表示。
+   * 永続化 (akari-agents `style/version-up.ts` `StyleVersionUp.rollback`) は外側責任。
+   */
+  onRollback?: (target_version: string) => void
   className?: string
 }
 
@@ -1007,12 +1014,14 @@ export function StyleEditor({
   resolveAssetName,
   dropMimeTypes = DEFAULT_DROP_MIME_TYPES,
   readOnly = false,
+  onRollback,
   className,
 }: StyleEditorProps): React.ReactElement {
   // セクション折りたたみ state
   const [refCollapsed, setRefCollapsed] = useState(false)
   const [rulesCollapsed, setRulesCollapsed] = useState(false)
   const [overridesCollapsed, setOverridesCollapsed] = useState(false)
+  const [timelineCollapsed, setTimelineCollapsed] = useState(true)
   const [showLowConfidence, setShowLowConfidence] = useState(false)
 
   const handleReferencesChange = useCallback(
@@ -1102,6 +1111,24 @@ export function StyleEditor({
           <HumanOverridesSection
             overrides={style.human_overrides}
             onChange={handleOverridesChange}
+            readOnly={readOnly}
+          />
+        )}
+      </section>
+
+      {/* Section 4: version timeline (HUB-073 Phase 2 T-11) */}
+      <section className="flex flex-col gap-2 rounded-md border border-border bg-card/20 p-3">
+        <SectionHeader
+          title="version_timeline"
+          count={style.changelog.length}
+          collapsed={timelineCollapsed}
+          onToggle={() => setTimelineCollapsed((v) => !v)}
+          hint="version up 履歴 + rollback（モーダル禁止 / 2-step inline confirm）"
+        />
+        {!timelineCollapsed && (
+          <StyleVersionTimeline
+            style={style}
+            onRollback={onRollback}
             readOnly={readOnly}
           />
         )}
