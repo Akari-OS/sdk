@@ -128,6 +128,11 @@ export {
   type ContextBudgetBarProps,
   type BudgetUsage,
 } from "./ContextBudgetBar"
+// AKARI-HUB-072 Phase 2 (T-11): Workflow version chain timeline + ワンクリック rollback
+export {
+  WorkflowVersionTimeline,
+  type WorkflowVersionTimelineProps,
+} from "./WorkflowVersionTimeline"
 // AKARI-HUB-073 Phase 1 (T-1): Style Asset 共有型
 export type {
   StyleAsset,
