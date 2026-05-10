@@ -25,7 +25,7 @@
  *     akari-design / akari-writer も同 component を共有
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Image as ImageIcon, AlertCircle, Loader2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import type { LibraryListing } from "./types/listing";
@@ -50,6 +50,19 @@ export interface LibraryListingsViewProps {
     localPath: string,
     listing: LibraryListing,
   ) => void | Promise<void>;
+  /**
+   * card pointerdown 時に呼ばれる callback (HUB-079 session 96 F3)。
+   * 親 (例: akari-video PoolSourcePanel) が D&D 開始処理を wire するために使う。
+   * shell-ui 側は app 固有 drag store を直接持たないため、 pointer event を
+   * delegate する形で結合点を提供する。
+   *
+   * 注意: onClick は本 callback とは独立して fire するので、 click + drag の
+   * 組み合わせは parent 側で意図的に許容 / 排他制御する。
+   */
+  onCardPointerDown?: (
+    e: ReactPointerEvent<HTMLButtonElement>,
+    listing: LibraryListing,
+  ) => void;
 }
 
 interface DownloadedBundle {
@@ -106,6 +119,7 @@ export function LibraryListingsView({
   formatId,
   workId: _workId,
   onPickListing,
+  onCardPointerDown,
 }: LibraryListingsViewProps) {
   const [listings, setListings] = useState<LibraryListing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -227,10 +241,11 @@ export function LibraryListingsView({
               key={listing.id}
               type="button"
               onClick={() => void handlePick(listing)}
+              onPointerDown={(e) => onCardPointerDown?.(e, listing)}
               disabled={!interactive || isPicking || isOtherPicking}
               title={
                 interactive
-                  ? `${listing.title} — クリックで取り込み`
+                  ? `${listing.title} — クリックで取り込み / ドラッグで Timeline`
                   : listing.title
               }
               style={{
