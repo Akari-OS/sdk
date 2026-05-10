@@ -42,6 +42,7 @@
       "types": "./src/types/listing.ts"
     },
     "./LibraryBrowser": "./src/LibraryBrowser.tsx",
+    "./LibraryListingsView": "./src/LibraryListingsView.tsx",
     "./use-library": "./src/use-library.ts"
   },
   "scripts": {

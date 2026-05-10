@@ -199,6 +199,10 @@ export {
   type LibraryBrowserProps,
 } from "./LibraryBrowser";
 export {
+  LibraryListingsView,
+  type LibraryListingsViewProps,
+} from "./LibraryListingsView";
+export {
   useLibrary,
   useLibraryInstall,
   type UseLibraryResult,
