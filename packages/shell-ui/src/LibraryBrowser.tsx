@@ -202,9 +202,28 @@ function ListingCard({
       )}
       title={listing.title}
     >
-      {/* preview area */}
-      <div className="flex items-center justify-center rounded bg-muted/40 aspect-square text-3xl select-none">
-        {icon}
+      {/* preview area — preview_url があれば <img> で実画像、 なければ icon (HUB-079 session 96) */}
+      <div className="flex items-center justify-center rounded bg-muted/40 aspect-square text-3xl select-none overflow-hidden">
+        {listing.preview_url ? (
+          <img
+            src={listing.preview_url}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+            className="w-full h-full object-contain"
+            onError={(e) => {
+              // signed URL 失効 / 画像欠落で icon fallback
+              const img = e.currentTarget;
+              img.style.display = "none";
+              const sibling = img.nextElementSibling as HTMLElement | null;
+              if (sibling) sibling.style.display = "block";
+            }}
+          />
+        ) : null}
+        <span style={{ display: listing.preview_url ? "none" : "block" }}>
+          {icon}
+        </span>
       </div>
 
       {/* title */}
@@ -260,7 +279,30 @@ function DetailPanel({
     <div className="flex flex-col gap-4 h-full overflow-y-auto p-4">
       {/* header */}
       <div className="flex items-start gap-3">
-        <div className="text-4xl select-none shrink-0">{icon}</div>
+        <div className="w-12 h-12 shrink-0 flex items-center justify-center rounded bg-muted/40 overflow-hidden">
+          {listing.preview_url ? (
+            <img
+              src={listing.preview_url}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              draggable={false}
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                const img = e.currentTarget;
+                img.style.display = "none";
+                const sibling = img.nextElementSibling as HTMLElement | null;
+                if (sibling) sibling.style.display = "block";
+              }}
+            />
+          ) : null}
+          <span
+            className="text-3xl select-none"
+            style={{ display: listing.preview_url ? "none" : "block" }}
+          >
+            {icon}
+          </span>
+        </div>
         <div className="flex-1 min-w-0">
           <h2 className="text-[14px] font-semibold text-foreground leading-snug break-all">
             {listing.title}
