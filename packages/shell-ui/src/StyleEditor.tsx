@@ -1,6 +1,6 @@
 /**
  * @file StyleEditor.tsx
- * AKARI-HUB-073 Phase 1 (T-3): Style 3 層編集 UI。
+ * AKARI-HUB-073 Phase 1 (T-3) / Phase 2 (T-9 / T-11): Style 3 層編集 UI。
  *
  * 役割:
  *   - StyleAsset の 3 層（reference_assets / extracted_rules / human_overrides）を
@@ -11,6 +11,9 @@
  *     - reference_assets : D&D drop zone + ID 直入力で追加 / 行ごとに削除
  *     - extracted_rules  : 各 rule に対し approve / reject の inline チップ + confidence 表示
  *     - human_overrides  : 自然言語ルールの inline edit 一覧 + 追加 input
+ *   - **pending 候補 (Phase 2 T-9)**: extract 直後の未承認候補を inline Checkpoint と
+ *     して表示し、approve/reject を inline で確定（モーダル禁止）。承認は
+ *     extracted_rules への昇格 (caller 側で merge) として外に投げる
  *   - 全更新は immutable で `onChange` に新 StyleAsset を渡す（WorkflowEditor 流儀）
  *
  * 設計指針:
@@ -20,15 +23,19 @@
  *   - 削除は 2 回押し inline confirm（モーダル不使用）
  *   - D&D は HTML5 drag/drop イベントを使用（外側から `text/plain` で asset id を渡す
  *     simple contract。HUB-058 の Common Heavy Source は将来統合予定）
+ *   - **pending 候補は AC-14 の inline Checkpoint pattern**: amber-bordered card に「✓ 承認」
+ *     / 「✕ reject」を inline 配置。approve/reject ともに低リスクで Undo 可能想定の
+ *     ため 2-step inline confirm は不要（CheckpointInline と同流儀）
  *   - Variant Signal 関連 (`signal_score` / cross-Variant 比較 / VariantUsage) は v0.2.0
  *     T-14〜T-18 担当。Phase 1 では本 component に含めない（types/style.ts も同様）
  *
  * 関連 spec / ADR:
- *   - spec-style-management-ui-learning-loop (AKARI-HUB-073) §3 AC-1〜AC-5 / §6 / §7 T-3
+ *   - spec-style-management-ui-learning-loop (AKARI-HUB-073) §3 AC-1〜AC-5 / AC-11 / AC-14
+ *     / §7 T-3 / T-9 / T-11
  *   - ADR-094 (Asset Tier — Style は tier: 'canonical' / weight: 1.0 固定)
  *   - ADR-095 (Style as Asset Subtype)
  *   - ADR-079 (Pool 統合)
- *   - HUB-072 Phase 1 (WorkflowEditor) で確立した shell-ui component pattern を踏襲
+ *   - HUB-072 Phase 1 (WorkflowEditor / CheckpointInline) で確立した shell-ui pattern を踏襲
  */
 
 import * as React from "react"
@@ -132,6 +139,39 @@ export interface StyleEditorProps {
    * 永続化 (akari-agents `style/version-up.ts` `StyleVersionUp.rollback`) は外側責任。
    */
   onRollback?: (target_version: string) => void
+  /**
+   * pending 候補 (HUB-073 Phase 2 T-9, AC-11 / AC-14)。
+   * `useStyleExtract().lastResult.extracted_rules` を典型的に渡す。
+   *
+   * 各 rule は **まだ extracted_rules に取り込まれていない**未承認候補（`approved=false`
+   * を期待）として扱われ、StyleEditor 内に inline Checkpoint section として表示される。
+   * 候補が空 / undefined の場合は section ごと非表示。
+   *
+   * 承認 / reject の永続化（extracted_rules への merge / pending list からの除去）は
+   * 外側責任。本 component は candidate object を callback でそのまま返すだけ。
+   */
+  pendingExtractedRules?: ExtractedRule[]
+  /**
+   * pending 候補 1 つを承認する callback (T-9)。
+   * 典型実装は `onChange({...style, extracted_rules: [...style.extracted_rules,
+   * { ...rule, approved: true, approved_at: now }]})` + pending list から除去。
+   */
+  onApprovePendingRule?: (rule: ExtractedRule) => void
+  /**
+   * pending 候補 1 つを reject する callback (T-9)。
+   * 典型実装は pending list からの除去のみ（extracted_rules には触れない）。
+   */
+  onRejectPendingRule?: (rule: ExtractedRule) => void
+  /**
+   * pending 候補すべてを一括承認する callback (T-9)。
+   * 省略時はバルクボタン非表示。
+   */
+  onApproveAllPendingRules?: () => void
+  /**
+   * pending 候補すべてを一括 reject する callback (T-9)。
+   * 省略時はバルクボタン非表示。
+   */
+  onRejectAllPendingRules?: () => void
   className?: string
 }
 
@@ -853,6 +893,187 @@ function ExtractedRulesSection({
   )
 }
 
+// ─── 3.5: pending 候補 section (T-9 inline Checkpoint) ───────────────────
+
+interface PendingCandidatesSectionProps {
+  candidates: ExtractedRule[]
+  onApprove: (rule: ExtractedRule) => void
+  onReject: (rule: ExtractedRule) => void
+  onApproveAll?: () => void
+  onRejectAll?: () => void
+  resolveAssetName?: (assetId: string) => string
+  readOnly: boolean
+}
+
+/**
+ * 1 個の pending 候補 row。inline Checkpoint pattern (CheckpointInline と同流儀)。
+ * - confidence pill + low confidence badge
+ * - rule 本文（read-only — pending 段階では編集させない / 編集したいなら一旦 approve）
+ * - source assets traceability（任意で展開）
+ * - 「✓ 承認」 / 「✕ reject」 inline ボタン（2-step confirm 不要）
+ */
+function PendingCandidateRow({
+  rule,
+  onApprove,
+  onReject,
+  resolveAssetName,
+  readOnly,
+}: {
+  rule: ExtractedRule
+  onApprove: (rule: ExtractedRule) => void
+  onReject: (rule: ExtractedRule) => void
+  resolveAssetName?: (assetId: string) => string
+  readOnly: boolean
+}) {
+  const isLowConfidence = rule.confidence < CONFIDENCE_PROPOSE_THRESHOLD
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-2 rounded-md border px-2.5 py-2 transition",
+        // pending = amber tint で「レビュー待ち」を示唆（CheckpointInline と同色系）
+        "border-amber-500/30 bg-amber-500/5",
+        isLowConfidence && "opacity-70",
+      )}
+      data-pending-rule-id={rule.id}
+    >
+      {/* ヘッダ: confidence + status + id */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <ConfidencePill confidence={rule.confidence} />
+        <span className="inline-flex items-center rounded-full border border-amber-500/40 bg-amber-500/15 px-1.5 py-px text-[9px] font-medium leading-none text-amber-300">
+          pending
+        </span>
+        {isLowConfidence && (
+          <span
+            className="inline-flex items-center rounded-full border border-orange-500/30 bg-orange-500/10 px-1.5 py-px text-[9px] font-medium leading-none text-orange-300"
+            title={`confidence < ${CONFIDENCE_PROPOSE_THRESHOLD * 100}% は spec §9 Risks に従い既定で低提案`}
+          >
+            low confidence
+          </span>
+        )}
+        <code
+          className="ml-auto truncate font-mono text-[9px] text-muted-foreground"
+          title={rule.id}
+        >
+          {rule.id}
+        </code>
+      </div>
+
+      {/* rule 本文 (read-only — pending では編集させない) */}
+      <p className="whitespace-pre-wrap rounded-md border border-border/40 bg-card/40 px-2 py-1.5 text-[11px] leading-snug text-foreground">
+        {rule.rule}
+      </p>
+
+      {/* source assets traceability */}
+      {rule.source_assets.length > 0 && (
+        <details className="text-[10px]">
+          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+            source ({rule.source_assets.length})
+          </summary>
+          <ul className="mt-1 flex flex-col gap-0.5 pl-3">
+            {rule.source_assets.map((assetId) => (
+              <li
+                key={assetId}
+                className="truncate font-mono text-muted-foreground"
+                title={assetId}
+              >
+                {resolveAssetName ? resolveAssetName(assetId) : assetId}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {/* inline action buttons — モーダルではなく row 内に直接配置 */}
+      {!readOnly && (
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            variant="default"
+            size="xs"
+            onClick={() => onApprove(rule)}
+            title="この候補を承認して extracted_rules に追加（spec AC-4 / AC-14）"
+          >
+            ✓ 承認
+          </Button>
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => onReject(rule)}
+            title="この候補を破棄（extracted_rules に取り込まない）"
+          >
+            ✕ reject
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * pending 候補セクション (HUB-073 Phase 2 T-9, spec AC-11 / AC-14)。
+ *   - extract trigger 後に提示される未承認 ExtractedRule[] を inline で表示
+ *   - 1 候補 = 1 inline Checkpoint card (amber tint)
+ *   - 候補が空配列の場合は何も描画しない（empty state は不要 — caller 側で section ごと非表示）
+ *   - バルク「全 ✓ 承認」「全 ✕ reject」を header に配置
+ *   - モーダル / 確認ダイアログ禁止 (RULES.md §11)
+ */
+function PendingCandidatesSection({
+  candidates,
+  onApprove,
+  onReject,
+  onApproveAll,
+  onRejectAll,
+  resolveAssetName,
+  readOnly,
+}: PendingCandidatesSectionProps) {
+  return (
+    <div className="flex flex-col gap-2">
+      {/* バルク操作 */}
+      {!readOnly && (onApproveAll || onRejectAll) && candidates.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {onApproveAll && (
+            <Button
+              variant="default"
+              size="xs"
+              onClick={onApproveAll}
+              title="pending 候補を全て承認して extracted_rules に追加"
+            >
+              全 ✓ 承認
+            </Button>
+          )}
+          {onRejectAll && (
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={onRejectAll}
+              title="pending 候補を全て破棄"
+            >
+              全 ✕ reject
+            </Button>
+          )}
+          <span className="ml-auto text-[10px] text-muted-foreground tabular-nums">
+            {candidates.length} 件レビュー待ち
+          </span>
+        </div>
+      )}
+
+      {/* 一覧 */}
+      <div className="flex flex-col gap-1.5">
+        {candidates.map((rule) => (
+          <PendingCandidateRow
+            key={rule.id}
+            rule={rule}
+            onApprove={onApprove}
+            onReject={onReject}
+            resolveAssetName={resolveAssetName}
+            readOnly={readOnly}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── 4: human_overrides section ──────────────────────────────────────────
 
 interface HumanOverridesSectionProps {
@@ -1015,11 +1236,17 @@ export function StyleEditor({
   dropMimeTypes = DEFAULT_DROP_MIME_TYPES,
   readOnly = false,
   onRollback,
+  pendingExtractedRules,
+  onApprovePendingRule,
+  onRejectPendingRule,
+  onApproveAllPendingRules,
+  onRejectAllPendingRules,
   className,
 }: StyleEditorProps): React.ReactElement {
   // セクション折りたたみ state
   const [refCollapsed, setRefCollapsed] = useState(false)
   const [rulesCollapsed, setRulesCollapsed] = useState(false)
+  const [pendingCollapsed, setPendingCollapsed] = useState(false)
   const [overridesCollapsed, setOverridesCollapsed] = useState(false)
   const [timelineCollapsed, setTimelineCollapsed] = useState(true)
   const [showLowConfidence, setShowLowConfidence] = useState(false)
@@ -1097,6 +1324,35 @@ export function StyleEditor({
           />
         )}
       </section>
+
+      {/* Section 2.5: pending 候補 (HUB-073 Phase 2 T-9, AC-11 / AC-14)
+            候補が空 / undefined の場合は section ごと非表示（モーダル禁止 §11） */}
+      {pendingExtractedRules && pendingExtractedRules.length > 0 && (
+        <section
+          className="flex flex-col gap-2 rounded-md border-2 border-amber-500/40 bg-amber-500/5 p-3"
+          data-section="pending-candidates"
+          aria-label="pending 候補（AI 抽出 — 承認待ち）"
+        >
+          <SectionHeader
+            title="pending 候補"
+            count={pendingExtractedRules.length}
+            collapsed={pendingCollapsed}
+            onToggle={() => setPendingCollapsed((v) => !v)}
+            hint="AI 抽出 — レビューして approve / reject"
+          />
+          {!pendingCollapsed && onApprovePendingRule && onRejectPendingRule && (
+            <PendingCandidatesSection
+              candidates={pendingExtractedRules}
+              onApprove={onApprovePendingRule}
+              onReject={onRejectPendingRule}
+              onApproveAll={onApproveAllPendingRules}
+              onRejectAll={onRejectAllPendingRules}
+              resolveAssetName={resolveAssetName}
+              readOnly={readOnly}
+            />
+          )}
+        </section>
+      )}
 
       {/* Section 3: human_overrides */}
       <section className="flex flex-col gap-2 rounded-md border border-border bg-card/20 p-3">
