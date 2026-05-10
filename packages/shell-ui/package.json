@@ -36,7 +36,13 @@
     "./use-style-extract": "./src/use-style-extract.ts",
     "./lib/local-storage-style-extract-adapter": "./src/lib/local-storage-style-extract-adapter.ts",
     "./use-work-state-sync": "./src/use-work-state-sync.ts",
-    "./cn": "./src/lib/cn.ts"
+    "./cn": "./src/lib/cn.ts",
+    "./types/listing": {
+      "import": "./src/types/listing.ts",
+      "types": "./src/types/listing.ts"
+    },
+    "./LibraryBrowser": "./src/LibraryBrowser.tsx",
+    "./use-library": "./src/use-library.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

@@ -185,3 +185,22 @@ export type {
   UseStyleExtractResult,
 } from "./types/style-extract"
 export { cn } from "./lib/cn"
+// AKARI-HUB-079 Phase 1 (T2): Library Marketplace ブラウザ + types + hooks
+export type {
+  LibraryListingType,
+  LibraryListing,
+  LibraryFilter,
+  LibraryListPage,
+  LibraryInstallResult,
+  LibraryBrowserBackend,
+} from "./types/listing";
+export {
+  LibraryBrowser,
+  type LibraryBrowserProps,
+} from "./LibraryBrowser";
+export {
+  useLibrary,
+  useLibraryInstall,
+  type UseLibraryResult,
+  type UseLibraryInstallResult,
+} from "./use-library";
