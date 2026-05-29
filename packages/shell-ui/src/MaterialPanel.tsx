@@ -39,13 +39,14 @@
  *   - ADR-094 (6 概念モデル) / ADR-079 (Pool 統合)
  */
 
-import {
+import React, {
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
   type DragEvent,
+  type ReactNode,
 } from "react";
 import { Search, Loader2, Upload } from "lucide-react";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -113,6 +114,28 @@ interface MaterialPanelProps {
    * Design など、メディア編集に使わない video/audio を隠したい app 向け。
    */
   allowedItemTypes?: readonly MaterialItemType[];
+  /**
+   * consumer が外から絶対 path を読めるよう同期する ref。
+   * useEffect で pathCacheRef.current = pathCache に反映する。
+   */
+  pathCacheRef?: React.RefObject<Map<string, string>>;
+  /**
+   * サムネ解決済み item の pointerdown 時に呼ばれる。
+   * true を返すと HTML5 dragstart を抑制し、consumer 側でカスタム drag を担う。
+   * false / 未指定なら従来の HTML5 drag をそのまま起動する。
+   * url=null (サムネ未解決) の item では呼ばれない。
+   */
+  onItemPointerDown?: (
+    e: React.PointerEvent<HTMLDivElement>,
+    item: PoolItemSummary,
+    pick: MaterialPick,
+    resolvedPath: string | null,
+  ) => boolean;
+  /**
+   * サムネ上に任意の ReactNode をオーバーレイする render-prop。
+   * PoolThumbBadge 等を注入する用途。未指定時は何も描画しない。
+   */
+  renderItemOverlay?: (item: PoolItemSummary) => ReactNode;
 }
 
 const POOL_LIBRARIES_FALLBACK = ["akari-uploads", "akari-outputs"];
@@ -130,6 +153,9 @@ export function MaterialPanel({
   enableSearch = true,
   defaultLibrary,
   allowedItemTypes,
+  pathCacheRef,
+  onItemPointerDown,
+  renderItemOverlay,
 }: MaterialPanelProps) {
   const [libraries, setLibraries] = useState<string[]>(
     defaultLibrary ? [defaultLibrary] : POOL_LIBRARIES_FALLBACK,
@@ -141,6 +167,9 @@ export function MaterialPanel({
     new Map(),
   );
   const [thumbCache, setThumbCache] = useState<Map<string, string>>(new Map());
+  // 内部 pathCache: thumbCache が convertFileSrc 後 URL を保持するのに対し、
+  // pathCache は getItemFilePath で得た絶対 path を保持する (consumer 向け)。
+  const [pathCache, setPathCache] = useState<Map<string, string>>(new Map());
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -156,6 +185,14 @@ export function MaterialPanel({
     () => (allowedItemTypes ? new Set<string>(allowedItemTypes) : null),
     [allowedItemTypes],
   );
+
+  // pathCacheRef 同期: consumer が外から絶対 path を読めるよう反映する
+  useEffect(() => {
+    if (pathCacheRef) {
+      (pathCacheRef as React.MutableRefObject<Map<string, string>>).current =
+        pathCache;
+    }
+  }, [pathCache, pathCacheRef]);
 
   // 検索 debounce 200ms
   useEffect(() => {
@@ -293,6 +330,8 @@ export function MaterialPanel({
           if (path) {
             const url = convertFileSrc(path);
             setThumbCache((prev) => new Map(prev).set(item.id, url));
+            // 絶対 path も保持 (consumer が pathCacheRef 経由で読む用)
+            setPathCache((prev) => new Map(prev).set(item.id, path));
             return;
           }
         } catch {
@@ -509,6 +548,7 @@ export function MaterialPanel({
               item={item}
               fullCache={fullCache}
               thumbCache={thumbCache}
+              pathCache={pathCache}
               onMount={async () => {
                 await ensureFull(item);
                 const f = fullCache.get(item.id);
@@ -516,6 +556,24 @@ export function MaterialPanel({
               }}
               onClick={() => void handleClick(item)}
               onDragStart={(e) => handleDragStart(e, item)}
+              onItemPointerDown={
+                onItemPointerDown
+                  ? (e, resolvedPath) => {
+                      const full = fullCache.get(item.id);
+                      const url = thumbCache.get(item.id);
+                      if (!url) return false;
+                      const pick: MaterialPick = {
+                        id: item.id,
+                        name: item.name,
+                        itemType: full?.item_type ?? "",
+                        url,
+                        library: itemLibraryRef.current.get(item.id),
+                      };
+                      return onItemPointerDown(e, item, pick, resolvedPath);
+                    }
+                  : undefined
+              }
+              renderItemOverlay={renderItemOverlay}
             />
           ))}
         </div>
@@ -525,10 +583,13 @@ export function MaterialPanel({
       gridClass,
       fullCache,
       thumbCache,
+      pathCache,
       ensureFull,
       ensureThumb,
       handleClick,
       handleDragStart,
+      onItemPointerDown,
+      renderItemOverlay,
     ],
   );
 
@@ -661,17 +722,35 @@ function MaterialThumb({
   item,
   fullCache,
   thumbCache,
+  pathCache,
   onMount,
   onClick,
   onDragStart,
+  onItemPointerDown,
+  renderItemOverlay,
 }: {
   item: PoolItemSummary;
   fullCache: Map<string, PoolItemFull>;
   thumbCache: Map<string, string>;
+  /** 絶対 path キャッシュ (consumer 向け pathCacheRef の元データ) */
+  pathCache: Map<string, string>;
   onMount: () => void;
   onClick: () => void;
   onDragStart: (e: DragEvent<HTMLDivElement>) => void;
+  /**
+   * サムネ解決済み item の pointerdown 時に呼ばれる。
+   * true を返すと HTML5 dragstart を抑制する。url=null 時は呼ばれない。
+   */
+  onItemPointerDown?: (
+    e: React.PointerEvent<HTMLDivElement>,
+    resolvedPath: string | null,
+  ) => boolean;
+  /** サムネ上のオーバーレイ ReactNode。未指定は何も描画しない */
+  renderItemOverlay?: (item: PoolItemSummary) => ReactNode;
 }) {
+  // HTML5 dragstart を一時抑制するための state (onItemPointerDown が true を返したとき)
+  const [suppressDrag, setSuppressDrag] = useState(false);
+
   useEffect(() => {
     onMount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -681,12 +760,34 @@ function MaterialThumb({
   const url = thumbCache.get(item.id);
   const type = (full?.item_type ?? "").toLowerCase();
 
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      // url=null (サムネ未解決) のときは onItemPointerDown を呼ばない (リスク1対策)
+      if (!url || !onItemPointerDown) return;
+      const resolvedPath = pathCache.get(item.id) ?? null;
+      const consumed = onItemPointerDown(e, resolvedPath);
+      if (consumed) {
+        // HTML5 dragstart の同時発火を防ぐ (リスク2対策)
+        e.preventDefault();
+        setSuppressDrag(true);
+      }
+    },
+    [url, onItemPointerDown, pathCache, item.id],
+  );
+
+  const handlePointerUp = useCallback(() => {
+    if (suppressDrag) setSuppressDrag(false);
+  }, [suppressDrag]);
+
   return (
     <div
       role="button"
       tabIndex={0}
-      draggable={!!url}
+      // draggable: url=null は false。onItemPointerDown が true を返したときも false に
+      draggable={!!url && !suppressDrag}
       onDragStart={onDragStart}
+      onPointerDown={onItemPointerDown ? handlePointerDown : undefined}
+      onPointerUp={onItemPointerDown ? handlePointerUp : undefined}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -718,6 +819,8 @@ function MaterialThumb({
           {item.name.slice(0, 24)}
         </div>
       )}
+      {/* オーバーレイ: PoolThumbBadge 等の注入用 (absolute 配置は consumer 側で指定) */}
+      {renderItemOverlay && renderItemOverlay(item)}
     </div>
   );
 }
