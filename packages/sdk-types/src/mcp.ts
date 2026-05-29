@@ -8,7 +8,7 @@
  * daemon 側の tool レスポンスは `{ content: [{ type: "text", text }], isError? }`
  * の形で返る。`content[0].text` を取り出し、必要なら JSON.parse する。
  *
- * tool 名は ADR-009 準拠の snake_case + L1 prefix (`partner_chat`, `pool_list_libraries` 等)。
+ * tool 名は ADR-009 準拠の snake_case + L1 prefix (`partner_chat`, `pool_list_pools` 等)。
  *
  * @packageDocumentation
  */

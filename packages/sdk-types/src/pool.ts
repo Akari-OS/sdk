@@ -138,20 +138,20 @@ export interface ToolStatus {
 export async function listWorkspaces(
   includeArchived?: boolean,
 ): Promise<PoolInfo[]> {
-  return (await invoke("pool_list_libraries", {
+  return (await invoke("pool_list_pools", {
     includeArchived: includeArchived ?? false,
   })) as PoolInfo[]
 }
 
 export async function listArchivedWorkspaces(): Promise<PoolInfo[]> {
-  return (await invoke("pool_list_archived_libraries")) as PoolInfo[]
+  return (await invoke("pool_list_archived_pools")) as PoolInfo[]
 }
 
 export async function createWorkspace(
   name: string,
   description?: string,
 ): Promise<PoolInfo> {
-  return (await invoke("pool_create_library", {
+  return (await invoke("pool_create_pool", {
     name,
     description: description ?? null,
   })) as PoolInfo
@@ -162,29 +162,29 @@ export async function deleteWorkspace(name: string): Promise<void> {
 }
 
 export async function archiveWorkspace(name: string): Promise<void> {
-  await invoke("pool_archive_library", { name })
+  await invoke("pool_archive_pool", { name })
 }
 
 export async function restoreWorkspace(name: string): Promise<void> {
-  await invoke("pool_restore_library", { name })
+  await invoke("pool_restore_pool", { name })
 }
 
 export async function purgeWorkspace(name: string): Promise<void> {
-  await invoke("pool_purge_library", { name })
+  await invoke("pool_purge_pool", { name })
 }
 
 export async function renameWorkspace(
   oldName: string,
   newName: string,
 ): Promise<void> {
-  await invoke("pool_rename_library", { oldName, newName })
+  await invoke("pool_rename_pool", { oldName, newName })
 }
 
 export async function updateWorkspaceMeta(
   name: string,
   update: WorkspaceMetaUpdate,
 ): Promise<void> {
-  await invoke("pool_update_library_meta", { name, update })
+  await invoke("pool_update_pool_meta", { name, update })
 }
 
 // ===== Item API =====

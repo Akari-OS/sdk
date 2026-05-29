@@ -57,7 +57,7 @@ const ensuredLibraries = new Set<string>();
 async function ensureLibrary(name: string): Promise<void> {
   if (ensuredLibraries.has(name)) return;
   try {
-    const libs = await invoke<{ name: string }[]>("pool_list_libraries", {
+    const libs = await invoke<{ name: string }[]>("pool_list_pools", {
       includeArchived: false,
     });
     if (libs.some((l) => l.name === name)) {
@@ -69,10 +69,10 @@ async function ensureLibrary(name: string): Promise<void> {
   }
   try {
     const archived = await invoke<{ name: string }[]>(
-      "pool_list_archived_libraries",
+      "pool_list_archived_pools",
     );
     if (archived.some((l) => l.name === name)) {
-      await invoke("pool_restore_library", { name });
+      await invoke("pool_restore_pool", { name });
       ensuredLibraries.add(name);
       return;
     }
@@ -80,7 +80,7 @@ async function ensureLibrary(name: string): Promise<void> {
     // fall through
   }
   try {
-    await invoke("pool_create_library", {
+    await invoke("pool_create_pool", {
       name,
       description: "Work state autosave (ADR-085 Phase D)",
     });
