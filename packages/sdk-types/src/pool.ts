@@ -15,7 +15,10 @@ import { invoke } from "@tauri-apps/api/core"
 
 // ===== 型定義 =====
 
-export interface LibraryInfo {
+/**
+ * pool-impl の Pool（旧 Library）単位のメタ情報。ADR-103 で Library→Pool リネーム。
+ */
+export interface PoolInfo {
   name: string
   display_name: string | null
   description?: string | null
@@ -24,11 +27,17 @@ export interface LibraryInfo {
   created_at: string | null
   archived_at?: string | null
   /**
-   * system-managed library (ADR-084) — `akari-outputs` 等の Shell が管理する出力先。
+   * system-managed pool (ADR-084) — `akari-outputs` 等の Shell が管理する出力先。
    * UI 側は true の場合に rename / archive / purge ボタンを抑制すべき。
    */
   is_system_managed?: boolean
 }
+
+/**
+ * @deprecated ADR-103: `LibraryInfo` は `PoolInfo` に改名。旧名は後方互換 alias として残す。
+ * writer / design / video 等の downstream が移行するまで削除しない。
+ */
+export type LibraryInfo = PoolInfo
 
 export interface PoolItemSummary {
   id: string
@@ -52,7 +61,11 @@ export interface PoolItemSummary {
 }
 
 export interface PoolSearchResult {
-  library: string
+  /**
+   * 検索ヒットが属する Pool 名（旧 `library` フィールド。ADR-103 で改名）。
+   * pool-impl commit bb1e8ac 以降、SearchHit の JSON キーは "pool"。
+   */
+  pool: string
   item_id: string
   name: string
   ai_summary: string | null
@@ -120,28 +133,28 @@ export interface ToolStatus {
   ollama_models: string[]
 }
 
-// ===== Library API =====
+// ===== Pool（旧 Library）管理 API =====
 
 export async function listWorkspaces(
   includeArchived?: boolean,
-): Promise<LibraryInfo[]> {
+): Promise<PoolInfo[]> {
   return (await invoke("pool_list_libraries", {
     includeArchived: includeArchived ?? false,
-  })) as LibraryInfo[]
+  })) as PoolInfo[]
 }
 
-export async function listArchivedWorkspaces(): Promise<LibraryInfo[]> {
-  return (await invoke("pool_list_archived_libraries")) as LibraryInfo[]
+export async function listArchivedWorkspaces(): Promise<PoolInfo[]> {
+  return (await invoke("pool_list_archived_libraries")) as PoolInfo[]
 }
 
 export async function createWorkspace(
   name: string,
   description?: string,
-): Promise<LibraryInfo> {
+): Promise<PoolInfo> {
   return (await invoke("pool_create_library", {
     name,
     description: description ?? null,
-  })) as LibraryInfo
+  })) as PoolInfo
 }
 
 export async function deleteWorkspace(name: string): Promise<void> {

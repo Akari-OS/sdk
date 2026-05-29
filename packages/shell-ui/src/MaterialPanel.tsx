@@ -67,7 +67,15 @@ export interface MaterialPick {
   name: string;
   itemType: string;
   url: string;
-  /** Pool 由来の library 名 (design canvas drop 等で必要) */
+  /**
+   * 素材が属する Pool 名（ADR-103: 旧 `library` フィールドを改名）。
+   * design canvas drop 等で必要。
+   */
+  pool?: string;
+  /**
+   * @deprecated ADR-103: `pool` フィールドに改名。後方互換のため残す。
+   * writer / design / video 等が `pool` に移行するまで削除しない。
+   */
   library?: string;
 }
 
@@ -298,8 +306,9 @@ export function MaterialPanel({
 
   // full / thumbnail の lazy ロード
   const ensureFull = useCallback(
-    async (item: PoolItemSummary) => {
-      if (fullCache.has(item.id)) return;
+    async (item: PoolItemSummary): Promise<PoolItemFull | undefined> => {
+      const cached = fullCache.get(item.id);
+      if (cached) return cached;
       // libraryRef から優先的に試し、ダメなら全 library
       const knownLib = itemLibraryRef.current.get(item.id);
       const tryOrder = knownLib
@@ -310,11 +319,12 @@ export function MaterialPanel({
           const full = await getItem(lib, item.id);
           itemLibraryRef.current.set(item.id, lib);
           setFullCache((prev) => new Map(prev).set(item.id, full));
-          return;
+          return full;
         } catch {
           // 別 library の可能性
         }
       }
+      return undefined;
     },
     [libraries, fullCache],
   );
@@ -485,12 +495,14 @@ export function MaterialPanel({
       const full = fullCache.get(item.id);
       const url = thumbCache.get(item.id);
       if (!full || !url) return;
+      const poolName = itemLibraryRef.current.get(item.id);
       onInsert({
         id: item.id,
         name: item.name,
         itemType: full.item_type,
         url,
-        library: itemLibraryRef.current.get(item.id),
+        pool: poolName,
+        library: poolName, // @deprecated 後方互換 (ADR-103)
       });
     },
     [fullCache, thumbCache, onInsert],
@@ -500,12 +512,14 @@ export function MaterialPanel({
     (e: DragEvent<HTMLDivElement>, item: PoolItemSummary) => {
       const url = thumbCache.get(item.id);
       if (!url) return;
+      const dragPoolName = itemLibraryRef.current.get(item.id);
       e.dataTransfer.setData(
         AKARI_POOL_ITEM_MIME,
         JSON.stringify({
           source: "shell",
           itemId: item.id,
-          library: itemLibraryRef.current.get(item.id),
+          pool: dragPoolName,      // ADR-103 新フィールド
+          library: dragPoolName,   // @deprecated 後方互換 (ADR-103)
           fallbackUrl: url,
         }),
       );
@@ -555,8 +569,10 @@ export function MaterialPanel({
               thumbCache={thumbCache}
               pathCache={pathCache}
               onMount={async () => {
-                await ensureFull(item);
-                const f = fullCache.get(item.id);
+                // ensureFull は取得した full をそのまま返す。closure 内の
+                // stale な fullCache を読むと常に undefined になり ensureThumb が
+                // early-return してサムネが永久に出ないため、返り値を直接渡す。
+                const f = await ensureFull(item);
                 void ensureThumb(item, f);
               }}
               onClick={() => void handleClick(item)}
@@ -567,12 +583,14 @@ export function MaterialPanel({
                       const full = fullCache.get(item.id);
                       const url = thumbCache.get(item.id);
                       if (!url) return false;
+                      const pickPoolName = itemLibraryRef.current.get(item.id);
                       const pick: MaterialPick = {
                         id: item.id,
                         name: item.name,
                         itemType: full?.item_type ?? "",
                         url,
-                        library: itemLibraryRef.current.get(item.id),
+                        pool: pickPoolName,
+                        library: pickPoolName, // @deprecated 後方互換 (ADR-103)
                       };
                       return onItemPointerDown(e, item, pick, resolvedPath);
                     }
