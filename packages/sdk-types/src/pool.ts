@@ -33,11 +33,6 @@ export interface PoolInfo {
   is_system_managed?: boolean
 }
 
-/**
- * @deprecated ADR-103: `LibraryInfo` は `PoolInfo` に改名。旧名は後方互換 alias として残す。
- * writer / design / video 等の downstream が移行するまで削除しない。
- */
-export type LibraryInfo = PoolInfo
 
 export interface PoolItemSummary {
   id: string

@@ -72,11 +72,6 @@ export interface MaterialPick {
    * design canvas drop 等で必要。
    */
   pool?: string;
-  /**
-   * @deprecated ADR-103: `pool` フィールドに改名。後方互換のため残す。
-   * writer / design / video 等が `pool` に移行するまで削除しない。
-   */
-  library?: string;
 }
 
 export type MaterialItemType =
@@ -502,7 +497,6 @@ export function MaterialPanel({
         itemType: full.item_type,
         url,
         pool: poolName,
-        library: poolName, // @deprecated 後方互換 (ADR-103)
       });
     },
     [fullCache, thumbCache, onInsert],
@@ -590,7 +584,6 @@ export function MaterialPanel({
                         itemType: full?.item_type ?? "",
                         url,
                         pool: pickPoolName,
-                        library: pickPoolName, // @deprecated 後方互換 (ADR-103)
                       };
                       return onItemPointerDown(e, item, pick, resolvedPath);
                     }
