@@ -181,9 +181,14 @@ export function MaterialPanel({
   >(null);
   // 現在開いている Stage (default Upload)
   const [selectedStage, setSelectedStage] = useState<StageKind>("upload");
+  // 中身ベースで memo 化する。consumer が inline 配列 (新参照を毎レンダリング) を
+  // 渡しても allowedItemTypeSet → displayItems → renderThumbGrid の useMemo 連鎖が
+  // 無効化されないようにする防御 (識別子でなく内容で判定)。
+  const allowedItemTypesKey = allowedItemTypes ? allowedItemTypes.join(",") : "";
   const allowedItemTypeSet = useMemo(
     () => (allowedItemTypes ? new Set<string>(allowedItemTypes) : null),
-    [allowedItemTypes],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allowedItemTypesKey],
   );
 
   // pathCacheRef 同期: consumer が外から絶対 path を読めるよう反映する
