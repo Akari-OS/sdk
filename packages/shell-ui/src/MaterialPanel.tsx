@@ -70,6 +70,16 @@ export interface MaterialPick {
   library?: string;
 }
 
+export type MaterialItemType =
+  | "image"
+  | "video"
+  | "audio"
+  | "text"
+  | "note"
+  | "code"
+  | "pdf"
+  | "url";
+
 interface MaterialPanelProps {
   /** ADR-085 D-8: Work Pool 領域の filter 対象となる Work id */
   workId?: string;
@@ -98,6 +108,11 @@ interface MaterialPanelProps {
   enableSearch?: boolean;
   /** 既定 library override */
   defaultLibrary?: string;
+  /**
+   * 表示対象の item_type。未指定時は従来通り全種別を表示する。
+   * Design など、メディア編集に使わない video/audio を隠したい app 向け。
+   */
+  allowedItemTypes?: readonly MaterialItemType[];
 }
 
 const POOL_LIBRARIES_FALLBACK = ["akari-uploads", "akari-outputs"];
@@ -114,6 +129,7 @@ export function MaterialPanel({
   enableScopeTab = true,
   enableSearch = true,
   defaultLibrary,
+  allowedItemTypes,
 }: MaterialPanelProps) {
   const [libraries, setLibraries] = useState<string[]>(
     defaultLibrary ? [defaultLibrary] : POOL_LIBRARIES_FALLBACK,
@@ -136,6 +152,10 @@ export function MaterialPanel({
   >(null);
   // 現在開いている Stage (default Upload)
   const [selectedStage, setSelectedStage] = useState<StageKind>("upload");
+  const allowedItemTypeSet = useMemo(
+    () => (allowedItemTypes ? new Set<string>(allowedItemTypes) : null),
+    [allowedItemTypes],
+  );
 
   // 検索 debounce 200ms
   useEffect(() => {
@@ -261,6 +281,7 @@ export function MaterialPanel({
     async (item: PoolItemSummary, full: PoolItemFull | undefined) => {
       if (thumbCache.has(item.id) || !full) return;
       const type = (full.item_type ?? "").toLowerCase();
+      if (allowedItemTypeSet && !allowedItemTypeSet.has(type)) return;
       if (!["image", "video"].includes(type)) return;
       const knownLib = itemLibraryRef.current.get(item.id);
       const tryOrder = knownLib
@@ -279,7 +300,7 @@ export function MaterialPanel({
         }
       }
     },
-    [libraries, thumbCache],
+    [libraries, thumbCache, allowedItemTypeSet],
   );
 
   /* ----- 分類 (lazy classification, fullCache に依存) ----- */
@@ -295,26 +316,34 @@ export function MaterialPanel({
     [fullCache],
   );
 
+  const displayItems = useMemo(
+    () =>
+      items.filter((item) =>
+        isAllowedItemType(item, fullCache.get(item.id), allowedItemTypeSet),
+      ),
+    [items, fullCache, allowedItemTypeSet],
+  );
+
   const personalItems = useMemo(
-    () => items.filter((i) => ctxOf(i)?.scope === "personal"),
-    [items, ctxOf],
+    () => displayItems.filter((i) => ctxOf(i)?.scope === "personal"),
+    [displayItems, ctxOf],
   );
 
   const workUploadItems = useMemo(() => {
     if (!workId) return [];
-    return items.filter((i) => {
+    return displayItems.filter((i) => {
       const ctx = ctxOf(i);
       return ctx?.attached_to_work === workId;
     });
-  }, [items, ctxOf, workId]);
+  }, [displayItems, ctxOf, workId]);
 
   const workOutputItems = useMemo(() => {
     if (!workId) return [];
-    return items.filter((i) => {
+    return displayItems.filter((i) => {
       const ctx = ctxOf(i);
       return ctx?.source_work_id === workId;
     });
-  }, [items, ctxOf, workId]);
+  }, [displayItems, ctxOf, workId]);
 
   /**
    * Cross-Work 領域は「分類済を除いた残り」を library ごとに振り分け。
@@ -328,7 +357,7 @@ export function MaterialPanel({
       ...workUploadItems.map((i) => i.id),
       ...workOutputItems.map((i) => i.id),
     ]);
-    for (const item of items) {
+    for (const item of displayItems) {
       if (claimed.has(item.id)) continue;
       const lib =
         itemLibraryRef.current.get(item.id) ?? libraries[0] ?? "default";
@@ -336,7 +365,7 @@ export function MaterialPanel({
       m.get(lib)!.push(item);
     }
     return m;
-  }, [items, libraries, personalItems, workUploadItems, workOutputItems]);
+  }, [displayItems, libraries, personalItems, workUploadItems, workOutputItems]);
 
   /* ----- PoolDisplay synthesis ----- */
 
@@ -691,4 +720,15 @@ function MaterialThumb({
       )}
     </div>
   );
+}
+
+function isAllowedItemType(
+  item: PoolItemSummary,
+  full: PoolItemFull | undefined,
+  allowed: Set<string> | null,
+): boolean {
+  if (!allowed) return true;
+  const type = (full?.item_type || item.item_type || "").toLowerCase();
+  if (!type) return true;
+  return allowed.has(type);
 }

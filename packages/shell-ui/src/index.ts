@@ -7,7 +7,8 @@ export { Button, buttonVariants } from "./button"
 export { ImagePreviewModal } from "./ImagePreview"
 export { RadarChart, STAT_KEYS, type RadarChartProps } from "./RadarChart"
 export { DelegationAccordion } from "./DelegationAccordion"
-export { MaterialPanel, type MaterialPick } from "./MaterialPanel"
+export { MaterialPanel, type MaterialItemType, type MaterialPick } from "./MaterialPanel"
+export type { HeaderAction } from "./types/header-action"
 export {
   useWorkStateSync,
   type UseWorkStateSyncOptions,
@@ -208,3 +209,18 @@ export {
   type UseLibraryResult,
   type UseLibraryInstallResult,
 } from "./use-library";
+// AKARI-HUB-038 Phase 3: 共有 UI 部品 (PanelTabs / InspectorShell / AIChatPanel)
+export {
+  PanelTabs,
+  type PanelTabDef,
+  type PanelTabsProps,
+} from "./PanelTabs";
+export {
+  InspectorShell,
+  type InspectorShellProps,
+} from "./InspectorShell";
+export {
+  AIChatPanel,
+  type AIChatPanelProps,
+  type ChatMessage,
+} from "./AIChatPanel";

@@ -47,7 +47,10 @@
     "./types/header-action": {
       "import": "./src/types/header-action.ts",
       "types": "./src/types/header-action.ts"
-    }
+    },
+    "./PanelTabs": "./src/PanelTabs.tsx",
+    "./InspectorShell": "./src/InspectorShell.tsx",
+    "./AIChatPanel": "./src/AIChatPanel.tsx"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
