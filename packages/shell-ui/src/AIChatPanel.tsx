@@ -23,6 +23,13 @@
  *   - Tailwind dark テーマ。既存 shell-ui コンポーネントに揃える
  *
  * 関連 spec: AKARI-HUB-038 §6 (AIChatPanel)
+ *
+ * 拡張履歴 (2026-05-29):
+ *   - ChatMessage.data?: unknown を追加（アプリ固有 payload）
+ *   - renderMessage / isTypingMessage / headerContent / inputLeadingButtons /
+ *     onInputKeyDown を AIChatPanelProps に追加（全 optional、後方互換維持）
+ *   - auto-scroll 依存を [messages.length, loading] に変更（typing 中 scroll 跳ね防止）
+ *   - エラー catch を String(e) ベースに変更（非 Error reject 対応）
  */
 
 import {
@@ -30,6 +37,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type KeyboardEvent,
   type ReactNode,
 } from "react"
 import { Send } from "lucide-react"
@@ -50,6 +58,25 @@ export interface ChatMessage {
   content: string
   /** Unix 時刻 (ms)。省略可 */
   createdAt?: number
+  /**
+   * アプリ固有 payload。
+   * writer: { displayedChars: number; delegations: string[] }
+   * video:  { ts: number }
+   * 型はアプリ側でキャストして利用する。
+   */
+  data?: unknown
+}
+
+/** renderMessage に渡すコンテキスト */
+export interface RenderMessageCtx {
+  /** isTypingMessage が true を返した場合に true */
+  isTyping: boolean
+  /**
+   * 表示用テキスト。
+   * isTyping === true の場合は message.data 由来の途中文字列（アプリが data に格納）、
+   * それ以外は message.content をそのまま返す。
+   */
+  displayText: string
 }
 
 export interface AIChatPanelProps {
@@ -82,6 +109,35 @@ export interface AIChatPanelProps {
    * 指定するとヘッダに閉じるボタンが描画される。
    */
   onCollapse?: () => void
+  /**
+   * カスタムメッセージレンダラ。
+   * 指定時は各メッセージをこれで描画する。
+   * null / undefined を返した場合は既存の MessageBubble にフォールバックする。
+   * 未指定時も MessageBubble を使用（後方互換）。
+   */
+  renderMessage?: (message: ChatMessage, ctx: RenderMessageCtx) => ReactNode
+  /**
+   * typing 中かどうかを判定する callback。
+   * renderMessage の ctx.isTyping に渡される。
+   * 未指定時は常に false。
+   */
+  isTypingMessage?: (message: ChatMessage) => boolean
+  /**
+   * ヘッダの onCollapse ボタン以外の部分を置換するカスタム ReactNode。
+   * 未指定時は 'Partner' 等の既定ヘッダを表示する。
+   */
+  headerContent?: ReactNode
+  /**
+   * textarea 直前に差し込む ReactNode。
+   * PointerMode / PoolPicker ボタン等を配置する用途を想定。
+   */
+  inputLeadingButtons?: ReactNode
+  /**
+   * textarea の onKeyDown を外部に渡す callback。
+   * writer のスラッシュメニュー等でキー入力を横取りする用途を想定。
+   * 既存の Cmd+Enter 送信ロジックは維持した上で、このコールバックも呼び出す。
+   */
+  onInputKeyDown?: (e: KeyboardEvent<HTMLTextAreaElement>) => void
 }
 
 // ─── コンポーネント ────────────────────────────────────────────────────────
@@ -95,6 +151,11 @@ export function AIChatPanel({
   emptyPlaceholder,
   inputPlaceholder,
   onCollapse,
+  renderMessage,
+  isTypingMessage,
+  headerContent,
+  inputLeadingButtons,
+  onInputKeyDown,
 }: AIChatPanelProps) {
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(false)
@@ -102,12 +163,13 @@ export function AIChatPanel({
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // 新規メッセージ追加 / loading 変化時に最下部へ自動スクロール
+  // 新規メッセージ追加 / loading 変化時に最下部へ自動スクロール。
+  // messages.length のみを依存にして typing 中の content 更新で scroll が跳ねないようにする。
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [messages, loading])
+  }, [messages.length, loading])
 
   const handleSend = useCallback(async () => {
     const text = input.trim()
@@ -120,13 +182,32 @@ export function AIChatPanel({
     try {
       await onSendMessage(text)
     } catch (e) {
-      setError(`送信失敗: ${(e as Error).message}`)
+      // 非 Error reject（video の ai_chat ブリッジ等）でも空にならないよう String() で変換
+      setError(`送信失敗: ${String(e)}`)
     } finally {
       setLoading(false)
     }
   }, [input, loading, onSendMessage])
 
   const canSend = Boolean(input.trim()) && !loading
+
+  /** 各メッセージを描画するヘルパー。renderMessage → MessageBubble の順でフォールバック */
+  const renderMessageItem = (m: ChatMessage) => {
+    if (renderMessage) {
+      const isTyping = isTypingMessage ? isTypingMessage(m) : false
+      // isTyping 時は data 由来の途中文字列を表示テキストとして使う。
+      // アプリ側が data に途中文字列を格納することを期待する（型は unknown）。
+      const displayText = isTyping
+        ? typeof (m.data as { displayedText?: string } | undefined)?.displayedText === "string"
+          ? (m.data as { displayedText: string }).displayedText
+          : m.content
+        : m.content
+      const ctx: RenderMessageCtx = { isTyping, displayText }
+      const custom = renderMessage(m, ctx)
+      if (custom != null) return custom
+    }
+    return <MessageBubble key={m.id} message={m} />
+  }
 
   return (
     <div
@@ -137,19 +218,40 @@ export function AIChatPanel({
     >
       {/* ヘッダ */}
       <div className="flex items-center justify-between shrink-0">
-        <h3 className="m-0 text-[13px] font-semibold text-foreground">
-          Partner
-        </h3>
-        {onCollapse && (
-          <button
-            type="button"
-            onClick={onCollapse}
-            title="パネルを閉じる"
-            aria-label="閉じる"
-            className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition text-sm leading-none"
-          >
-            ×
-          </button>
+        {headerContent != null ? (
+          // headerContent を使う場合は onCollapse ボタン以外をこれで置換
+          <>
+            <div className="flex-1 min-w-0">{headerContent}</div>
+            {onCollapse && (
+              <button
+                type="button"
+                onClick={onCollapse}
+                title="パネルを閉じる"
+                aria-label="閉じる"
+                className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition text-sm leading-none"
+              >
+                ×
+              </button>
+            )}
+          </>
+        ) : (
+          // 既定ヘッダ（後方互換）
+          <>
+            <h3 className="m-0 text-[13px] font-semibold text-foreground">
+              Partner
+            </h3>
+            {onCollapse && (
+              <button
+                type="button"
+                onClick={onCollapse}
+                title="パネルを閉じる"
+                aria-label="閉じる"
+                className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition text-sm leading-none"
+              >
+                ×
+              </button>
+            )}
+          </>
         )}
       </div>
 
@@ -176,7 +278,7 @@ export function AIChatPanel({
         )}
 
         {messages.map((m) => (
-          <MessageBubble key={m.id} message={m} />
+          <span key={m.id}>{renderMessageItem(m)}</span>
         ))}
 
         {loading && (
@@ -192,10 +294,15 @@ export function AIChatPanel({
 
       {/* 入力エリア */}
       <div className="flex gap-2 min-w-0 shrink-0">
+        {/* textarea 直前に差し込む app 固有ボタン群（PointerMode / PoolPicker 等） */}
+        {inputLeadingButtons}
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
+            // app 側コールバックを先に呼ぶ（スラッシュメニュー等でキャプチャ可能にする）
+            onInputKeyDown?.(e)
+            // 既存の Cmd+Enter 送信ロジックを維持
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
               e.preventDefault()
               void handleSend()
