@@ -130,6 +130,20 @@ export interface WorkContext {
    * ADR-078 v0.2.0 で必須化（旧形式 URL は shell 側で primary に解決して渡す）。
    */
   variant_id: string
+  /**
+   * AppInstance ID（任意）。
+   * AKARI-HUB-084 Phase 1: AppInstance 経由でアプリを開く際に、
+   * どの AppInstance から起動されたかを子アプリ側へ型安全に渡すために使用する。
+   * 省略時は旧来の Work/Variant ペアのみのコンテキストで動作する。
+   */
+  app_instance_id?: string
+  /**
+   * App テンプレ ID（任意）。
+   * AKARI-HUB-085 / AKARI-HUB-084: どの App テンプレから AppInstance が
+   * 生成されたかを子アプリ側で参照できるようにする。
+   * テンプレなしで作成された AppInstance の場合は省略される。
+   */
+  app_template_id?: string
 }
 
 /**
