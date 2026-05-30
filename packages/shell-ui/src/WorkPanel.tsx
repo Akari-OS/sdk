@@ -29,9 +29,11 @@ export interface WorkPanelProps {
   variantId?: string;
   /** 素材が属する Pool 名。未指定なら current Pool に fallback */
   library?: string | null;
+  /** OperationsPanel の「実行」クリック → アプリ側のアクションハンドラ */
+  onRunOperation?: (id: string) => void;
 }
 
-export function WorkPanel({ workId, variantId, library }: WorkPanelProps) {
+export function WorkPanel({ workId, variantId, library, onRunOperation }: WorkPanelProps) {
   const [mode, setMode] = useState<WorkMode>("workpool");
 
   return (
@@ -66,7 +68,11 @@ export function WorkPanel({ workId, variantId, library }: WorkPanelProps) {
           />
         )}
         {mode === "operations" && (
-          <OperationsPanel workId={workId} variantId={variantId} />
+          <OperationsPanel
+            workId={workId}
+            variantId={variantId}
+            onRunOperation={onRunOperation}
+          />
         )}
         {mode === "workflow" && (
           <WorkflowPanel workId={workId} variantId={variantId} />

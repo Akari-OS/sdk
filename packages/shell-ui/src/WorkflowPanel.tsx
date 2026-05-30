@@ -4,17 +4,17 @@
  * 「① ワークプールで選んだ素材と ② 操作が、ここで手順（レシピ）として生きる」をコンセプトにしたパネル。
  * ① 素材 / ③ 操作 を並べたレシピ / 手順。番号付き手順の追加・並べ替え・削除・完了トグル・インライン編集を提供。
  *
- * Phase 0 = in-memory モック。バックエンド配線なし、useState のみで完結。
- * Phase 1 では:
- *   - ステップ一覧 → `workflow_steps` テーブルへ永続化（HUB-085）
- *   - `initialSteps` → テンプレ / Work テンプレからの注入に置換
- *   - 並べ替え → サーバー側の `position` 更新 API へ配線
- * する予定。
+ * Phase 1（現在）:
+ *   - `workId && variantId` がある場合: mount 時に getWorkflowSteps で load、
+ *     編集のたびに setWorkflowSteps で save（work_states テーブルの state_json
+ *     "workflow_steps" キーに保存。他の HUB-086 用途とキー衝突なし）。
+ *   - `workId || variantId` が無い場合: 従来の in-memory（initialSteps シード）。
  *
  * 関連設計: `akari-os/docs/design/studio-left-panel-modes-2026-05-30.md` §5
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getWorkflowSteps, setWorkflowSteps } from "@akari-os/sdk/pool";
 import {
   ArrowDown,
   ArrowUp,
@@ -57,15 +57,53 @@ const SEED_STEPS: WorkflowStep[] = [
 // ─────────────────────────────────────────────
 
 interface WorkflowPanelProps {
+  /** 対象 Work の ID。variantId とともに指定すると永続化が有効になる。 */
   workId?: string;
+  /** 対象 Variant の ID。workId とともに指定すると永続化が有効になる。 */
   variantId?: string;
+  /**
+   * Pool（library）名。null / 未指定で current Pool に fallback。
+   * workId / variantId が無い場合は使用されない。
+   */
+  library?: string | null;
+  /** workId / variantId が無いときのシードデータ（in-memory モード専用）。 */
   initialSteps?: WorkflowStep[];
 }
 
-export function WorkflowPanel({ workId: _workId, variantId: _variantId, initialSteps }: WorkflowPanelProps) {
-  // Phase 0: _workId / _variantId は将来の配線のためのシグネチャ確保。現在は未使用。
+export function WorkflowPanel({ workId, variantId, library = null, initialSteps }: WorkflowPanelProps) {
+  // workId + variantId が揃っていれば永続化モード、そうでなければ in-memory モード
+  const isPersistent = Boolean(workId && variantId);
+
   const [steps, setSteps] = useState<WorkflowStep[]>(
-    initialSteps ?? SEED_STEPS
+    isPersistent ? [] : (initialSteps ?? SEED_STEPS)
+  );
+  // 永続化モードで初回ロード完了前のローディング中フラグ（チラつき防止）
+  const [loading, setLoading] = useState(isPersistent);
+
+  // ─── mount 時に永続化ストレージから手順を読み込む ───
+  useEffect(() => {
+    if (!isPersistent || !workId || !variantId) return;
+    getWorkflowSteps(library, workId, variantId)
+      .then((loaded) => {
+        // 空配列ならシードを使わず空のまま（ユーザーが白紙から始める）
+        setSteps(loaded);
+      })
+      .catch(() => {
+        // ロード失敗 → in-memory で継続（エラーは握りつぶす）
+        setSteps(initialSteps ?? []);
+      })
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workId, variantId, library]);
+
+  // ─── 永続化ヘルパ: 更新後の新しい steps を保存 ───
+  const persist = useCallback(
+    (newSteps: WorkflowStep[]) => {
+      if (!isPersistent || !workId || !variantId) return;
+      // エラーは握りつぶし（UI が詰まらないように）
+      setWorkflowSteps(library, workId, variantId, newSteps).catch(() => {});
+    },
+    [isPersistent, workId, variantId, library],
   );
 
   // ─── インライン追加フォーム ───
@@ -81,9 +119,10 @@ export function WorkflowPanel({ workId: _workId, variantId: _variantId, initialS
     setSteps((prev) => {
       const next = [...prev];
       [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      persist(next);
       return next;
     });
-  }, []);
+  }, [persist]);
 
   /** 下に移動 */
   const moveDown = useCallback((index: number) => {
@@ -91,30 +130,39 @@ export function WorkflowPanel({ workId: _workId, variantId: _variantId, initialS
       if (index >= prev.length - 1) return prev;
       const next = [...prev];
       [next[index], next[index + 1]] = [next[index + 1], next[index]];
+      persist(next);
       return next;
     });
-  }, []);
+  }, [persist]);
 
   /** 削除 */
   const removeStep = useCallback((id: string) => {
-    setSteps((prev) => prev.filter((s) => s.id !== id));
-  }, []);
+    setSteps((prev) => {
+      const next = prev.filter((s) => s.id !== id);
+      persist(next);
+      return next;
+    });
+  }, [persist]);
 
   /** 完了トグル */
   const toggleDone = useCallback((id: string) => {
-    setSteps((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, done: !s.done } : s))
-    );
-  }, []);
+    setSteps((prev) => {
+      const next = prev.map((s) => (s.id === id ? { ...s, done: !s.done } : s));
+      persist(next);
+      return next;
+    });
+  }, [persist]);
 
   /** タイトルインライン編集確定 */
   const commitTitle = useCallback((id: string, newTitle: string) => {
     const trimmed = newTitle.trim();
     if (!trimmed) return; // 空なら変更を棄却
-    setSteps((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, title: trimmed } : s))
-    );
-  }, []);
+    setSteps((prev) => {
+      const next = prev.map((s) => (s.id === id ? { ...s, title: trimmed } : s));
+      persist(next);
+      return next;
+    });
+  }, [persist]);
 
   /** 追加フォームを開く */
   const openAdd = useCallback(() => {
@@ -127,13 +175,14 @@ export function WorkflowPanel({ workId: _workId, variantId: _variantId, initialS
   const commitAdd = useCallback(() => {
     const title = addingTitle.trim();
     if (!title) return;
-    setSteps((prev) => [
-      ...prev,
-      { id: `step-${Date.now()}`, title, done: false },
-    ]);
+    setSteps((prev) => {
+      const next = [...prev, { id: `step-${Date.now()}`, title, done: false }];
+      persist(next);
+      return next;
+    });
     setAddingTitle("");
     setIsAddingOpen(false);
-  }, [addingTitle]);
+  }, [addingTitle, persist]);
 
   /** 追加をキャンセル */
   const cancelAdd = useCallback(() => {
@@ -143,6 +192,17 @@ export function WorkflowPanel({ workId: _workId, variantId: _variantId, initialS
 
   // 完了数サマリ
   const doneCount = steps.filter((s) => s.done).length;
+
+  // 初回ロード中はプレースホルダーを出す（チラつき防止）
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-1.5 p-2 text-xs">
+        <div className="rounded border border-dashed border-border py-5 text-center text-[10px] text-muted-foreground/50">
+          読み込み中…
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-1.5 p-2 text-xs">
