@@ -16,7 +16,7 @@ import { ContextSlotPanel } from "./ContextSlotPanel";
 import { OperationsPanel } from "./OperationsPanel";
 import { WorkflowPanel } from "./WorkflowPanel";
 
-type WorkMode = "workpool" | "operations" | "workflow";
+export type WorkMode = "workpool" | "operations" | "workflow";
 
 const MODES: { id: WorkMode; label: string; icon: ReactNode }[] = [
   { id: "workpool", label: "ワークプール", icon: <Package className="w-3.5 h-3.5" /> },
@@ -31,32 +31,51 @@ export interface WorkPanelProps {
   library?: string | null;
   /** OperationsPanel の「実行」クリック → アプリ側のアクションハンドラ */
   onRunOperation?: (id: string) => void;
+  /** ワークプールの「Pool から」インライン Pool ピッカー（ContextSlotPanel へ pass-through） */
+  renderPoolPicker?: (args: { onClose: () => void }) => ReactNode;
+  /**
+   * controlled モード。指定すると内蔵モード切替バーを隠し、そのモードに固定する。
+   * SubPanel が 4 面を最上位タブ（横）として並べる際に各タブで mode を固定するために使う
+   * （studio-left-panel-modes Option A）。未指定なら従来どおり内蔵 3 モード切替。
+   */
+  mode?: WorkMode;
 }
 
-export function WorkPanel({ workId, variantId, library, onRunOperation }: WorkPanelProps) {
-  const [mode, setMode] = useState<WorkMode>("workpool");
+export function WorkPanel({
+  workId,
+  variantId,
+  library,
+  onRunOperation,
+  renderPoolPicker,
+  mode: controlledMode,
+}: WorkPanelProps) {
+  const [internalMode, setMode] = useState<WorkMode>("workpool");
+  const mode = controlledMode ?? internalMode;
+  const showSwitcher = controlledMode == null;
 
   return (
     <div className="flex flex-col h-full">
-      {/* 3 モード切替（VS Code Activity Bar 風） */}
-      <div className="flex gap-1 p-1 border-b border-border shrink-0">
-        {MODES.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            onClick={() => setMode(m.id)}
-            className={`flex-1 flex items-center justify-center gap-1 rounded px-1.5 py-1 text-[10px] transition ${
-              mode === m.id
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-primary hover:bg-muted"
-            }`}
-            title={m.label}
-          >
-            {m.icon}
-            {m.label}
-          </button>
-        ))}
-      </div>
+      {/* 3 モード切替（VS Code Activity Bar 風）。controlled 時は隠す */}
+      {showSwitcher && (
+        <div className="flex gap-1 p-1 border-b border-border shrink-0">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setMode(m.id)}
+              className={`flex-1 flex items-center justify-center gap-1 rounded px-1.5 py-1 text-[10px] transition ${
+                mode === m.id
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-primary hover:bg-muted"
+              }`}
+              title={m.label}
+            >
+              {m.icon}
+              {m.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* アクティブモードの中身 */}
       <div className="flex-1 overflow-auto min-h-0">
@@ -65,6 +84,7 @@ export function WorkPanel({ workId, variantId, library, onRunOperation }: WorkPa
             workId={workId}
             variantId={variantId}
             library={library}
+            renderPoolPicker={renderPoolPicker}
           />
         )}
         {mode === "operations" && (
