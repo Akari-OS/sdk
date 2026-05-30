@@ -15,24 +15,29 @@
  *   - 分析状態          → 参照 Pool item の `analyzed_at`（view の asset_analyzed_at）
  *   - 素材名            → 参照 Pool item の `name`（view の asset_name）
  *
- * Phase 1.x 残（次フェーズ）:
+ * Phase 1.x 実装済み（2026-05-30）:
+ *   - JPEG サムネ遅延ロード（getItemThumbnail → convertFileSrc、freeze-safe ADR-100 準拠）
+ *   - 「分析」ボタンの実トリガ（analyzeItem 呼び出し + 進捗 busy 表示 + 完了後 reload）
+ *
+ * Phase 2 残:
  *   - 「+追加」のソース選択（ローカル OS dialog / Pool・Library 検索パネル）の実装
- *   - 「分析」ボタンの実トリガ（analyzeItem。library 解決 + 進捗 UI が必要）
- *   - 全 17 スロットの分類 UI — 実装済み（ALL_SLOT_ROLES）
  *
  * 関連: spec `akari-os/docs/sdd/specs/spec-slot-and-work-context-schema.md` §2 / §9 Phase 1
  *       design `akari-os/docs/design/studio-left-panel-modes-2026-05-30.md` §2
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent, PointerEvent, ReactNode } from "react";
-import { Plus, Check, Sparkles, X, Trash2 } from "lucide-react";
+import { Plus, Check, Sparkles, X, Trash2, FileImage, Loader2 } from "lucide-react";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { SLOT_ROLE_LABELS, type SlotRole } from "@akari-os/sdk/slot";
 import {
   slotListEntries,
   slotAddEntry,
   slotRemoveEntry,
   slotPromoteEntry,
+  getItemThumbnail,
+  analyzeItem,
 } from "@akari-os/sdk/pool";
 
 /** 全 17 SlotRole（フィルターチップ・分類 select の両方で使用） */
@@ -164,6 +169,21 @@ export function ContextSlotPanel({
   const [filter, setFilter] = useState<SlotRole | "all">("all");
   /** ソース選択パネルの開閉（true = 展開中） */
   const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
+  /**
+   * assetId → サムネ URL（convertFileSrc 変換済み）。
+   * getItemThumbnail で取得した JPEG パスを convertFileSrc で変換して保持。
+   * freeze-safe: 実動画 URL は渡さない（ADR-100 遵守）。
+   */
+  const [thumbCache, setThumbCache] = useState<Map<string, string>>(new Map());
+  /**
+   * サムネ取得中の assetId セット（重複リクエスト防止）。
+   * useRef で保持し setState を呼ばない（再レンダ不要）。
+   */
+  const thumbFetchingRef = useRef<Set<string>>(new Set());
+  /**
+   * 分析中の entryId セット（ボタン busy 表示用）。
+   */
+  const [analyzingIds, setAnalyzingIds] = useState<Set<string>>(new Set());
   /**
    * インラインピッカーのモード（'pool' | 'library' | null）。
    * renderPoolPicker / renderLibraryPicker の注入時、ソース選択から切替表示する。
@@ -298,6 +318,56 @@ export function ContextSlotPanel({
       prev.map((e) => (e.id === id ? { ...e, analyzed: true } : e)),
     );
   }, []);
+
+  /**
+   * assetId に対して JPEG サムネを遅延取得してキャッシュ。
+   * freeze-safe: getItemThumbnail → convertFileSrc を使い、実動画 URL は渡さない（ADR-100）。
+   * assetId が null / 既にキャッシュ済み / 取得中 の場合は即 return。
+   * library が未確定なら lib を null として pool-impl 側の current Pool fallback に委ねる。
+   */
+  const fetchThumb = useCallback(
+    async (assetId: string) => {
+      if (thumbCache.has(assetId)) return;
+      if (thumbFetchingRef.current.has(assetId)) return;
+      thumbFetchingRef.current.add(assetId);
+      try {
+        // lib が null の場合 pool-impl は current Pool にフォールバックする
+        const thumbPath = await getItemThumbnail(lib ?? "akari-uploads", assetId).catch(() => null);
+        if (thumbPath) {
+          const url = convertFileSrc(thumbPath);
+          setThumbCache((prev) => new Map(prev).set(assetId, url));
+        }
+      } finally {
+        thumbFetchingRef.current.delete(assetId);
+      }
+    },
+    [lib, thumbCache],
+  );
+
+  /**
+   * 永続モードの「分析」ボタンハンドラ。
+   * analyzeItem(library, assetId, mode?) を呼び、完了後に reload する。
+   * 進捗中はエントリを analyzingIds に追加して busy バッジを表示。
+   */
+  const analyzeEntry = useCallback(
+    async (entryId: string, assetId: string) => {
+      setAnalyzingIds((prev) => new Set(prev).add(entryId));
+      try {
+        await analyzeItem(lib ?? "akari-uploads", assetId);
+        await reload();
+      } catch (e) {
+        console.warn("[ワークプール] analyzeItem 失敗", e);
+        setError("分析に失敗しました");
+      } finally {
+        setAnalyzingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(entryId);
+          return next;
+        });
+      }
+    },
+    [lib, reload],
+  );
 
   const handleDrop = useCallback(
     (role: SlotRole, e: DragEvent<HTMLElement>) => {
@@ -594,73 +664,155 @@ export function ContextSlotPanel({
           </div>
         ) : (
           visible.map((entry) => (
-            <div
+            <EntryRow
               key={entry.id}
-              className={`flex items-center gap-1.5 rounded bg-background px-1.5 py-1 border border-border ${
-                onEntryPointerDown && entry.assetId ? "cursor-grab active:cursor-grabbing" : ""
-              }`}
+              entry={entry}
+              bound={bound}
+              thumbUrl={entry.assetId ? (thumbCache.get(entry.assetId) ?? null) : null}
+              isAnalyzing={analyzingIds.has(entry.id)}
               onPointerDown={
                 onEntryPointerDown && entry.assetId
                   ? (e) => onEntryPointerDown(entry.assetId!, e)
                   : undefined
               }
-            >
-              {/* 分類タグ = 色付き select（瞬時に判別 + クリックで変更） */}
-              <select
-                value={entry.role}
-                onChange={(e) => void setRole(entry.id, e.target.value as SlotRole)}
-                className={`shrink-0 rounded border px-1 py-0.5 text-[9px] ${ROLE_BADGE_CLASS[entry.role] ?? ROLE_BADGE_CLASS.misc}`}
-                title="分類を変更"
-              >
-                {ALL_SLOT_ROLES.map((r) => (
-                  <option key={r} value={r}>
-                    {SLOT_ROLE_LABELS[r]}
-                  </option>
-                ))}
-              </select>
-              <span className="truncate flex-1" title={entry.label}>
-                {entry.label}
-              </span>
-              {/* 分析状態 / 分析ボタン（永続モードは display-only） */}
-              {entry.analyzed ? (
-                <span
-                  className="shrink-0 flex items-center gap-0.5 text-[9px] text-green-600"
-                  title="コンテキスト分析済み"
-                >
-                  <Check className="w-3 h-3" />
-                  分析済み
-                </span>
-              ) : bound ? (
-                <span
-                  className="shrink-0 text-[9px] text-muted-foreground/60"
-                  title="未分析（分析トリガは Phase 1.x）"
-                >
-                  未分析
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  className="shrink-0 flex items-center gap-0.5 rounded border border-border px-1 py-0.5 text-[9px] text-muted-foreground hover:text-primary hover:border-primary transition"
-                  title="コンテキストとして分析（モック）"
-                  onClick={() => analyzeMock(entry.id)}
-                >
-                  <Sparkles className="w-3 h-3" />
-                  分析
-                </button>
-              )}
-              {/* 削除 */}
-              <button
-                type="button"
-                className="shrink-0 rounded p-0.5 text-muted-foreground/60 hover:text-destructive transition"
-                title="ワークプールから外す"
-                onClick={() => void removeEntry(entry.id)}
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
-            </div>
+              onRoleChange={(role) => void setRole(entry.id, role)}
+              onAnalyze={
+                bound && !entry.analyzed && entry.assetId
+                  ? () => void analyzeEntry(entry.id, entry.assetId!)
+                  : !bound
+                    ? () => analyzeMock(entry.id)
+                    : undefined
+              }
+              onRemove={() => void removeEntry(entry.id)}
+              onMount={
+                entry.assetId
+                  ? () => void fetchThumb(entry.assetId!)
+                  : undefined
+              }
+            />
           ))
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * EntryRow — ワークプール内の 1 エントリ行。
+ *
+ * - サムネ（assetId があれば遅延ロード）: JPEG サムネ or アイコン fallback
+ * - 分類タグ（色付き select）
+ * - 素材名
+ * - 分析状態 / 分析ボタン（永続モード: 実トリガ / モック: フラグトグル）
+ * - 削除ボタン
+ *
+ * freeze-safe: <img> を使い <video> には渡さない（ADR-100）。
+ */
+function EntryRow({
+  entry,
+  bound,
+  thumbUrl,
+  isAnalyzing,
+  onPointerDown,
+  onRoleChange,
+  onAnalyze,
+  onRemove,
+  onMount,
+}: {
+  entry: DisplayEntry;
+  bound: boolean;
+  /** JPEG サムネ URL（convertFileSrc 変換済み）。null = fallback アイコン */
+  thumbUrl: string | null;
+  /** 分析中フラグ（busy スピナー表示） */
+  isAnalyzing: boolean;
+  onPointerDown?: (e: PointerEvent<HTMLElement>) => void;
+  onRoleChange: (role: SlotRole) => void;
+  /** undefined = 分析ボタン非表示（分析済み or assetId なし） */
+  onAnalyze?: () => void;
+  onRemove: () => void;
+  /** マウント時にサムネ取得を開始するコールバック（assetId がある行のみ） */
+  onMount?: () => void;
+}) {
+  // マウント時にサムネ取得を開始（assetId ごとに 1 回）
+  useEffect(() => {
+    onMount?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry.assetId]);
+
+  return (
+    <div
+      className={`flex items-center gap-1.5 rounded bg-background px-1.5 py-1 border border-border ${
+        onPointerDown && entry.assetId ? "cursor-grab active:cursor-grabbing" : ""
+      }`}
+      onPointerDown={onPointerDown}
+    >
+      {/* サムネ（32×32 px、freeze-safe <img>）/ アイコン fallback */}
+      <div className="shrink-0 w-8 h-8 rounded border border-border bg-muted/40 overflow-hidden flex items-center justify-center">
+        {thumbUrl ? (
+          <img
+            src={thumbUrl}
+            alt=""
+            className="w-full h-full object-cover"
+            draggable={false}
+          />
+        ) : (
+          <FileImage className="w-3.5 h-3.5 text-muted-foreground/50" />
+        )}
+      </div>
+
+      {/* 分類タグ = 色付き select（瞬時に判別 + クリックで変更） */}
+      <select
+        value={entry.role}
+        onChange={(e) => onRoleChange(e.target.value as SlotRole)}
+        className={`shrink-0 rounded border px-1 py-0.5 text-[9px] ${ROLE_BADGE_CLASS[entry.role] ?? ROLE_BADGE_CLASS.misc}`}
+        title="分類を変更"
+      >
+        {ALL_SLOT_ROLES.map((r) => (
+          <option key={r} value={r}>
+            {SLOT_ROLE_LABELS[r]}
+          </option>
+        ))}
+      </select>
+
+      <span className="truncate flex-1 text-[10px]" title={entry.label}>
+        {entry.label}
+      </span>
+
+      {/* 分析状態 / 分析ボタン */}
+      {entry.analyzed ? (
+        <span
+          className="shrink-0 flex items-center gap-0.5 text-[9px] text-green-600"
+          title="コンテキスト分析済み"
+        >
+          <Check className="w-3 h-3" />
+          分析済み
+        </span>
+      ) : isAnalyzing ? (
+        <span className="shrink-0 flex items-center gap-0.5 text-[9px] text-muted-foreground">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          分析中
+        </span>
+      ) : onAnalyze ? (
+        <button
+          type="button"
+          className="shrink-0 flex items-center gap-0.5 rounded border border-border px-1 py-0.5 text-[9px] text-muted-foreground hover:text-primary hover:border-primary transition"
+          title={bound ? "コンテキストとして分析（pool-impl 呼び出し）" : "コンテキストとして分析（モック）"}
+          onClick={onAnalyze}
+        >
+          <Sparkles className="w-3 h-3" />
+          分析
+        </button>
+      ) : null /* assetId なし（external_url のみ）または分析済みは非表示 */}
+
+      {/* 削除 */}
+      <button
+        type="button"
+        className="shrink-0 rounded p-0.5 text-muted-foreground/60 hover:text-destructive transition"
+        title="ワークプールから外す"
+        onClick={onRemove}
+      >
+        <Trash2 className="w-3 h-3" />
+      </button>
     </div>
   );
 }
