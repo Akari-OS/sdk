@@ -12,6 +12,8 @@
     "./RadarChart": "./src/RadarChart.tsx",
     "./DelegationAccordion": "./src/DelegationAccordion.tsx",
     "./MaterialPanel": "./src/MaterialPanel.tsx",
+    "./ContextSlotPanel": "./src/ContextSlotPanel.tsx",
+    "./WorkPanel": "./src/WorkPanel.tsx",
     "./PoolBrowserView": "./src/PoolBrowserView.tsx",
     "./PoolBadge": "./src/PoolBadge.tsx",
     "./StageView": "./src/StageView.tsx",
