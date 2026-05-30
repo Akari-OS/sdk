@@ -209,6 +209,12 @@ export {
   type UseLibraryResult,
   type UseLibraryInstallResult,
 } from "./use-library";
+// AKARI-HUB-086: Work レベルコンテキスト購読 hook
+export {
+  useWorkContext,
+  type UseWorkContextOptions,
+  type UseWorkContextResult,
+} from "./hooks/useWorkContext"
 // AKARI-HUB-038 Phase 3: 共有 UI 部品 (PanelTabs / InspectorShell / AIChatPanel)
 export {
   PanelTabs,

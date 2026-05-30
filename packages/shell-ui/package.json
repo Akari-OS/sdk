@@ -24,6 +24,7 @@
     "./ContextPane": "./src/ContextPane.tsx",
     "./hooks/useContextPane": "./src/hooks/useContextPane.ts",
     "./hooks/useContextToggle": "./src/hooks/useContextToggle.ts",
+    "./hooks/useWorkContext": "./src/hooks/useWorkContext.ts",
     "./lib/in-memory-context-adapter": "./src/lib/in-memory-context-adapter.ts",
     "./types/pool": "./src/types/pool.ts",
     "./types/variant": "./src/types/variant.ts",
