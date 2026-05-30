@@ -1,17 +1,19 @@
 /**
- * OperationsPanel — 操作モード（studio 左パネル § 操作カタログ、Phase 0 skeleton）。
+ * OperationsPanel — 操作モード（studio 左パネル §3 操作カタログ）。
  *
- * 「このアプリでできる操作のカタログ」。人間はクリックで適用、AI はチャットへのドラッグで発動。
- * 同じ操作を 2 つの入口から呼べることを UI 上で明示する。
+ * 「このアプリが"する"ことのカタログ」。素材を持たない純粋なアクション（カット / 字幕生成 /
+ * 書き出し / 分析 など）を二重入口で提供する:
+ *   - 人間: クリックで `onRunOperation?.(id)` を呼ぶ（直接発動）
+ *   - AI  : エージェントチャットへドラッグして発動
+ *         → dataTransfer に "application/x-akari-operation" = op.id をセット
  *
- * Phase 0 は in-memory モック。全状態を useState で完結させ、バックエンド配線なし。
+ * Phase 0: in-memory のみ（useState 完結）。
  * Phase 1 で:
- *   - [適用]ボタン → pool-impl / akari-ace へのコマンド送信
+ *   - onRunOperation → pool-impl / akari-ace へのコマンド送信
  *   - ドラッグ → AI チャットの DropZone が "application/x-akari-operation" を受け取り実行
  *   - ピン状態  → user preferences API に永続化
- * へ配線する。
  *
- * 関連: design doc `akari-os/docs/design/studio-left-panel-modes-2026-05-30.md` §3
+ * 関連: design doc `akari-os/docs/design/studio-left-panel-modes-2026-05-30.md` §4
  */
 
 import { useCallback, useMemo, useState } from "react";
@@ -19,122 +21,132 @@ import type { DragEvent } from "react";
 import {
   GripVertical,
   Star,
-  Blend,
-  Grid2x2,
-  SunMedium,
-  Layers,
+  Search,
   Scissors,
   Captions,
   Volume2,
-  Check,
+  Download,
+  Scan,
+  Sparkles,
+  Wand2,
+  Play,
+  Type,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
-// 型定義
+// 公開型定義
 // ---------------------------------------------------------------------------
 
-/** 操作カテゴリ */
-type OperationCategory =
-  | "effect"
-  | "transition"
-  | "cut"
-  | "subtitle"
-  | "audio";
-
-/** 適用状態ヒント */
-type StatusHint =
-  | "adjustable"   // 「インスペクターで調整」
-  | "ordered"      // 「順番が要る」
-  | "applied"      // 「適用済み」
-  | null;
-
-/** 操作定義 */
-interface Operation {
+/** 操作定義（外部から渡す際の型。operations prop で使用） */
+export interface OperationDef {
   id: string;
-  category: OperationCategory;
   label: string;
-  /** lucide-react アイコンコンポーネント */
-  icon: React.ComponentType<{ className?: string }>;
-  hint: StatusHint;
+  category: string;
+  description?: string;
 }
 
 // ---------------------------------------------------------------------------
-// 定数
+// 内部型定義
 // ---------------------------------------------------------------------------
 
-/** カテゴリ表示名 */
-const CATEGORY_LABELS: Record<OperationCategory, string> = {
-  effect: "エフェクト",
-  transition: "トランジション",
-  cut: "カット",
-  subtitle: "字幕",
-  audio: "オーディオ",
-};
+/** 内部拡張操作定義（アイコンなどを付加） */
+interface OperationEntry extends OperationDef {
+  /** lucide-react アイコンコンポーネント */
+  icon: React.ComponentType<{ className?: string }>;
+}
 
-/** カテゴリ → アクセントカラー（フィルターチップ / セクションヘッダー） */
-const CATEGORY_BADGE_CLASS: Record<OperationCategory, string> = {
-  effect: "bg-violet-500/15 text-violet-700 border-violet-500/30",
-  transition: "bg-blue-500/15 text-blue-700 border-blue-500/30",
-  cut: "bg-red-500/15 text-red-700 border-red-500/30",
-  subtitle: "bg-amber-500/15 text-amber-800 border-amber-500/30",
-  audio: "bg-green-500/15 text-green-700 border-green-500/30",
-};
-
-/** ステータスヒントのラベル */
-const HINT_LABEL: Record<NonNullable<StatusHint>, string> = {
-  adjustable: "インスペクターで調整",
-  ordered: "順番が要る",
-  applied: "適用済み",
-};
+// ---------------------------------------------------------------------------
+// デフォルト操作カタログ
+// ---------------------------------------------------------------------------
 
 /** MIME タイプ（AI チャット DropZone が受け取る） */
 const OPERATION_MIME = "application/x-akari-operation";
 
-/** Phase 0 モック操作カタログ */
-const ALL_OPERATIONS: Operation[] = [
-  // エフェクト
-  { id: "op-blur",       category: "effect",     label: "ぼかし",       icon: Blend,    hint: "adjustable" },
-  { id: "op-mosaic",     category: "effect",     label: "モザイク",     icon: Grid2x2,  hint: "adjustable" },
-  { id: "op-color",      category: "effect",     label: "色補正",       icon: SunMedium, hint: "adjustable" },
-  // トランジション
-  { id: "op-fade",       category: "transition", label: "フェード",     icon: Layers,   hint: "ordered" },
-  { id: "op-wipe",       category: "transition", label: "ワイプ",       icon: Layers,   hint: "ordered" },
-  // カット
-  { id: "op-silence-cut", category: "cut",       label: "無音カット",   icon: Scissors, hint: null },
-  { id: "op-filler-cut", category: "cut",        label: "フィラーカット", icon: Scissors, hint: null },
-  // 字幕
-  { id: "op-auto-sub",   category: "subtitle",   label: "自動字幕生成", icon: Captions, hint: null },
-  { id: "op-sub-style",  category: "subtitle",   label: "字幕スタイル", icon: Captions, hint: "adjustable" },
+/** デフォルトの操作定義（動画編集向け） */
+const DEFAULT_OPERATIONS: OperationDef[] = [
+  // 編集
+  { id: "cut",          category: "編集",       label: "カット",           description: "選択範囲をカット・削除する" },
+  { id: "silence-cut",  category: "編集",       label: "無音カット",        description: "無音区間を自動検出してカットする" },
+  { id: "scene-detect", category: "編集",       label: "シーン検出",        description: "シーン境界を自動検出してマーカーを打つ" },
+  // 字幕・テキスト
+  { id: "sub-generate", category: "字幕・テキスト", label: "字幕生成",       description: "音声を認識して字幕トラックを自動生成する" },
+  { id: "sub-fix",      category: "字幕・テキスト", label: "字幕修正",       description: "既存字幕の誤字・タイミングを一括修正する" },
   // オーディオ
-  { id: "op-normalize",  category: "audio",      label: "音量正規化",   icon: Volume2,  hint: null },
-  { id: "op-ducking",    category: "audio",      label: "BGMダッキング", icon: Volume2,  hint: null },
+  { id: "vol-adjust",   category: "オーディオ", label: "音量調整",          description: "全体の音量を均一に正規化する" },
+  { id: "bgm-ducking",  category: "オーディオ", label: "BGM 自動ダッキング", description: "音声トラックに合わせて BGM を自動的に下げる" },
+  // カラー
+  { id: "color-grade",  category: "カラー",     label: "カラーグレード",    description: "全クリップにカラーグレーディングを適用する" },
+  // 書き出し
+  { id: "export",       category: "書き出し",   label: "書き出し",          description: "動画ファイルを指定フォーマットで書き出す" },
+  // 分析
+  { id: "ctx-analyze",  category: "分析",       label: "コンテキスト分析",  description: "素材全体を AI が分析して文脈を把握する" },
+  { id: "highlight",    category: "分析",       label: "ハイライト抽出",    description: "印象的な場面を AI が自動抽出する" },
 ];
+
+/** カテゴリ → アイコンのマッピング（デフォルト操作用） */
+const DEFAULT_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  cut:          Scissors,
+  "silence-cut": Scissors,
+  "scene-detect": Scan,
+  "sub-generate": Captions,
+  "sub-fix":    Type,
+  "vol-adjust": Volume2,
+  "bgm-ducking": Volume2,
+  "color-grade": Wand2,
+  export:       Download,
+  "ctx-analyze": Sparkles,
+  highlight:    Play,
+};
+
+/** カテゴリ → バッジスタイル */
+const CATEGORY_BADGE: Record<string, string> = {
+  "編集":         "bg-red-500/15 text-red-700 border-red-500/30",
+  "字幕・テキスト": "bg-amber-500/15 text-amber-800 border-amber-500/30",
+  "オーディオ":    "bg-green-500/15 text-green-700 border-green-500/30",
+  "カラー":       "bg-violet-500/15 text-violet-700 border-violet-500/30",
+  "書き出し":     "bg-blue-500/15 text-blue-700 border-blue-500/30",
+  "分析":         "bg-sky-500/15 text-sky-700 border-sky-500/30",
+};
+
+/** カテゴリ表示順 */
+const CATEGORY_ORDER = ["編集", "字幕・テキスト", "オーディオ", "カラー", "書き出し", "分析"];
+
+// ---------------------------------------------------------------------------
+// ユーティリティ
+// ---------------------------------------------------------------------------
+
+/** OperationDef を内部 OperationEntry に変換（アイコン解決） */
+function toEntry(op: OperationDef): OperationEntry {
+  return {
+    ...op,
+    icon: DEFAULT_ICON_MAP[op.id] ?? GripVertical,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // コンポーネント
 // ---------------------------------------------------------------------------
 
-export function OperationsPanel(props: { workId?: string; variantId?: string }) {
+export function OperationsPanel(props: {
+  workId?: string;
+  variantId?: string;
+  operations?: OperationDef[];
+  onRunOperation?: (id: string) => void;
+}) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { workId: _workId, variantId: _variantId } = props;
+  const { workId: _workId, variantId: _variantId, operations, onRunOperation } = props;
 
-  /** 適用済みの操作 ID セット（Phase 0: toggle で疑似適用） */
-  const [applied, setApplied] = useState<Set<string>>(new Set());
+  /** 検索文字列 */
+  const [searchQuery, setSearchQuery] = useState("");
 
-  /** ピン済み操作 ID セット（お気に入り → 最上部「よく使う」に浮上） */
+  /** ピン済み操作 ID セット（よく使う → 最上部に浮上） */
   const [pinned, setPinned] = useState<Set<string>>(new Set());
 
-  /** フィルター中のカテゴリ（null = すべて） */
-  const [filter, setFilter] = useState<OperationCategory | null>(null);
-
-  // 適用トグル（Phase 0: in-memory。Phase 1 で pool-impl コマンドに差し替え）
-  const toggleApply = useCallback((id: string) => {
-    setApplied((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }, []);
+  /** 使用するエントリ一覧（prop 指定があればそちら、なければデフォルト） */
+  const allEntries = useMemo<OperationEntry[]>(() => {
+    const source = operations ?? DEFAULT_OPERATIONS;
+    return source.map(toEntry);
+  }, [operations]);
 
   // ピントグル
   const togglePin = useCallback((id: string) => {
@@ -145,42 +157,49 @@ export function OperationsPanel(props: { workId?: string; variantId?: string }) 
     });
   }, []);
 
+  // 操作クリック → onRunOperation を呼ぶ
+  const handleRun = useCallback(
+    (id: string) => {
+      onRunOperation?.(id);
+    },
+    [onRunOperation],
+  );
+
   // ドラッグ開始（AI チャット DropZone 向けに操作 id をセット）
   const handleDragStart = useCallback(
-    (op: Operation, e: DragEvent<HTMLDivElement>) => {
+    (op: OperationEntry, e: DragEvent<HTMLDivElement>) => {
       e.dataTransfer.effectAllowed = "copy";
-      // AI チャットが受け取るカスタム MIME（操作 id + ラベルを JSON で載せる）
-      e.dataTransfer.setData(
-        OPERATION_MIME,
-        JSON.stringify({ id: op.id, label: op.label, category: op.category }),
-      );
+      e.dataTransfer.setData(OPERATION_MIME, op.id);
       // フォールバック: テキスト対応 drop target にも届くように
       e.dataTransfer.setData("text/plain", op.label);
     },
     [],
   );
 
-  /** フィルター後の操作一覧 */
-  const filtered = useMemo(
-    () =>
-      filter
-        ? ALL_OPERATIONS.filter((op) => op.category === filter)
-        : ALL_OPERATIONS,
-    [filter],
+  /** 検索フィルター後のエントリ */
+  const filtered = useMemo<OperationEntry[]>(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return allEntries;
+    return allEntries.filter(
+      (op) =>
+        op.label.toLowerCase().includes(q) ||
+        (op.description?.toLowerCase().includes(q) ?? false),
+    );
+  }, [allEntries, searchQuery]);
+
+  /** よく使う（ピン済み）— フィルター問わず常に表示 */
+  const pinnedEntries = useMemo<OperationEntry[]>(
+    () => allEntries.filter((op) => pinned.has(op.id)),
+    [allEntries, pinned],
   );
 
-  /** ピン済み操作（フィルター問わず常に「よく使う」に表示） */
-  const pinnedOps = useMemo(
-    () => ALL_OPERATIONS.filter((op) => pinned.has(op.id)),
-    [pinned],
-  );
-
-  /** フィルター後のカテゴリ一覧（表示順を維持） */
-  const visibleCategories = useMemo<OperationCategory[]>(() => {
+  /** フィルター後の表示カテゴリ（定義順） */
+  const visibleCategories = useMemo<string[]>(() => {
     const cats = new Set(filtered.map((op) => op.category));
-    return (
-      ["effect", "transition", "cut", "subtitle", "audio"] as OperationCategory[]
-    ).filter((c) => cats.has(c));
+    const ordered = CATEGORY_ORDER.filter((c) => cats.has(c));
+    // CATEGORY_ORDER に含まれない未知のカテゴリはアルファベット順で末尾に追加
+    const extras = [...cats].filter((c) => !CATEGORY_ORDER.includes(c)).sort();
+    return [...ordered, ...extras];
   }, [filtered]);
 
   return (
@@ -188,45 +207,42 @@ export function OperationsPanel(props: { workId?: string; variantId?: string }) 
       {/* ヘッダー */}
       <div className="flex flex-col gap-0.5 px-0.5">
         <span className="text-[10px] text-muted-foreground">
-          操作カタログ（{ALL_OPERATIONS.length} 件）
+          操作カタログ（{allEntries.length} 件）
         </span>
-        {/* 2 入口の説明 */}
         <span className="text-[9px] text-muted-foreground/70 leading-tight">
-          人間はクリック、AI はドラッグ — 同じ操作の 2 つの入口
+          クリックで発動 / AI チャットへドラッグして発動
         </span>
       </div>
 
-      {/* カテゴリフィルターチップ */}
-      <div className="flex flex-wrap gap-1">
-        <FilterChip
-          active={filter === null}
-          label={`すべて (${ALL_OPERATIONS.length})`}
-          onClick={() => setFilter(null)}
+      {/* インライン検索 */}
+      <div className="relative">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/50 pointer-events-none" />
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="操作を検索…"
+          className="w-full rounded border border-border bg-background pl-6 pr-2 py-1 text-xs placeholder:text-muted-foreground/50 outline-none focus:border-primary/50 transition"
         />
-        {(
-          ["effect", "transition", "cut", "subtitle", "audio"] as OperationCategory[]
-        ).map((cat) => (
-          <FilterChip
-            key={cat}
-            active={filter === cat}
-            label={CATEGORY_LABELS[cat]}
-            colorClass={CATEGORY_BADGE_CLASS[cat]}
-            onClick={() => setFilter((prev) => (prev === cat ? null : cat))}
-          />
-        ))}
       </div>
 
-      {/* よく使うセクション（ピン済みがある場合のみ表示） */}
-      {pinnedOps.length > 0 && (
+      {/* 検索ヒット数（検索中のみ） */}
+      {searchQuery.trim() && (
+        <span className="text-[10px] text-muted-foreground/70 px-0.5">
+          {filtered.length} 件ヒット
+        </span>
+      )}
+
+      {/* よく使うセクション（ピン済みがあり、かつ検索中でない場合のみ） */}
+      {pinnedEntries.length > 0 && !searchQuery.trim() && (
         <section className="flex flex-col gap-1">
           <SectionHeader label="よく使う" />
-          {pinnedOps.map((op) => (
+          {pinnedEntries.map((op) => (
             <OperationRow
               key={`pinned-${op.id}`}
               op={op}
-              applied={applied.has(op.id)}
               pinned={true}
-              onToggleApply={toggleApply}
+              onRun={handleRun}
               onTogglePin={togglePin}
               onDragStart={handleDragStart}
             />
@@ -240,16 +256,15 @@ export function OperationsPanel(props: { workId?: string; variantId?: string }) 
         return (
           <section key={cat} className="flex flex-col gap-1">
             <SectionHeader
-              label={CATEGORY_LABELS[cat]}
-              colorClass={CATEGORY_BADGE_CLASS[cat]}
+              label={cat}
+              colorClass={CATEGORY_BADGE[cat]}
             />
             {ops.map((op) => (
               <OperationRow
                 key={op.id}
                 op={op}
-                applied={applied.has(op.id)}
                 pinned={pinned.has(op.id)}
-                onToggleApply={toggleApply}
+                onRun={handleRun}
                 onTogglePin={togglePin}
                 onDragStart={handleDragStart}
               />
@@ -257,6 +272,13 @@ export function OperationsPanel(props: { workId?: string; variantId?: string }) 
           </section>
         );
       })}
+
+      {/* 検索ゼロヒット時のフォールバック */}
+      {searchQuery.trim() && filtered.length === 0 && (
+        <div className="px-1 py-4 text-center text-[10px] text-muted-foreground/60">
+          「{searchQuery}」に一致する操作が見つかりません
+        </div>
+      )}
     </div>
   );
 }
@@ -287,34 +309,28 @@ function SectionHeader({
 /** 1 操作行 */
 function OperationRow({
   op,
-  applied,
   pinned,
-  onToggleApply,
+  onRun,
   onTogglePin,
   onDragStart,
 }: {
-  op: Operation;
-  applied: boolean;
+  op: OperationEntry;
   pinned: boolean;
-  onToggleApply: (id: string) => void;
+  onRun: (id: string) => void;
   onTogglePin: (id: string) => void;
-  onDragStart: (op: Operation, e: DragEvent<HTMLDivElement>) => void;
+  onDragStart: (op: OperationEntry, e: DragEvent<HTMLDivElement>) => void;
 }) {
   const Icon = op.icon;
 
   return (
     <div
-      className={`group flex items-center gap-1.5 rounded border px-1.5 py-1 transition ${
-        applied
-          ? "bg-primary/5 border-primary/30"
-          : "bg-background border-border hover:border-primary/50"
-      }`}
+      className="group flex items-center gap-1.5 rounded border border-border bg-background px-1.5 py-1 transition hover:border-primary/50 hover:bg-muted/30"
     >
       {/* ドラッグハンドル（「AI チャットにドラッグして発動」用） */}
       <div
         draggable
         onDragStart={(e) => onDragStart(op, e)}
-        className="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground transition"
+        className="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition"
         title="AI チャットにドラッグして発動"
       >
         <GripVertical className="w-3 h-3" />
@@ -323,44 +339,32 @@ function OperationRow({
       {/* カテゴリアイコン */}
       <Icon className="shrink-0 w-3 h-3 text-muted-foreground" />
 
-      {/* 操作名 + ヒントラベル */}
+      {/* 操作名 + 説明 */}
       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
         <span
-          className={`truncate leading-tight ${applied ? "text-primary font-medium" : "text-foreground"}`}
+          className="truncate leading-tight text-foreground"
           title={op.label}
         >
           {op.label}
         </span>
-        {/* ステータスヒント（一部操作のみ） */}
-        {op.hint && (
-          <span
-            className={`text-[9px] leading-tight ${
-              op.hint === "applied"
-                ? "text-primary"
-                : "text-muted-foreground/70"
-            }`}
-          >
-            {HINT_LABEL[op.hint]}
+        {op.description && (
+          <span className="text-[9px] leading-tight text-muted-foreground/60 truncate" title={op.description}>
+            {op.description}
           </span>
         )}
       </div>
 
-      {/* [適用]ボタン（Phase 0: toggle で疑似適用） */}
+      {/* [実行]ボタン — クリックで onRunOperation を呼ぶ */}
       <button
         type="button"
-        onClick={() => onToggleApply(op.id)}
-        className={`shrink-0 flex items-center gap-0.5 rounded border px-1.5 py-0.5 text-[9px] transition ${
-          applied
-            ? "bg-primary text-primary-foreground border-primary"
-            : "border-border text-muted-foreground hover:text-primary hover:border-primary"
-        }`}
-        title={applied ? "適用解除" : "適用する"}
+        onClick={() => onRun(op.id)}
+        className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[9px] text-muted-foreground transition hover:text-primary hover:border-primary opacity-0 group-hover:opacity-100"
+        title={`${op.label} を実行`}
       >
-        {applied && <Check className="w-2.5 h-2.5" />}
-        {applied ? "適用済み" : "適用"}
+        実行
       </button>
 
-      {/* ピン/★トグル（お気に入り） */}
+      {/* ピン/★トグル（よく使う） */}
       <button
         type="button"
         onClick={() => onTogglePin(op.id)}
@@ -371,38 +375,8 @@ function OperationRow({
         }`}
         title={pinned ? "ピン解除" : "よく使うに追加"}
       >
-        <Star
-          className={`w-3 h-3 ${pinned ? "fill-amber-500" : ""}`}
-        />
+        <Star className={`w-3 h-3 ${pinned ? "fill-amber-500" : ""}`} />
       </button>
     </div>
-  );
-}
-
-/** フィルターチップ */
-function FilterChip({
-  active,
-  label,
-  colorClass,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  colorClass?: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full border px-2 py-0.5 text-[10px] transition ${
-        active
-          ? "bg-primary text-primary-foreground border-primary"
-          : (colorClass ??
-            "bg-muted/50 text-muted-foreground border-border hover:border-primary")
-      }`}
-    >
-      {label}
-    </button>
   );
 }
