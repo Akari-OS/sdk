@@ -25,7 +25,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { DragEvent } from "react";
+import type { DragEvent, ReactNode } from "react";
 import { Plus, Check, Sparkles, X, Trash2 } from "lucide-react";
 import { SLOT_ROLE_LABELS, type SlotRole } from "@akari-os/sdk/slot";
 import {
@@ -88,12 +88,20 @@ export interface ContextSlotPanelProps {
   variantId?: string;
   /** 素材が属する Pool 名。未指定なら current Pool に fallback（pool-impl 側） */
   library?: string | null;
+  /**
+   * 「＋追加 → Pool から」で**パネル内インライン切替**表示する Pool ピッカーを
+   * アプリ（video 等）が注入する（studio-left-panel-modes Option A、ポップアップ禁止＝一画面化）。
+   * アプリ固有の clip ブラウザ（PoolSourcePanel 等）を渡す。`onClose` で一覧へ戻る。
+   * 未指定なら「Pool から」選択肢は出さない。
+   */
+  renderPoolPicker?: (args: { onClose: () => void }) => ReactNode;
 }
 
 export function ContextSlotPanel({
   workId,
   variantId,
   library,
+  renderPoolPicker,
 }: ContextSlotPanelProps) {
   /** 永続モード = Work / Variant が確定しているとき */
   const bound = !!(workId && variantId);
@@ -103,6 +111,8 @@ export function ContextSlotPanel({
   const [filter, setFilter] = useState<SlotRole | "all">("all");
   /** ソース選択パネルの開閉（true = 展開中。モックモード専用） */
   const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
+  /** Pool ピッカーのインライン表示（永続モード・renderPoolPicker 注入時） */
+  const [poolPickerOpen, setPoolPickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -280,6 +290,36 @@ export function ContextSlotPanel({
     filter === "all" ? entries : entries.filter((e) => e.role === filter);
   const addRole: SlotRole = filter === "all" ? "misc" : filter;
 
+  const closePoolPicker = useCallback(() => {
+    setPoolPickerOpen(false);
+    void reload();
+  }, [reload]);
+
+  // 「Pool から」インライン表示: 一覧の代わりに app 提供のピッカーをパネル内に出す
+  // （ポップアップ禁止＝一画面化、RULES §9/§11）。閉じると一覧へ戻り reload。
+  if (bound && poolPickerOpen && renderPoolPicker) {
+    return (
+      <div className="flex flex-col h-full min-h-0 text-xs">
+        <div className="flex items-center gap-1.5 p-1.5 border-b border-border shrink-0">
+          <button
+            type="button"
+            className="flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-primary hover:border-primary transition"
+            onClick={closePoolPicker}
+          >
+            <X className="w-3 h-3" />
+            ワークプールへ戻る
+          </button>
+          <span className="text-[10px] text-muted-foreground">
+            Pool から追加（＋でワークプール / D&D でタイムライン）
+          </span>
+        </div>
+        <div className="flex-1 min-h-0 overflow-auto">
+          {renderPoolPicker({ onClose: closePoolPicker })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-2 p-2 text-xs">
       {/* ヘッダー: ワークプール名 + 件数サマリ */}
@@ -316,11 +356,54 @@ export function ContextSlotPanel({
         ))}
       </div>
 
-      {/* 追加経路。永続モードは D&D 一本（ソースピッカーは Phase 1.x） */}
+      {/* 追加経路（永続モード）: ＋追加 → ソース選択。「Pool から」はパネル内インライン切替 */}
       {bound ? (
-        <div className="text-[9px] text-muted-foreground/70 px-0.5">
-          Pool 素材を下のエリア / チップに D&D で追加
-          {filter !== "all" ? `（${SLOT_ROLE_LABELS[addRole]} に分類）` : ""}
+        <div className="flex flex-col gap-1">
+          <button
+            type="button"
+            className={`self-start flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] transition ${
+              sourcePickerOpen
+                ? "border-primary text-primary"
+                : "border-border text-muted-foreground hover:text-primary hover:border-primary"
+            }`}
+            onClick={() => setSourcePickerOpen((v) => !v)}
+          >
+            {sourcePickerOpen ? (
+              <X className="w-3 h-3" />
+            ) : (
+              <Plus className="w-3 h-3" />
+            )}
+            {sourcePickerOpen ? "閉じる" : "追加"}
+          </button>
+
+          {sourcePickerOpen && (
+            <div className="flex flex-col gap-0.5 rounded border border-border bg-muted/30 p-1.5">
+              {renderPoolPicker ? (
+                <button
+                  type="button"
+                  className="flex items-start gap-1.5 rounded px-1.5 py-1 text-left text-[10px] text-muted-foreground hover:bg-muted hover:text-primary transition"
+                  onClick={() => {
+                    setSourcePickerOpen(false);
+                    setPoolPickerOpen(true);
+                  }}
+                >
+                  <Plus className="w-3 h-3 mt-0.5 shrink-0" />
+                  <span className="flex flex-col">
+                    <span className="font-medium">Pool から</span>
+                    <span className="text-[9px] text-muted-foreground/60">
+                      この場で Pool を開いて素材を選ぶ
+                    </span>
+                  </span>
+                </button>
+              ) : null}
+              <div className="text-[9px] text-muted-foreground/60 px-1 pt-0.5">
+                Pool 素材は下のエリア / チップへ D&D でも追加できます
+                {filter !== "all"
+                  ? `（${SLOT_ROLE_LABELS[addRole]} に分類）`
+                  : ""}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex flex-col gap-1">
