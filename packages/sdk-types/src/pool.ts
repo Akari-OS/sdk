@@ -217,8 +217,13 @@ export async function searchItems(
 export async function getItem(
   library: string,
   id: string,
+  options: { checkHash?: boolean } = {},
 ): Promise<PoolItemFull> {
-  return (await invoke("pool_get_item", { library, id })) as PoolItemFull
+  return (await invoke("pool_get_item", {
+    library,
+    id,
+    checkHash: options.checkHash ?? false,
+  })) as PoolItemFull
 }
 
 export async function listRelations(
