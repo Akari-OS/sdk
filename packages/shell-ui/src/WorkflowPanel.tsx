@@ -1,7 +1,7 @@
 /**
  * WorkflowPanel — ワークフローモード（studio-left-panel-modes-2026-05-30 §5）。
  *
- * 「① ワークプールで選んだ素材と ② 操作が、ここで手順（レシピ）として生きる」をコンセプトにしたパネル。
+ * 「① 制作素材で選んだ素材と ② 操作が、ここで手順（レシピ）として生きる」をコンセプトにしたパネル。
  * ① 素材 / ③ 操作 を並べたレシピ / 手順。番号付き手順の追加・並べ替え・削除・完了トグル・インライン編集を提供。
  *
  * Phase 1（現在）:
@@ -45,7 +45,7 @@ export interface WorkflowStep {
 
 /** デモ用シードデータ（動画編集の例） */
 const SEED_STEPS: WorkflowStep[] = [
-  { id: "seed-1", title: "素材をワークプールに集める", done: false },
+  { id: "seed-1", title: "素材を『制作素材』に集める", done: false },
   { id: "seed-2", title: "不要部分をカットする", done: false },
   { id: "seed-3", title: "字幕を生成する", done: false },
   { id: "seed-4", title: "BGM をライブラリから追加", done: false },

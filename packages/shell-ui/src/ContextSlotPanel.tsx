@@ -1,7 +1,7 @@
 /**
- * ① ワークプール（旧 ContextSlotPanel、HUB-086）
+ * ① 制作素材（旧 ContextSlotPanel、HUB-086）
  *
- * studio-left-panel-modes-2026-05-30.md §2 のワークプール。この Work の素材 + WIP の保管庫。
+ * studio-left-panel-modes-2026-05-30.md §2 の制作素材。この Work の素材 + WIP の保管庫。
  *
  * 2 モード:
  *   - **永続モード**（workId && variantId が揃う）: pool-impl の slot_entries に読み書き。
@@ -134,7 +134,7 @@ export interface ContextSlotPanelProps {
    */
   renderPoolPicker?: (args: { onClose: () => void }) => ReactNode;
   /**
-   * ワークプール一覧の各エントリ行の PointerDown イベントコールバック。
+   * 制作素材一覧の各エントリ行の PointerDown イベントコールバック。
    * タイムラインへの pointer-drag（D&D）起点として video 側が利用する。
    * assetId がある（Pool 参照行）場合のみ呼ばれる。未指定なら pointer-drag は出さない。
    */
@@ -209,7 +209,7 @@ export function ContextSlotPanel({
       );
       setError(null);
     } catch (e) {
-      console.warn("[ワークプール] slot_list_entries 失敗", e);
+      console.warn("[制作素材] slot_list_entries 失敗", e);
       setError("素材の読み込みに失敗しました");
     }
   }, [bound, lib, workId, variantId]);
@@ -246,7 +246,7 @@ export function ContextSlotPanel({
       }
       // 永続モードは asset 参照が必須（label だけのエントリは持たない）
       if (!assetId) {
-        console.info("[ワークプール] Pool 素材を D&D してください（label のみは非対応）");
+        console.info("[制作素材] Pool 素材を D&D してください（label のみは非対応）");
         return;
       }
       setBusy(true);
@@ -259,7 +259,7 @@ export function ContextSlotPanel({
         });
         await reload();
       } catch (e) {
-        console.warn("[ワークプール] slot_add_entry 失敗", e);
+        console.warn("[制作素材] slot_add_entry 失敗", e);
         setError("素材の追加に失敗しました");
       } finally {
         setBusy(false);
@@ -282,7 +282,7 @@ export function ContextSlotPanel({
         await slotPromoteEntry(lib, id, role);
         await reload();
       } catch (e) {
-        console.warn("[ワークプール] slot_promote_entry 失敗", e);
+        console.warn("[制作素材] slot_promote_entry 失敗", e);
         setError("分類の変更に失敗しました");
       } finally {
         setBusy(false);
@@ -303,7 +303,7 @@ export function ContextSlotPanel({
         await slotRemoveEntry(lib, id);
         await reload();
       } catch (e) {
-        console.warn("[ワークプール] slot_remove_entry 失敗", e);
+        console.warn("[制作素材] slot_remove_entry 失敗", e);
         setError("素材の削除に失敗しました");
       } finally {
         setBusy(false);
@@ -356,7 +356,7 @@ export function ContextSlotPanel({
         await analyzeItem(lib ?? "akari-uploads", assetId);
         await reload();
       } catch (e) {
-        console.warn("[ワークプール] analyzeItem 失敗", e);
+        console.warn("[制作素材] analyzeItem 失敗", e);
         setError("分析に失敗しました");
       } finally {
         setAnalyzingIds((prev) => {
@@ -437,10 +437,10 @@ export function ContextSlotPanel({
             onClick={closePicker}
           >
             <X className="w-3 h-3" />
-            ワークプールへ戻る
+            制作素材へ戻る
           </button>
           <span className="text-[10px] text-muted-foreground">
-            Pool から追加（＋でワークプール / D&D でタイムライン）
+            Pool から追加（＋で制作素材 / D&D でタイムライン）
           </span>
         </div>
         <div className="flex-1 min-h-0 overflow-auto">
@@ -460,7 +460,7 @@ export function ContextSlotPanel({
             onClick={closePicker}
           >
             <X className="w-3 h-3" />
-            ワークプールへ戻る
+            制作素材へ戻る
           </button>
           <span className="text-[10px] text-muted-foreground">
             Library から追加
@@ -475,10 +475,10 @@ export function ContextSlotPanel({
 
   return (
     <div className="flex flex-col gap-2 p-2 text-xs">
-      {/* ヘッダー: ワークプール名 + 件数サマリ */}
+      {/* ヘッダー: 制作素材名 + 件数サマリ */}
       <div className="px-0.5 text-[10px] text-muted-foreground flex items-center justify-between">
         <span>
-          ワークプール（{entries.length} 件 / 分析済み {analyzedCount}）
+          制作素材（{entries.length} 件 / 分析済み {analyzedCount}）
         </span>
         {busy && <span className="text-[9px] opacity-60">…</span>}
       </div>
@@ -698,7 +698,7 @@ export function ContextSlotPanel({
 }
 
 /**
- * EntryRow — ワークプール内の 1 エントリ行。
+ * EntryRow — 制作素材内の 1 エントリ行。
  *
  * - サムネ（assetId があれば遅延ロード）: JPEG サムネ or アイコン fallback
  * - 分類タグ（色付き select）
@@ -808,7 +808,7 @@ function EntryRow({
       <button
         type="button"
         className="shrink-0 rounded p-0.5 text-muted-foreground/60 hover:text-destructive transition"
-        title="ワークプールから外す"
+        title="制作素材から外す"
         onClick={onRemove}
       >
         <Trash2 className="w-3 h-3" />

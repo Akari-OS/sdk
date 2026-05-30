@@ -2,8 +2,8 @@
  * WorkPanel — Studio 左パネルの 3 面コンテナ（studio-left-panel-modes / AKARI-HUB-086）。
  *
  * 「左パネル = 人間にも AI にも共通の入口」として、VS Code Activity Bar 風の
- * 3 モード切替で **① ワークプール / ② 操作 / ③ ワークフロー** を切り替える。
- *   - ① ワークプール: 何を使うか（素材 + WIP の保管庫）= ContextSlotPanel
+ * 3 モード切替で **① 制作素材 / ② 操作 / ③ ワークフロー** を切り替える。
+ *   - ① 制作素材: 何を使うか（素材 + WIP の保管庫）= ContextSlotPanel
  *   - ② 操作        : 何ができるか（操作カタログ・人間 click / AI drag）= OperationsPanel
  *   - ③ ワークフロー: どの順でやるか（手順 / レシピ）= WorkflowPanel
  *
@@ -19,7 +19,7 @@ import { WorkflowPanel } from "./WorkflowPanel";
 export type WorkMode = "workpool" | "operations" | "workflow";
 
 const MODES: { id: WorkMode; label: string; icon: ReactNode }[] = [
-  { id: "workpool", label: "ワークプール", icon: <Package className="w-3.5 h-3.5" /> },
+  { id: "workpool", label: "制作素材", icon: <Package className="w-3.5 h-3.5" /> },
   { id: "operations", label: "操作", icon: <Wrench className="w-3.5 h-3.5" /> },
   { id: "workflow", label: "ワークフロー", icon: <ListOrdered className="w-3.5 h-3.5" /> },
 ];
@@ -31,10 +31,10 @@ export interface WorkPanelProps {
   library?: string | null;
   /** OperationsPanel の「実行」クリック → アプリ側のアクションハンドラ */
   onRunOperation?: (id: string) => void;
-  /** ワークプールの「Pool から」インライン Pool ピッカー（ContextSlotPanel へ pass-through） */
+  /** 制作素材の「Pool から」インライン Pool ピッカー（ContextSlotPanel へ pass-through） */
   renderPoolPicker?: (args: { onClose: () => void }) => ReactNode;
   /**
-   * ワークプール一覧行の PointerDown コールバック（ContextSlotPanel へ pass-through）。
+   * 制作素材一覧行の PointerDown コールバック（ContextSlotPanel へ pass-through）。
    * タイムラインへの pointer-drag 起点として video 側が利用する。
    */
   onEntryPointerDown?: (assetId: string, e: PointerEvent<HTMLElement>) => void;
