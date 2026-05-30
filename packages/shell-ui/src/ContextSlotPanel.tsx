@@ -18,7 +18,7 @@
  * Phase 1.x 残（次フェーズ）:
  *   - 「+追加」のソース選択（ローカル OS dialog / Pool・Library 検索パネル）の実装
  *   - 「分析」ボタンの実トリガ（analyzeItem。library 解決 + 進捗 UI が必要）
- *   - 全 17 スロットの分類 UI（現状は session 117 承認の 4 分類チップ）
+ *   - 全 17 スロットの分類 UI — 実装済み（ALL_SLOT_ROLES）
  *
  * 関連: spec `akari-os/docs/sdd/specs/spec-slot-and-work-context-schema.md` §2 / §9 Phase 1
  *       design `akari-os/docs/design/studio-left-panel-modes-2026-05-30.md` §2
@@ -35,15 +35,46 @@ import {
   slotPromoteEntry,
 } from "@akari-os/sdk/pool";
 
-/** Phase 1 の分類チップ（4 つ。データ層は全 17 role 対応）。filter / tag に使う */
-const PHASE0_ROLES: SlotRole[] = ["main-track", "bgm", "reference", "misc"];
+/** 全 17 SlotRole（フィルターチップ・分類 select の両方で使用） */
+const ALL_SLOT_ROLES: SlotRole[] = [
+  "main-track",
+  "voice-over",
+  "subtitle",
+  "tone",
+  "bgm",
+  "sfx",
+  "inset",
+  "logo",
+  "title-card",
+  "lower-third",
+  "font-family",
+  "text-style",
+  "text-fx",
+  "color-grade",
+  "chapter",
+  "reference",
+  "misc",
+];
 
-/** role → 分類タグの色（瞬時に見分けるため） */
-const ROLE_BADGE_CLASS: Record<string, string> = {
-  "main-track": "bg-blue-500/15 text-blue-700 border-blue-500/30",
-  bgm: "bg-purple-500/15 text-purple-700 border-purple-500/30",
-  reference: "bg-amber-500/15 text-amber-800 border-amber-500/30",
-  misc: "bg-muted text-muted-foreground border-border",
+/** role → 分類タグの色（色相を散らして瞬時に見分けるため） */
+const ROLE_BADGE_CLASS: Record<SlotRole, string> = {
+  "main-track":   "bg-blue-500/15 text-blue-700 border-blue-500/30",
+  "voice-over":   "bg-cyan-500/15 text-cyan-700 border-cyan-500/30",
+  subtitle:       "bg-sky-500/15 text-sky-700 border-sky-500/30",
+  tone:           "bg-teal-500/15 text-teal-700 border-teal-500/30",
+  bgm:            "bg-purple-500/15 text-purple-700 border-purple-500/30",
+  sfx:            "bg-fuchsia-500/15 text-fuchsia-700 border-fuchsia-500/30",
+  inset:          "bg-pink-500/15 text-pink-700 border-pink-500/30",
+  logo:           "bg-rose-500/15 text-rose-700 border-rose-500/30",
+  "title-card":   "bg-orange-500/15 text-orange-700 border-orange-500/30",
+  "lower-third":  "bg-yellow-500/15 text-yellow-700 border-yellow-500/30",
+  "font-family":  "bg-lime-500/15 text-lime-700 border-lime-500/30",
+  "text-style":   "bg-green-500/15 text-green-700 border-green-500/30",
+  "text-fx":      "bg-emerald-500/15 text-emerald-700 border-emerald-500/30",
+  "color-grade":  "bg-violet-500/15 text-violet-700 border-violet-500/30",
+  chapter:        "bg-indigo-500/15 text-indigo-700 border-indigo-500/30",
+  reference:      "bg-amber-500/15 text-amber-800 border-amber-500/30",
+  misc:           "bg-muted text-muted-foreground border-border",
 };
 
 /** ソース選択の 3 種別（モックモード: モックエントリを追加） */
@@ -396,7 +427,7 @@ export function ContextSlotPanel({
           onClick={() => setFilter("all")}
           onDrop={(e) => handleDrop("misc", e)}
         />
-        {PHASE0_ROLES.map((role) => (
+        {ALL_SLOT_ROLES.map((role) => (
           <FilterChip
             key={role}
             active={filter === role}
@@ -581,11 +612,7 @@ export function ContextSlotPanel({
                 className={`shrink-0 rounded border px-1 py-0.5 text-[9px] ${ROLE_BADGE_CLASS[entry.role] ?? ROLE_BADGE_CLASS.misc}`}
                 title="分類を変更"
               >
-                {/* 現在の role が 4 分類外でも選択肢に出す（データ層は全 17 対応） */}
-                {(PHASE0_ROLES.includes(entry.role)
-                  ? PHASE0_ROLES
-                  : [...PHASE0_ROLES, entry.role]
-                ).map((r) => (
+                {ALL_SLOT_ROLES.map((r) => (
                   <option key={r} value={r}>
                     {SLOT_ROLE_LABELS[r]}
                   </option>
