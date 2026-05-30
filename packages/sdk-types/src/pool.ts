@@ -484,3 +484,54 @@ export async function slotPromoteEntry(
     newRole,
   })) as SlotEntry
 }
+
+// ===== WorkflowPanel 手順永続化 =====
+//
+// work_states テーブルの state_json に "workflow_steps" キーで保存。
+// 既存 HUB-086 用途（slot_definitions 等）とキーが分離しており衝突しない。
+
+/**
+ * WorkflowPanel の 1 手順。shell-ui の `WorkflowStep` interface と同形。
+ * Rust 側の `WorkflowStepDto` に対応する。
+ */
+export interface WorkflowStepDTO {
+  id: string
+  title: string
+  note?: string
+  done: boolean
+}
+
+/**
+ * (library, workId, variantId) に紐づくワークフロー手順一覧を取得する。
+ * 未設定・row 不存在なら空配列を返す。
+ * `library` は null で current Pool に fallback。
+ */
+export async function getWorkflowSteps(
+  library: string | null,
+  workId: string,
+  variantId: string,
+): Promise<WorkflowStepDTO[]> {
+  return (await invoke("pool_get_workflow_steps", {
+    library,
+    workId,
+    variantId,
+  })) as WorkflowStepDTO[]
+}
+
+/**
+ * (library, workId, variantId) のワークフロー手順一覧を保存する（他キーは保持）。
+ * `library` は null で current Pool に fallback。
+ */
+export async function setWorkflowSteps(
+  library: string | null,
+  workId: string,
+  variantId: string,
+  steps: WorkflowStepDTO[],
+): Promise<void> {
+  await invoke("pool_set_workflow_steps", {
+    library,
+    workId,
+    variantId,
+    steps,
+  })
+}
