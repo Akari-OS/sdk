@@ -267,6 +267,26 @@ export {
 } from "./compatibility.js"
 
 // ---------------------------------------------------------------------------
+// Slot 定義 + Work コンテキスト (AKARI-HUB-086 — Context-First Panel 基盤)
+// ---------------------------------------------------------------------------
+export type {
+  SlotRole,
+  SlotAssetType,
+  SlotCardinality,
+  SlotDefinition,
+  SlotEntry,
+} from "./slot.js"
+
+export { SLOT_ROLE_LABELS } from "./slot.js"
+
+export type {
+  StrategyField,
+  StrategyContext,
+  WorkReference,
+  WorkContextPayload,
+} from "./work-context.js"
+
+// ---------------------------------------------------------------------------
 // Generated from upstream JSON Schemas (AMP v0.1 / M2C v0.2)
 // Do not edit manually. Regenerate with `pnpm codegen` at repo root.
 // Upstream SSOT: akari-amp/spec/v0.1/*.schema.json, akari-m2c/spec/v0.2/*.schema.json

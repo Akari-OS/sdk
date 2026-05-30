@@ -22,6 +22,8 @@
     "./compatibility": "./src/compatibility.ts",
     "./mcp": "./src/mcp.ts",
     "./pool": "./src/pool.ts",
+    "./slot": "./src/slot.ts",
+    "./work-context": "./src/work-context.ts",
     "./models": "./src/models.ts",
     "./model-store": "./src/model-store.ts",
     "./chat-context": "./src/chat-context.ts",
