@@ -25,7 +25,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { DragEvent, ReactNode } from "react";
+import type { DragEvent, PointerEvent, ReactNode } from "react";
 import { Plus, Check, Sparkles, X, Trash2 } from "lucide-react";
 import { SLOT_ROLE_LABELS, type SlotRole } from "@akari-os/sdk/slot";
 import {
@@ -79,6 +79,8 @@ interface DisplayEntry {
   role: SlotRole;
   /** コンテキスト分析済みか（永続: 参照 Pool item の analyzed_at != null） */
   analyzed: boolean;
+  /** 参照 Pool item の ID（永続: slot_entries.asset_id / モック: null） */
+  assetId: string | null;
 }
 
 const AKARI_POOL_ITEM_MIME = "application/x-akari-pool-item";
@@ -95,6 +97,23 @@ export interface ContextSlotPanelProps {
    * 未指定なら「Pool から」選択肢は出さない。
    */
   renderPoolPicker?: (args: { onClose: () => void }) => ReactNode;
+  /**
+   * ワークプール一覧の各エントリ行の PointerDown イベントコールバック。
+   * タイムラインへの pointer-drag（D&D）起点として video 側が利用する。
+   * assetId がある（Pool 参照行）場合のみ呼ばれる。未指定なら pointer-drag は出さない。
+   */
+  onEntryPointerDown?: (assetId: string, e: PointerEvent<HTMLElement>) => void;
+  /**
+   * 「＋追加 → ローカルから」クリック時のハンドラ。
+   * 呼び出し後に自動で reload する。未指定なら「ローカルから」選択肢は出さない。
+   */
+  onAddFromLocal?: () => Promise<void>;
+  /**
+   * 「＋追加 → Library から」で**パネル内インライン切替**表示する Library ピッカーを
+   * アプリが注入する（renderPoolPicker と同じ一画面化パターン）。
+   * `onClose` で一覧へ戻り reload。未指定なら「Library から」選択肢は出さない。
+   */
+  renderLibraryPicker?: (args: { onClose: () => void }) => ReactNode;
 }
 
 export function ContextSlotPanel({
@@ -102,6 +121,9 @@ export function ContextSlotPanel({
   variantId,
   library,
   renderPoolPicker,
+  onEntryPointerDown,
+  onAddFromLocal,
+  renderLibraryPicker,
 }: ContextSlotPanelProps) {
   /** 永続モード = Work / Variant が確定しているとき */
   const bound = !!(workId && variantId);
@@ -109,10 +131,14 @@ export function ContextSlotPanel({
 
   const [entries, setEntries] = useState<DisplayEntry[]>([]);
   const [filter, setFilter] = useState<SlotRole | "all">("all");
-  /** ソース選択パネルの開閉（true = 展開中。モックモード専用） */
+  /** ソース選択パネルの開閉（true = 展開中） */
   const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
-  /** Pool ピッカーのインライン表示（永続モード・renderPoolPicker 注入時） */
-  const [poolPickerOpen, setPoolPickerOpen] = useState(false);
+  /**
+   * インラインピッカーのモード（'pool' | 'library' | null）。
+   * renderPoolPicker / renderLibraryPicker の注入時、ソース選択から切替表示する。
+   * null = 一覧表示。旧 poolPickerOpen を一般化。
+   */
+  const [pickerMode, setPickerMode] = useState<"pool" | "library" | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -127,6 +153,7 @@ export function ContextSlotPanel({
           label: v.asset_name ?? v.external_url ?? "(無題)",
           role: v.role,
           analyzed: v.asset_analyzed_at != null,
+          assetId: v.asset_id,
         })),
       );
       setError(null);
@@ -155,7 +182,7 @@ export function ContextSlotPanel({
   const addMockEntry = useCallback((role: SlotRole, label: string) => {
     setEntries((prev) => [
       ...prev,
-      { id: `e${prev.length + 1}`, label, role, analyzed: false },
+      { id: `e${prev.length + 1}`, label, role, analyzed: false, assetId: null },
     ]);
   }, []);
 
@@ -279,6 +306,7 @@ export function ContextSlotPanel({
             label: `${prefix} ${next}`,
             role: addRole,
             analyzed: false,
+            assetId: null,
           },
         ];
       });
@@ -290,21 +318,22 @@ export function ContextSlotPanel({
     filter === "all" ? entries : entries.filter((e) => e.role === filter);
   const addRole: SlotRole = filter === "all" ? "misc" : filter;
 
-  const closePoolPicker = useCallback(() => {
-    setPoolPickerOpen(false);
+  const closePicker = useCallback(() => {
+    setPickerMode(null);
     void reload();
   }, [reload]);
 
-  // 「Pool から」インライン表示: 一覧の代わりに app 提供のピッカーをパネル内に出す
+  // インラインピッカー表示: Pool / Library のどちらかが選択されているとき
+  // 一覧の代わりに app 提供のピッカーをパネル内に出す
   // （ポップアップ禁止＝一画面化、RULES §9/§11）。閉じると一覧へ戻り reload。
-  if (bound && poolPickerOpen && renderPoolPicker) {
+  if (bound && pickerMode === "pool" && renderPoolPicker) {
     return (
       <div className="flex flex-col h-full min-h-0 text-xs">
         <div className="flex items-center gap-1.5 p-1.5 border-b border-border shrink-0">
           <button
             type="button"
             className="flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-primary hover:border-primary transition"
-            onClick={closePoolPicker}
+            onClick={closePicker}
           >
             <X className="w-3 h-3" />
             ワークプールへ戻る
@@ -314,7 +343,30 @@ export function ContextSlotPanel({
           </span>
         </div>
         <div className="flex-1 min-h-0 overflow-auto">
-          {renderPoolPicker({ onClose: closePoolPicker })}
+          {renderPoolPicker({ onClose: closePicker })}
+        </div>
+      </div>
+    );
+  }
+
+  if (bound && pickerMode === "library" && renderLibraryPicker) {
+    return (
+      <div className="flex flex-col h-full min-h-0 text-xs">
+        <div className="flex items-center gap-1.5 p-1.5 border-b border-border shrink-0">
+          <button
+            type="button"
+            className="flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-primary hover:border-primary transition"
+            onClick={closePicker}
+          >
+            <X className="w-3 h-3" />
+            ワークプールへ戻る
+          </button>
+          <span className="text-[10px] text-muted-foreground">
+            Library から追加
+          </span>
+        </div>
+        <div className="flex-1 min-h-0 overflow-auto">
+          {renderLibraryPicker({ onClose: closePicker })}
         </div>
       </div>
     );
@@ -356,7 +408,7 @@ export function ContextSlotPanel({
         ))}
       </div>
 
-      {/* 追加経路（永続モード）: ＋追加 → ソース選択。「Pool から」はパネル内インライン切替 */}
+      {/* 追加経路（永続モード）: ＋追加 → ソース選択。Pool / Library からはパネル内インライン切替 */}
       {bound ? (
         <div className="flex flex-col gap-1">
           <button
@@ -378,13 +430,32 @@ export function ContextSlotPanel({
 
           {sourcePickerOpen && (
             <div className="flex flex-col gap-0.5 rounded border border-border bg-muted/30 p-1.5">
+              {onAddFromLocal ? (
+                <button
+                  type="button"
+                  className="flex items-start gap-1.5 rounded px-1.5 py-1 text-left text-[10px] text-muted-foreground hover:bg-muted hover:text-primary transition"
+                  onClick={async () => {
+                    setSourcePickerOpen(false);
+                    await onAddFromLocal();
+                    await reload();
+                  }}
+                >
+                  <Plus className="w-3 h-3 mt-0.5 shrink-0" />
+                  <span className="flex flex-col">
+                    <span className="font-medium">ローカルから取込</span>
+                    <span className="text-[9px] text-muted-foreground/60">
+                      ファイルを Pool item 化
+                    </span>
+                  </span>
+                </button>
+              ) : null}
               {renderPoolPicker ? (
                 <button
                   type="button"
                   className="flex items-start gap-1.5 rounded px-1.5 py-1 text-left text-[10px] text-muted-foreground hover:bg-muted hover:text-primary transition"
                   onClick={() => {
                     setSourcePickerOpen(false);
-                    setPoolPickerOpen(true);
+                    setPickerMode("pool");
                   }}
                 >
                   <Plus className="w-3 h-3 mt-0.5 shrink-0" />
@@ -392,6 +463,24 @@ export function ContextSlotPanel({
                     <span className="font-medium">Pool から</span>
                     <span className="text-[9px] text-muted-foreground/60">
                       この場で Pool を開いて素材を選ぶ
+                    </span>
+                  </span>
+                </button>
+              ) : null}
+              {renderLibraryPicker ? (
+                <button
+                  type="button"
+                  className="flex items-start gap-1.5 rounded px-1.5 py-1 text-left text-[10px] text-muted-foreground hover:bg-muted hover:text-primary transition"
+                  onClick={() => {
+                    setSourcePickerOpen(false);
+                    setPickerMode("library");
+                  }}
+                >
+                  <Plus className="w-3 h-3 mt-0.5 shrink-0" />
+                  <span className="flex flex-col">
+                    <span className="font-medium">Library から</span>
+                    <span className="text-[9px] text-muted-foreground/60">
+                      公開素材を選ぶ
                     </span>
                   </span>
                 </button>
@@ -476,7 +565,14 @@ export function ContextSlotPanel({
           visible.map((entry) => (
             <div
               key={entry.id}
-              className="flex items-center gap-1.5 rounded bg-background px-1.5 py-1 border border-border"
+              className={`flex items-center gap-1.5 rounded bg-background px-1.5 py-1 border border-border ${
+                onEntryPointerDown && entry.assetId ? "cursor-grab active:cursor-grabbing" : ""
+              }`}
+              onPointerDown={
+                onEntryPointerDown && entry.assetId
+                  ? (e) => onEntryPointerDown(entry.assetId!, e)
+                  : undefined
+              }
             >
               {/* 分類タグ = 色付き select（瞬時に判別 + クリックで変更） */}
               <select
