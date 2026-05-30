@@ -40,6 +40,7 @@
  */
 
 import React, {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -746,7 +747,7 @@ export function MaterialPanel({
   );
 }
 
-function MaterialThumb({
+const MaterialThumb = memo(function MaterialThumb({
   item,
   fullCache,
   thumbCache,
@@ -843,7 +844,19 @@ function MaterialThumb({
       {renderItemOverlay && renderItemOverlay(item)}
     </div>
   );
-}
+},
+// 自分の item の full/thumb/path と overlay が変わったときだけ再レンダする。
+// コールバック類 (onMount/onClick/onDragStart/onItemPointerDown) は親 renderThumbGrid
+// で毎レンダ新規生成されるため比較から除外する。各サムネは自分のロード完了時
+// (= 下記 cache エントリ更新時) に再レンダして最新クロージャを取り込むので stale closure
+// は無害。item データはロード後 immutable なので以降の親再レンダは無視してよい。
+(prev, next) =>
+  prev.item === next.item &&
+  prev.fullCache.get(prev.item.id) === next.fullCache.get(next.item.id) &&
+  prev.thumbCache.get(prev.item.id) === next.thumbCache.get(next.item.id) &&
+  prev.pathCache.get(prev.item.id) === next.pathCache.get(next.item.id) &&
+  prev.renderItemOverlay === next.renderItemOverlay,
+);
 
 function isAllowedItemType(
   item: PoolItemSummary,
