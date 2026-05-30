@@ -15,6 +15,7 @@ import type { SlotDefinition, SlotEntry } from "./slot.js";
 export interface StrategyField {
   key: string;
   value: string;
+  required?: boolean;
 }
 
 /**
