@@ -100,6 +100,20 @@ export interface SlotEntry {
   updated_at: string;
 }
 
+/**
+ * スロットエントリ + 参照 Pool item の表示メタ（pool-impl `list_slot_entries_view` の返り）。
+ *
+ * `asset_name` / `asset_analyzed_at` は pool_items を LEFT JOIN した freeze-safe な付加情報
+ * （getItem を通さないため巨大 Reference 動画でも凍結しない）。Rust 側は `#[serde(flatten)]` で
+ * SlotEntry のフィールドを top-level に展開する。
+ */
+export interface SlotEntryView extends SlotEntry {
+  /** 参照 Pool item の表示名（external_url のみ / dangling なら null） */
+  asset_name: string | null;
+  /** 参照 Pool item の分析時刻（未分析 / 非 asset なら null）。RFC3339 文字列 */
+  asset_analyzed_at: string | null;
+}
+
 /** SlotRole → 日本語表示ラベル（UI 共通メタ） */
 export const SLOT_ROLE_LABELS: Record<SlotRole, string> = {
   "main-track": "メイントラック",

@@ -27,9 +27,11 @@ const MODES: { id: WorkMode; label: string; icon: ReactNode }[] = [
 export interface WorkPanelProps {
   workId?: string;
   variantId?: string;
+  /** 素材が属する Pool 名。未指定なら current Pool に fallback */
+  library?: string | null;
 }
 
-export function WorkPanel({ workId, variantId }: WorkPanelProps) {
+export function WorkPanel({ workId, variantId, library }: WorkPanelProps) {
   const [mode, setMode] = useState<WorkMode>("workpool");
 
   return (
@@ -57,7 +59,11 @@ export function WorkPanel({ workId, variantId }: WorkPanelProps) {
       {/* アクティブモードの中身 */}
       <div className="flex-1 overflow-auto min-h-0">
         {mode === "workpool" && (
-          <ContextSlotPanel workId={workId} variantId={variantId} />
+          <ContextSlotPanel
+            workId={workId}
+            variantId={variantId}
+            library={library}
+          />
         )}
         {mode === "operations" && (
           <OperationsPanel workId={workId} variantId={variantId} />

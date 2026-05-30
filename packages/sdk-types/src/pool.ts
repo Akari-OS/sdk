@@ -13,6 +13,9 @@
 
 import { invoke } from "@tauri-apps/api/core"
 
+import type { SlotEntry, SlotEntryView, SlotRole } from "./slot.js"
+import type { WorkContextPayload } from "./work-context.js"
+
 // ===== 型定義 =====
 
 /**
@@ -358,4 +361,121 @@ export async function savePoolSettings(settings: PoolSettings): Promise<void> {
 
 export async function checkPoolTools(): Promise<ToolStatus> {
   return (await invoke("pool_check_tools")) as ToolStatus
+}
+
+// ===== HUB-086 Phase 1: Work コンテキスト + Slot =====
+//
+// `library` は null で current Pool に fallback（Rust 側 library_or_current）。
+// Tauri v2 は camelCase JS キー → snake_case Rust 引数を自動変換する
+// （workId → work_id 等）。ネスト object（context）の field は serde が
+// struct の snake_case field 名で deserialize するため、WorkContextPayload の
+// snake_case キーをそのまま渡す。
+
+/** Work レベルコンテキスト（context_json への保存分） */
+export type WorkContextInput = Pick<
+  WorkContextPayload,
+  "purpose" | "strategy" | "tone" | "slot_definitions" | "references"
+>
+
+/** AKARI-HUB-086 AC-6: Work コンテキストを取得（merge 済み payload） */
+export async function getWorkContext(
+  library: string | null,
+  workId: string,
+  variantId: string,
+): Promise<WorkContextPayload> {
+  return (await invoke("pool_get_work_context", {
+    library,
+    workId,
+    variantId,
+  })) as WorkContextPayload
+}
+
+/** AKARI-HUB-086 AC-6: Work レベルコンテキスト（slot_entries を除く部分）を保存 */
+export async function setWorkContext(
+  library: string | null,
+  workId: string,
+  context: WorkContextInput,
+): Promise<void> {
+  await invoke("pool_set_work_context", { library, workId, context })
+}
+
+/** AKARI-HUB-086 AC-7: スロットエントリを追加 */
+export async function slotAddEntry(
+  library: string | null,
+  params: {
+    workId: string
+    variantId: string
+    role: SlotRole
+    assetId?: string | null
+    externalUrl?: string | null
+    position?: number | null
+    promotedFrom?: string | null
+    id?: string | null
+  },
+): Promise<SlotEntry> {
+  return (await invoke("slot_add_entry", {
+    library,
+    workId: params.workId,
+    variantId: params.variantId,
+    role: params.role,
+    assetId: params.assetId ?? null,
+    externalUrl: params.externalUrl ?? null,
+    position: params.position ?? null,
+    promotedFrom: params.promotedFrom ?? null,
+    id: params.id ?? null,
+  })) as SlotEntry
+}
+
+/** AKARI-HUB-086 AC-7: スロットエントリを削除 */
+export async function slotRemoveEntry(
+  library: string | null,
+  id: string,
+): Promise<void> {
+  await invoke("slot_remove_entry", { library, id })
+}
+
+/**
+ * (work, variant) の全スロットエントリを取得（role → position 順）。
+ * 参照 Pool item の `asset_name` / `asset_analyzed_at` を JOIN 同梱（freeze-safe）。
+ */
+export async function slotListEntries(
+  library: string | null,
+  workId: string,
+  variantId: string,
+): Promise<SlotEntryView[]> {
+  return (await invoke("slot_list_entries", {
+    library,
+    workId,
+    variantId,
+  })) as SlotEntryView[]
+}
+
+/** AKARI-HUB-086 AC-7: 同 (work, variant, role) 内でエントリ順序を並べ替え */
+export async function slotReorderEntries(
+  library: string | null,
+  workId: string,
+  variantId: string,
+  role: SlotRole,
+  orderedIds: string[],
+): Promise<void> {
+  await invoke("slot_reorder_entries", {
+    library,
+    workId,
+    variantId,
+    role,
+    orderedIds,
+  })
+}
+
+/** AKARI-HUB-086 AC-9: misc → 他スロットへの昇格 */
+export async function slotPromoteEntry(
+  library: string | null,
+  id: string,
+  newRole: SlotRole,
+): Promise<SlotEntry> {
+  return (await invoke("slot_promote_entry", {
+    library,
+    id,
+    newRole,
+  })) as SlotEntry
 }

@@ -275,6 +275,7 @@ export type {
   SlotCardinality,
   SlotDefinition,
   SlotEntry,
+  SlotEntryView,
 } from "./slot.js"
 
 export { SLOT_ROLE_LABELS } from "./slot.js"
