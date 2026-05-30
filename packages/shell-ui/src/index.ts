@@ -20,23 +20,9 @@ export {
   type PoolBadgeProps,
   type PoolBadgeVariant,
 } from "./PoolBadge"
-export {
-  StageView,
-  STAGE_ORDER,
-  type StageViewProps,
-  type StageViewLayout,
-} from "./StageView"
-export {
-  PoolBrowserView,
-  POOL_PIN_MAX,
-  type PoolBrowserViewProps,
-} from "./PoolBrowserView"
 export type {
   PoolKind,
-  StageKind,
   PoolDisplay,
-  StageDisplay,
-  ContextPaneState,
 } from "./types/pool"
 // AKARI-HUB-071 Phase 1 v0.2.0 (T-14〜T-17): Variant 並列創作ブランチ UI
 export {
@@ -65,37 +51,6 @@ export type {
   CompareViewState,
   VariantAction,
 } from "./types/variant"
-// AKARI-HUB-071 Phase 1 (T-6 / T-7 / T-8): ContextPane + hooks + adapter
-export {
-  ContextPane,
-  CONTEXT_PANE_COLLAPSED_LS_KEY,
-  poolTarget,
-  stageTarget,
-  assetTarget,
-  type ContextPaneProps,
-} from "./ContextPane"
-export {
-  useContextPane,
-  __internalRecordsToPaneState,
-  type UseContextPaneOptions,
-} from "./hooks/useContextPane"
-export {
-  useContextToggle,
-  type UseContextToggleOptions,
-} from "./hooks/useContextToggle"
-export {
-  createInMemoryContextAdapter,
-  type InMemoryContextAdapter,
-} from "./lib/in-memory-context-adapter"
-export type {
-  ContextAttachAdapter,
-  ContextAttachRecord,
-  ContextDisplayResolver,
-  ContextTargetKind,
-  ContextToggleTarget,
-  UseContextPaneResult,
-  UseContextToggleResult,
-} from "./types/context-attach"
 // AKARI-HUB-072 Phase 1 (T-1): Workflow / Step / Trace 共有型
 export type {
   Workflow,
