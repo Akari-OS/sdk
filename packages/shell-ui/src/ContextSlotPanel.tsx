@@ -1,25 +1,29 @@
 /**
- * ContextSlotPanel — Context モード（AKARI-HUB-086 Phase 0 skeleton, v2）。
+ * ① ワークプール（旧 ContextSlotPanel、HUB-086）
  *
- * 中島フィードバック（session 117）で当初のスロットツリーから改設計:
- *   - 「すべて」既定 + フィルターチップで分類切替（情報過多を回避）
- *   - 素材はフラット一覧。各素材に**色付き分類タグ**（瞬時に判別 + クリックで分類変更）
- *   - 各素材に**コンテキスト分析の状態**（分析済み / 未分析）+「分析」ボタン
+ * studio-left-panel-modes-2026-05-30.md §2 のワークプールへ refine（session 117）。
+ * 旧「コンテキスト」→「ワークプール」に改称し、+追加をインラインのソース選択に変更。
  *
- * これは見せ方のみで、HUB-086 のデータモデル（`SlotEntry.role` / 参照先 Pool item の
- * `analyzed_at`）はそのまま使える。Phase 1 で:
+ * 変更サマリ:
+ *   - ヘッダーを「ワークプール（N 件 / 分析済み M）」に変更
+ *   - フィルターチップ + フラット一覧 + 色付き分類タグ(select) + 分析状態/分析ボタン は維持
+ *   - 「+追加」→ インラインのソース選択（ローカルから取込 / Pool から / Library から）に変更。
+ *     モーダルなし（RULES §9/§11）。再度押すと畳む。
+ *
+ * Phase 1 配線予定:
  *   - role 割当       → `slot_entries.role`
  *   - 分類フィルタ     → role での絞り込み
  *   - 分析状態        → 参照 Pool item の `analyzed_at`（`PoolItemSummary`）
  *   - 「分析」ボタン   → pool-impl analyzer 呼び出し
- * へ配線する。
+ *   - ソース選択      → ローカルは OS dialog / Pool・Library は pool-impl 検索パネル
  *
  * 関連: spec `akari-os/docs/sdd/specs/spec-slot-and-work-context-schema.md` §2 / §9 Phase 0
+ *       design `akari-os/docs/design/studio-left-panel-modes-2026-05-30.md` §2
  */
 
 import { useCallback, useMemo, useState } from "react";
 import type { DragEvent } from "react";
-import { Plus, Check, Sparkles } from "lucide-react";
+import { Plus, Check, Sparkles, X } from "lucide-react";
 import { SLOT_ROLE_LABELS, type SlotRole } from "@akari-os/sdk/slot";
 
 /** Phase 0 で扱う分類（4 つ）。filter / tag に使う */
@@ -31,6 +35,31 @@ const ROLE_BADGE_CLASS: Record<string, string> = {
   bgm: "bg-purple-500/15 text-purple-700 border-purple-500/30",
   reference: "bg-amber-500/15 text-amber-800 border-amber-500/30",
   misc: "bg-muted text-muted-foreground border-border",
+};
+
+/** ソース選択の 3 種別（Phase 0: モックエントリを追加） */
+type AddSource = "local" | "pool" | "library";
+
+/** ソース別のラベル・説明 */
+const ADD_SOURCE_META: Record<
+  AddSource,
+  { label: string; desc: string; prefix: string }
+> = {
+  local: {
+    label: "ローカルから取込",
+    desc: "ファイルを Pool item 化",
+    prefix: "ローカル素材",
+  },
+  pool: {
+    label: "Pool から",
+    desc: "自分の既存素材を選ぶ",
+    prefix: "Pool 素材",
+  },
+  library: {
+    label: "Library から",
+    desc: "公開素材を選ぶ",
+    prefix: "Library 素材",
+  },
 };
 
 /** スロットに入った素材のモックエントリ（Phase 0 in-memory） */
@@ -52,6 +81,8 @@ export interface ContextSlotPanelProps {
 export function ContextSlotPanel(_props: ContextSlotPanelProps) {
   const [entries, setEntries] = useState<MockEntry[]>([]);
   const [filter, setFilter] = useState<SlotRole | "all">("all");
+  /** ソース選択パネルの開閉（true = 展開中） */
+  const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
 
   const counts = useMemo(() => {
     const c: Partial<Record<SlotRole, number>> = {};
@@ -106,16 +137,34 @@ export function ContextSlotPanel(_props: ContextSlotPanelProps) {
     [addEntry],
   );
 
+  /** ソース選択から素材を追加（Phase 0: モックエントリ） */
+  const handleAddFromSource = useCallback(
+    (source: AddSource) => {
+      const addRole: SlotRole = filter === "all" ? "misc" : filter;
+      // Phase 1 ではソース種別に応じて OS dialog / pool-impl 検索パネルを開く。
+      // Phase 0 はソース名 + 連番のモックエントリを即追加。
+      const { prefix } = ADD_SOURCE_META[source];
+      setEntries((prev) => {
+        const next = prev.length + 1;
+        return [
+          ...prev,
+          { id: `e${next}`, label: `${prefix} ${next}`, role: addRole, analyzed: false },
+        ];
+      });
+      // ソース選択パネルは追加後も開いたまま（複数追加を想定）
+    },
+    [filter],
+  );
+
   const visible =
     filter === "all" ? entries : entries.filter((e) => e.role === filter);
-  // 「すべて」では未分類で追加し、後でタグ変更。特定分類でフィルタ中はその分類で追加。
   const addRole: SlotRole = filter === "all" ? "misc" : filter;
 
   return (
     <div className="flex flex-col gap-2 p-2 text-xs">
-      {/* ヘッダー: 分析状況サマリ（分析済みが一目で分かる） */}
+      {/* ヘッダー: ワークプール名 + 件数サマリ */}
       <div className="px-0.5 text-[10px] text-muted-foreground">
-        コンテキスト（{entries.length} 件 / 分析済み {analyzedCount}）
+        ワークプール（{entries.length} 件 / 分析済み {analyzedCount}）
       </div>
 
       {/* フィルターチップ: すべて + 各分類。チップへの D&D で分類を割り当てて投入 */}
@@ -138,15 +187,56 @@ export function ContextSlotPanel(_props: ContextSlotPanelProps) {
         ))}
       </div>
 
-      {/* 追加 */}
-      <button
-        type="button"
-        className="self-start flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-primary hover:border-primary transition"
-        onClick={() => addEntry(addRole, `素材 ${entries.length + 1}`)}
-      >
-        <Plus className="w-3 h-3" />
-        追加{filter !== "all" ? `（${SLOT_ROLE_LABELS[addRole]}）` : ""}
-      </button>
+      {/* +追加ボタン → インラインソース選択トグル（モーダルなし、RULES §9/§11） */}
+      <div className="flex flex-col gap-1">
+        <button
+          type="button"
+          className={`self-start flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] transition ${
+            sourcePickerOpen
+              ? "border-primary text-primary"
+              : "border-border text-muted-foreground hover:text-primary hover:border-primary"
+          }`}
+          onClick={() => setSourcePickerOpen((v) => !v)}
+        >
+          {sourcePickerOpen ? (
+            <X className="w-3 h-3" />
+          ) : (
+            <Plus className="w-3 h-3" />
+          )}
+          {sourcePickerOpen ? "閉じる" : "追加"}
+          {!sourcePickerOpen && filter !== "all"
+            ? `（${SLOT_ROLE_LABELS[addRole]}）`
+            : ""}
+        </button>
+
+        {/* インライン展開: ソース選択 3 ボタン */}
+        {sourcePickerOpen && (
+          <div className="flex flex-col gap-0.5 rounded border border-border bg-muted/30 p-1.5">
+            <div className="text-[9px] text-muted-foreground/70 mb-0.5">
+              追加するソースを選択
+              {filter !== "all" ? `（${SLOT_ROLE_LABELS[addRole]} に分類）` : ""}
+            </div>
+            {(Object.entries(ADD_SOURCE_META) as [AddSource, (typeof ADD_SOURCE_META)[AddSource]][]).map(
+              ([source, meta]) => (
+                <button
+                  key={source}
+                  type="button"
+                  className="flex items-start gap-1.5 rounded px-1.5 py-1 text-left text-[10px] text-muted-foreground hover:bg-muted hover:text-primary transition"
+                  onClick={() => handleAddFromSource(source)}
+                >
+                  <Plus className="w-3 h-3 mt-0.5 shrink-0" />
+                  <span className="flex flex-col">
+                    <span className="font-medium">{meta.label}</span>
+                    <span className="text-[9px] text-muted-foreground/60">
+                      {meta.desc}
+                    </span>
+                  </span>
+                </button>
+              ),
+            )}
+          </div>
+        )}
+      </div>
 
       {/* 素材一覧（フラット）。各 item に分類タグ + 分析状態 */}
       <div
