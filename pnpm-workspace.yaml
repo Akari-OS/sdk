@@ -10,3 +10,4 @@ packages:
   - "../akari-video"
   - "../akari-synth"
   - "../akari-sheets"
+  - "../akari-3d"
