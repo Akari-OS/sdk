@@ -12,9 +12,10 @@
 
 import { useState, type PointerEvent, type ReactNode } from "react";
 import { Package, Wrench, ListOrdered } from "lucide-react";
-import { ContextSlotPanel } from "./ContextSlotPanel";
+import { ContextSlotPanel, type RelatedPoolSection } from "./ContextSlotPanel";
 import { OperationsPanel } from "./OperationsPanel";
 import { WorkflowPanel } from "./WorkflowPanel";
+import type { SlotRole } from "@akari-os/sdk/slot";
 
 export type WorkMode = "workpool" | "operations" | "workflow";
 
@@ -32,16 +33,26 @@ export interface WorkPanelProps {
   /** OperationsPanel の「実行」クリック → アプリ側のアクションハンドラ */
   onRunOperation?: (id: string) => void;
   /** 制作素材の「Pool から」インライン Pool ピッカー（ContextSlotPanel へ pass-through） */
-  renderPoolPicker?: (args: { onClose: () => void }) => ReactNode;
+  renderPoolPicker?: (args: { onClose: () => void; defaultRole: SlotRole }) => ReactNode;
   /**
    * 制作素材一覧行の PointerDown コールバック（ContextSlotPanel へ pass-through）。
    * タイムラインへの pointer-drag 起点として video 側が利用する。
    */
-  onEntryPointerDown?: (assetId: string, e: PointerEvent<HTMLElement>) => void;
+  onEntryPointerDown?: (
+    assetId: string,
+    e: PointerEvent<HTMLElement>,
+    library?: string | null,
+  ) => void;
+  /** 制作素材カードのクリック選択（Preview / Inspector 切替用） */
+  onEntryClick?: (assetId: string, library?: string | null) => void;
+  /** 制作素材の分析リクエスト（Pool Browser の分析ポップアップ等へ委譲） */
+  onRequestEntryAnalyze?: (assetId: string, library?: string | null) => void;
   /** 「ローカルから取込」ハンドラ（ContextSlotPanel へ pass-through） */
-  onAddFromLocal?: () => Promise<void>;
-  /** 「Library から」インライン Library ピッカー（ContextSlotPanel へ pass-through） */
-  renderLibraryPicker?: (args: { onClose: () => void }) => ReactNode;
+  onAddFromLocal?: (role: SlotRole) => Promise<void>;
+  /** WorkPool に表示する分類フィルター。未指定時は全 role。 */
+  visibleRoles?: readonly SlotRole[];
+  /** WorkPool の下に別セクションで表示する関連 Pool。 */
+  relatedPoolSections?: readonly RelatedPoolSection[];
   /**
    * controlled モード。指定すると内蔵モード切替バーを隠し、そのモードに固定する。
    * SubPanel が 4 面を最上位タブ（横）として並べる際に各タブで mode を固定するために使う
@@ -57,8 +68,11 @@ export function WorkPanel({
   onRunOperation,
   renderPoolPicker,
   onEntryPointerDown,
+  onEntryClick,
+  onRequestEntryAnalyze,
   onAddFromLocal,
-  renderLibraryPicker,
+  visibleRoles,
+  relatedPoolSections,
   mode: controlledMode,
 }: WorkPanelProps) {
   const [internalMode, setMode] = useState<WorkMode>("workpool");
@@ -98,8 +112,11 @@ export function WorkPanel({
             library={library}
             renderPoolPicker={renderPoolPicker}
             onEntryPointerDown={onEntryPointerDown}
+            onEntryClick={onEntryClick}
+            onRequestEntryAnalyze={onRequestEntryAnalyze}
             onAddFromLocal={onAddFromLocal}
-            renderLibraryPicker={renderLibraryPicker}
+            visibleRoles={visibleRoles}
+            relatedPoolSections={relatedPoolSections}
           />
         )}
         {mode === "operations" && (

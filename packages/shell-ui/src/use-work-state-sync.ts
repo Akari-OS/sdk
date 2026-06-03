@@ -5,9 +5,10 @@
  * Phase D-1 の skeleton として実装。
  *
  * 振る舞い:
- *   - `state` の JSON が変化したら debounce で `pool_upsert_item` を 1 回叩く
+ *   - legacy fallback hook。WorkPool 統合後、既定 library (`akari-work-states`) への
+ *     autosave は無効化している。
+ *   - 明示的に別 library を渡した場合のみ `pool_upsert_item` を 1 回叩く
  *   - dedup_key = `state:{app}:{workId}` で同 Work の state は 1 行に上書き
- *   - library は `akari-work-states` 既定（無ければ初回 create）
  *   - storage_mode = "copy" 固定（state JSON は MB 級になりうるが Pool 内で
  *     完結させる方が dangling リスクが無い）
  *   - context_json に source_app / work_state: true / attached_to_work / saved_at
@@ -104,7 +105,7 @@ export function useWorkStateSync<T>(opts: UseWorkStateSyncOptions<T>): void {
   const inflightRef = useRef(false);
 
   useEffect(() => {
-    if (!enabled || !workId) return;
+    if (!enabled || !workId || library === DEFAULT_LIBRARY) return;
     let json: string;
     try {
       json = JSON.stringify(state);

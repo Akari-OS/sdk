@@ -82,6 +82,8 @@ interface MaterialPanelProps {
   enableSearch?: boolean;
   /** 既定 library override */
   defaultLibrary?: string;
+  /** 表示対象から外す Pool 名。WorkPool 自身や legacy pool を除外する用途。 */
+  excludedLibraries?: readonly string[];
   /**
    * 表示対象の item_type。未指定時は従来通り全種別を表示する。
    * Design など、メディア編集に使わない video/audio を隠したい app 向け。
@@ -123,6 +125,7 @@ export function MaterialPanel({
   gridCols = 2,
   enableSearch = true,
   defaultLibrary,
+  excludedLibraries,
   allowedItemTypes,
   pathCacheRef,
   onItemPointerDown,
@@ -150,6 +153,12 @@ export function MaterialPanel({
   // 渡しても allowedItemTypeSet → displayItems → renderThumbGrid の useMemo 連鎖が
   // 無効化されないようにする防御 (識別子でなく内容で判定)。
   const allowedItemTypesKey = allowedItemTypes ? allowedItemTypes.join(",") : "";
+  const excludedLibrariesKey = excludedLibraries ? excludedLibraries.join(",") : "";
+  const excludedLibrarySet = useMemo(
+    () => new Set(excludedLibraries ?? []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [excludedLibrariesKey],
+  );
   const allowedItemTypeSet = useMemo(
     () => (allowedItemTypes ? new Set<string>(allowedItemTypes) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -175,7 +184,12 @@ export function MaterialPanel({
 
   // ライブラリ一覧 (akari-uploads / akari-outputs を優先)
   useEffect(() => {
-    if (defaultLibrary) return;
+    if (defaultLibrary) {
+      setLibraries(
+        excludedLibrarySet.has(defaultLibrary) ? [] : [defaultLibrary],
+      );
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -188,16 +202,18 @@ export function MaterialPanel({
           );
         const known = POOL_LIBRARIES_FALLBACK.filter((n) => names.includes(n));
         const others = names.filter((n) => !POOL_LIBRARIES_FALLBACK.includes(n));
-        const merged = [...known, ...others];
-        setLibraries(merged.length > 0 ? merged : POOL_LIBRARIES_FALLBACK);
+        const fallback = POOL_LIBRARIES_FALLBACK.filter((name) => !excludedLibrarySet.has(name));
+        const merged = [...known, ...others].filter((name) => !excludedLibrarySet.has(name));
+        setLibraries(merged.length > 0 ? merged : fallback);
       } catch {
         // dev mode は fallback そのまま
+        setLibraries(POOL_LIBRARIES_FALLBACK.filter((name) => !excludedLibrarySet.has(name)));
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [defaultLibrary]);
+  }, [defaultLibrary, excludedLibrarySet]);
 
   // 素材一覧取得 (全 library を集約)
   const refresh = useCallback(async () => {
@@ -298,12 +314,7 @@ export function MaterialPanel({
             const thumbPath = await getItemThumbnail(lib, item.id).catch(
               () => null,
             );
-            const url =
-              thumbPath != null
-                ? convertFileSrc(thumbPath)
-                : type === "image"
-                  ? convertFileSrc(path)
-                  : null;
+            const url = thumbPath != null ? convertFileSrc(thumbPath) : null;
             if (url) {
               setThumbCache((prev) => new Map(prev).set(item.id, url));
             }
@@ -330,9 +341,10 @@ export function MaterialPanel({
   const handleClick = useCallback(
     async (item: PoolItemSummary) => {
       const full = fullCache.get(item.id);
-      const url = thumbCache.get(item.id);
-      if (!full || !url) return;
+      if (!full) return;
       const poolName = itemLibraryRef.current.get(item.id);
+      const resolvedPath = pathCache.get(item.id);
+      const url = thumbCache.get(item.id) ?? (resolvedPath ? convertFileSrc(resolvedPath) : "");
       onInsert({
         id: item.id,
         name: item.name,
@@ -341,7 +353,7 @@ export function MaterialPanel({
         pool: poolName,
       });
     },
-    [fullCache, thumbCache, onInsert],
+    [fullCache, pathCache, thumbCache, onInsert],
   );
 
   const handleDragStart = useCallback(
@@ -353,7 +365,9 @@ export function MaterialPanel({
         AKARI_POOL_ITEM_MIME,
         JSON.stringify({
           source: "shell",
+          id: item.id,           // ContextSlotPanel 互換
           itemId: item.id,
+          name: item.name,
           pool: dragPoolName,      // ADR-103 新フィールド
           library: dragPoolName,   // @deprecated 後方互換 (ADR-103)
           fallbackUrl: url,

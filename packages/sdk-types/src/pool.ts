@@ -26,6 +26,9 @@ export interface PoolInfo {
   display_name: string | null
   description?: string | null
   icon: string | null
+  role?: "brand" | "domain" | "work" | string | null
+  is_ambient?: boolean
+  parent_pool_id?: string | null
   item_count: number
   created_at: string | null
   archived_at?: string | null

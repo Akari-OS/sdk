@@ -131,6 +131,11 @@ export interface WorkContext {
    */
   variant_id: string
   /**
+   * Work が所有する Pool ID。WorkPool / slot_entries を読む library として使う。
+   * 旧起動経路では省略される。
+   */
+  pool_id?: string
+  /**
    * AppInstance ID（任意）。
    * AKARI-HUB-084 Phase 1: AppInstance 経由でアプリを開く際に、
    * どの AppInstance から起動されたかを子アプリ側へ型安全に渡すために使用する。
