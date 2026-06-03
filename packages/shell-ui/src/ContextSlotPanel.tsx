@@ -44,7 +44,7 @@ import {
   Music,
 } from "lucide-react";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { SLOT_ROLE_LABELS, type SlotRole } from "@akari-os/sdk/slot";
+import { SLOT_ROLE_LABELS, ALL_SLOT_ROLES, type SlotRole } from "@akari-os/sdk/slot";
 import {
   listItems,
   slotListEntries,
@@ -55,26 +55,7 @@ import {
   type PoolItemSummary,
 } from "@akari-os/sdk/pool";
 
-/** 全 17 SlotRole（表示フィルター・分類 select の両方で使用） */
-const ALL_SLOT_ROLES: SlotRole[] = [
-  "main-track",
-  "voice-over",
-  "subtitle",
-  "tone",
-  "bgm",
-  "sfx",
-  "inset",
-  "logo",
-  "title-card",
-  "lower-third",
-  "font-family",
-  "text-style",
-  "text-fx",
-  "color-grade",
-  "chapter",
-  "reference",
-  "misc",
-];
+// ADR-108 Wave2: 全 SlotRole は @akari-os/sdk/slot の ALL_SLOT_ROLES が SSOT（手動再列挙を廃止）。
 
 function inferDefaultSlotRole(item: PoolItemSummary): SlotRole {
   const type = (item.item_type ?? "").toLowerCase();

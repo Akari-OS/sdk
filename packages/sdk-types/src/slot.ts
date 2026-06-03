@@ -14,25 +14,32 @@
  * 関連: spec `docs/sdd/specs/spec-slot-and-work-context-schema.md` §2 / §4-1
  */
 
-/** 素材スロットの役割識別子（HUB-086 §2-1 確定表） */
-export type SlotRole =
-  | "main-track"
-  | "voice-over"
-  | "subtitle"
-  | "tone"
-  | "bgm"
-  | "sfx"
-  | "inset"
-  | "logo"
-  | "title-card"
-  | "lower-third"
-  | "font-family"
-  | "text-style"
-  | "text-fx"
-  | "color-grade"
-  | "chapter"
-  | "reference"
-  | "misc";
+/**
+ * 全スロット役割の確定リスト（HUB-086 §2-1）。SSOT。
+ * 表示フィルタ・分類 select 等はこの配列を import して使う（手動再列挙禁止）。
+ */
+export const ALL_SLOT_ROLES = [
+  "main-track",
+  "voice-over",
+  "subtitle",
+  "tone",
+  "bgm",
+  "sfx",
+  "inset",
+  "logo",
+  "title-card",
+  "lower-third",
+  "font-family",
+  "text-style",
+  "text-fx",
+  "color-grade",
+  "chapter",
+  "reference",
+  "misc",
+] as const;
+
+/** 素材スロットの役割識別子（HUB-086 §2-1 確定表）。ALL_SLOT_ROLES から派生。 */
+export type SlotRole = (typeof ALL_SLOT_ROLES)[number];
 
 /** スロットが受け入れる素材型 */
 export type SlotAssetType =
