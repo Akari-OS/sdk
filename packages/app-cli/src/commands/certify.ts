@@ -61,7 +61,6 @@ const c = makeChalk();
 
 const PASS = c.green("✓ PASS");
 const FAIL = c.red("✗ FAIL");
-const WARN = c.yellow("⚠ WARN");
 const STUB = c.cyan("○ STUB");
 const SKIP = c.dim("– SKIP");
 
