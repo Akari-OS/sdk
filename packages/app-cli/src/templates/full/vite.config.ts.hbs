@@ -1,0 +1,54 @@
+/**
+ * {{appName}} — Vite config（akari-video / akari-synth に倣う）。
+ *
+ *   1. dev:   `vite`     → index.html をエントリにブラウザ単体で起動（補助。Tauri API は動かない）
+ *   2. build: lib mode   → src/index.tsx を ESM 1 本に bundle（Shell が dynamic import で mount）
+ *
+ * Shell mount 時に解決される物（react / shell-ui / sdk / tauri core）だけ external 化する。
+ */
+import { defineConfig } from "vite"
+import react from "@vitejs/plugin-react"
+import path from "node:path"
+
+const externalPrefixes = ["react", "react-dom", "@akari-os/sdk", "@akari-os/shell-ui"]
+
+function isExternal(id: string): boolean {
+  if (id === "@tauri-apps/api/core" || id === "@tauri-apps/api/event") return true
+  if (id.startsWith("@tauri-apps/api/")) return false
+  return externalPrefixes.some((p) => id === p || id.startsWith(`${p}/`))
+}
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: { "@": path.resolve(__dirname, "src") },
+  },
+  // Shell の webview には Node の `process` が無い。bundle 内依存が process.env を
+  // 参照すると落ちるため akari-video に倣って潰す。
+  define: {
+    "process.env.NODE_ENV": JSON.stringify("production"),
+    "process.env": "{}",
+  },
+  build: {
+    outDir: "dist",
+    emptyOutDir: true,
+    target: "esnext",
+    cssCodeSplit: false,
+    lib: {
+      entry: path.resolve(__dirname, "src/index.tsx"),
+      formats: ["es"],
+      fileName: () => "index.js",
+    },
+    minify: false,
+    rollupOptions: {
+      external: isExternal,
+      output: {
+        // Shell の runtime-app-loader は dist/index.js の sibling `index.css` を注入する。
+        assetFileNames: (asset) => {
+          const name = asset.names?.[0] ?? asset.name ?? ""
+          return name.endsWith(".css") ? "index.css" : "assets/[name][extname]"
+        },
+      },
+    },
+  },
+})

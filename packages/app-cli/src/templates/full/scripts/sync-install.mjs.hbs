@@ -1,0 +1,64 @@
+/**
+ * {{appName}} を akari-shell に install 同期する（build 後 postbuild で実行）。
+ *
+ * Shell は起動時に `~/.akari/apps/<id>/` を scan し `akari.toml` + `dist/index.{js,css}` を読む。
+ * このスクリプトは build 成果物をその場所へコピーする（shell を Cmd+R / 再起動で discover）。
+ */
+import { copyFile, mkdir, stat } from "node:fs/promises"
+import { homedir } from "node:os"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+
+const APP_ID = "{{appId}}"
+const scriptDir = path.dirname(fileURLToPath(import.meta.url))
+const repoRoot = path.resolve(scriptDir, "..")
+const destRoot = path.join(homedir(), ".akari", "apps", APP_ID)
+
+/** [src(repoRoot 相対), dest(destRoot 相対)] */
+const copies = [
+  ["dist/index.js", "dist/index.js"],
+  ["dist/index.css", "dist/index.css"],
+  ["akari.toml", "akari.toml"],
+]
+
+function isPermissionError(err) {
+  return (
+    err &&
+    typeof err === "object" &&
+    "code" in err &&
+    (err.code === "EPERM" || err.code === "EACCES")
+  )
+}
+
+async function main() {
+  for (const [rel, destRel] of copies) {
+    const src = path.join(repoRoot, rel)
+    const dest = path.join(destRoot, destRel)
+    try {
+      await stat(src)
+    } catch (err) {
+      // index.css は CSS 無し build では出ない場合がある。必須以外は skip 許容。
+      if (err && typeof err === "object" && "code" in err && err.code === "ENOENT") {
+        if (rel === "dist/index.js") {
+          throw new Error(`必須ファイルが無い: ${src}（先に pnpm build）`)
+        }
+        continue
+      }
+      throw err
+    }
+    await mkdir(path.dirname(dest), { recursive: true })
+    await copyFile(src, dest)
+  }
+  console.log(`[{{appSlug}}] synced -> ${destRoot}（shell を Cmd+R / 再起動で discover）`)
+}
+
+main().catch((err) => {
+  if (isPermissionError(err)) {
+    console.warn(`[{{appSlug}}] install sync skipped: no permission to write ${destRoot}`)
+    process.exit(0)
+  }
+  console.error(
+    `[{{appSlug}}] install sync failed: ${err instanceof Error ? err.message : String(err)}`,
+  )
+  process.exit(1)
+})

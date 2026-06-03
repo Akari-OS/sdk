@@ -1,26 +1,39 @@
 {
   "name": "{{appSlug}}",
   "version": "0.1.0",
-  "description": "{{appName}} — AKARI Full Tier App",
+  "type": "module",
   "private": true,
+  "license": "MIT",
+  "description": "{{appName}} — AKARI Full Tier App ({{profile}} profile)",
+  "exports": {
+    ".": "./src/index.tsx"
+  },
   "scripts": {
-    "build": "tsup src/index.ts --format esm --target node18 --outDir dist --clean",
-    "dev": "akari dev",
-    "test": "node --experimental-vm-modules node_modules/.bin/jest",
-    "certify": "akari app certify",
-    "typecheck": "tsc --noEmit"
+    "dev": "vite",
+    "build": "vite build",
+    "postbuild": "node scripts/sync-install.mjs",
+    "install:sync": "node scripts/sync-install.mjs",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@akari/sdk": ">=0.1.0 <1.0",
-    "react": "^18.0.0"
+    "@akari-os/sdk": "workspace:*",
+    "@akari-os/shell-ui": "workspace:*",
+    "@tauri-apps/api": "^2",
+    "lucide-react": "^1.8.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-resizable-panels": "^4.9.0",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@types/react": "^18.0.0",
-    "tsup": "^8.0.0",
-    "typescript": "^5.4.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.6.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^4.1.5"
   }
 }

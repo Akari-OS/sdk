@@ -1,64 +1,45 @@
 # {{appName}}
 
-> AKARI Full Tier App — `{{appId}}`
+> AKARI Full Tier App — `{{appId}}`（profile: {{profile}}）
 
-## Overview
+AKARI の素材オーサリング系 Full Tier アプリ。Shell に `dist/index.js` として mount され、
+共通レイアウト枠 `AppLayout`（AKARI-HUB-088）の上に各ペインを実装する。
 
-{{appName}} is a [Full Tier](https://github.com/akari-os/akari-os/docs/sdd/specs/spec-akari-app-sdk.md) AKARI app.
-Full Tier apps provide a custom React panel and can define agents and expose skills.
-
-## Requirements
-
-- Node.js >= 18
-- AKARI OS with SDK `{{sdkRange}}`
-
-## Development
+## 開発
 
 ```bash
-npm install
-akari dev          # start dev server and mount into local Shell
+pnpm install
+pnpm dev            # ブラウザ単体 dev（補助。Tauri API は動かない）
+pnpm build          # ESM 1 本に bundle → postbuild で ~/.akari/apps/{{appId}}/dist へ同期
 ```
 
-## Certification
+build 後に Shell を Cmd+R / 再起動すると discover される。
 
-```bash
-akari app certify   # run Automated Lint + Contract Tests (HUB-024 §6.8)
-```
-
-## Distribution
-
-```bash
-# Self-distribution (Automated Lint + Contract Test only)
-npm publish
-
-# AKARI Marketplace (requires Manual Review)
-akari app publish
-```
-
-## Structure
+## 構成
 
 ```
 {{appSlug}}/
-├── akari.toml               App manifest (AKARI-HUB-024 §6.5)
+├── akari.toml               App manifest（mount = dist/index.js）
+├── vite.config.ts           lib mode build（react / @akari-os/* を external 化）
 ├── src/
-│   ├── index.ts             Entry: panel registration + skill registration
-│   └── panel.tsx            Main React panel component
-├── agents/
-│   └── assistant.md         App agent spec (ADR-011)
-├── skills/                  Exported skill implementations
-└── tests/
-    └── contract/            App Contract Tests (HUB-024 §6.8)
+│   ├── index.tsx            エントリ（default export = Shell が mount。§4 起動フロー雛形）
+│   ├── main.tsx             ブラウザ単体 dev ブートストラップ
+│   ├── Studio.tsx           AppLayout + 各ペイン（ここに中身を実装）
+│   └── styles.css           最小スタイル（配色は Shell テーマが提供）
+└── scripts/
+    └── sync-install.mjs     build 成果物を ~/.akari/apps/<id>/ へ同期
 ```
 
-## Guidelines
+## ガイドライン
 
-- All state must go through Pool / AMP — no local DB (HUB-024 §6.7 rule 2)
-- All AMP records must include `goal_ref` (HUB-024 §6.6 Memory API)
-- Do not create independent windows — use Shell panel API only (rule 3)
-- Declare only necessary permissions in `akari.toml` (rule 5)
+- 状態は Pool / AMP に書く（ローカル DB を持たない、HUB-024 §6.7 rule 2）
+- AMP record は必ず `goal_ref` を付ける（HUB-024 §6.6）
+- 独立ウィンドウを作らない。Shell の枠（AppLayout）に載せる（rule 3 / RULES ルール 9・11）
+- 素材の出力は `registerMaterial`（`@akari-os/sdk/material`）で Library + Pool に登録する
+- 必要な権限だけ `akari.toml` に宣言する（rule 5）
 
-## References
+## 参照
 
-- [AKARI App SDK spec (HUB-024)](https://github.com/akari-os/akari-os)
-- [Panel Schema spec (HUB-025)](https://github.com/akari-os/akari-os)
-- [ADR-011: App Agent Naming Convention](https://github.com/akari-os/akari-os)
+- AKARI App SDK spec（AKARI-HUB-024）
+- App Scaffold / 基幹骨格（AKARI-HUB-088）
+- 基幹アプリ骨格 設計書: `akari-os/docs/design/creator-app-shell-standard-2026-06-03.md`
