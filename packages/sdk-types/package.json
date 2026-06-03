@@ -22,6 +22,7 @@
     "./compatibility": "./src/compatibility.ts",
     "./mcp": "./src/mcp.ts",
     "./pool": "./src/pool.ts",
+    "./material": "./src/material.ts",
     "./slot": "./src/slot.ts",
     "./work-context": "./src/work-context.ts",
     "./models": "./src/models.ts",

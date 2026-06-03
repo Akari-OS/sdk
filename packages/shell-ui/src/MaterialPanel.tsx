@@ -35,6 +35,7 @@ import {
   type PoolItemSummary,
   type PoolItemFull,
 } from "@akari-os/sdk/pool";
+import { getMaterialType, type MaterialType } from "@akari-os/sdk/material";
 
 export interface MaterialPick {
   id: string;
@@ -90,6 +91,19 @@ interface MaterialPanelProps {
    */
   allowedItemTypes?: readonly MaterialItemType[];
   /**
+   * AKARI-HUB-088 §2-4 (S0-4): 表示対象の material_type（context_json.material_type）。
+   * 指定時は素材オーサリングで登録された素材のみを当該カテゴリに絞り込む
+   * （例: diagram は ["diagram-part","diagram-template"]）。未指定時は絞り込まない。
+   * 判定には PoolItemFull の context_json が必要なため、full ロード前は暫定表示し、
+   * ロード後に非該当 item が除外される（既存 allowedItemTypes と同じ lazy 挙動）。
+   */
+  allowedMaterialTypes?: readonly MaterialType[];
+  /**
+   * AKARI-HUB-088 §2-4 (S0-4): 素材の右クリック「編集」。指定時のみコンテキストメニューを表示。
+   * オーサリングアプリを sourceItem 付きで開く導線（AuthoringEditorProps.sourceItem）。
+   */
+  onEditMaterial?: (itemId: string, materialType: MaterialType | null, pool: string | undefined) => void;
+  /**
    * consumer が外から絶対 path を読めるよう同期する ref。
    * useEffect で pathCacheRef.current = pathCache に反映する。
    */
@@ -127,6 +141,8 @@ export function MaterialPanel({
   defaultLibrary,
   excludedLibraries,
   allowedItemTypes,
+  allowedMaterialTypes,
+  onEditMaterial,
   pathCacheRef,
   onItemPointerDown,
   renderItemOverlay,
@@ -164,6 +180,20 @@ export function MaterialPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [allowedItemTypesKey],
   );
+  const allowedMaterialTypesKey = allowedMaterialTypes
+    ? allowedMaterialTypes.join(",")
+    : "";
+  const allowedMaterialTypeSet = useMemo(
+    () => (allowedMaterialTypes ? new Set<string>(allowedMaterialTypes) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allowedMaterialTypesKey],
+  );
+  // 右クリック「編集」コンテキストメニュー（onEditMaterial 指定時のみ）。
+  const [ctxMenu, setCtxMenu] = useState<{
+    x: number;
+    y: number;
+    item: PoolItemSummary;
+  } | null>(null);
 
   // pathCacheRef 同期: consumer が外から絶対 path を読めるよう反映する
   useEffect(() => {
@@ -330,10 +360,20 @@ export function MaterialPanel({
 
   const displayItems = useMemo(
     () =>
-      items.filter((item) =>
-        isAllowedItemType(item, fullCache.get(item.id), allowedItemTypeSet),
-      ),
-    [items, fullCache, allowedItemTypeSet],
+      items.filter((item) => {
+        const full = fullCache.get(item.id);
+        if (!isAllowedItemType(item, full, allowedItemTypeSet)) return false;
+        if (allowedMaterialTypeSet) {
+          // full 未ロードのうちは暫定表示し、ロード後に非該当を除外する
+          // （material_type は context_json にのみ存在し summary には無い）。
+          if (!full) return true;
+          const mt = getMaterialType(full.context_json);
+          if (!mt) return false;
+          return allowedMaterialTypeSet.has(mt);
+        }
+        return true;
+      }),
+    [items, fullCache, allowedItemTypeSet, allowedMaterialTypeSet],
   );
 
   /* ----- 素材操作 (click / drag) ----- */
@@ -446,6 +486,14 @@ export function MaterialPanel({
                     }
                   : undefined
               }
+              onContextMenu={
+                onEditMaterial
+                  ? (e) => {
+                      e.preventDefault();
+                      setCtxMenu({ x: e.clientX, y: e.clientY, item });
+                    }
+                  : undefined
+              }
               renderItemOverlay={renderItemOverlay}
             />
           ))}
@@ -462,6 +510,7 @@ export function MaterialPanel({
       handleClick,
       handleDragStart,
       onItemPointerDown,
+      onEditMaterial,
       renderItemOverlay,
     ],
   );
@@ -519,6 +568,41 @@ export function MaterialPanel({
           <Loader2 className="w-4 h-4 animate-spin" />
         </div>
       )}
+
+      {/* 右クリック「編集」コンテキストメニュー（モーダルではない、RULES ルール 9/11 準拠） */}
+      {ctxMenu && onEditMaterial && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setCtxMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setCtxMenu(null);
+            }}
+          />
+          <div
+            className="fixed z-50 min-w-28 overflow-hidden rounded-md border border-border bg-card py-1 shadow-lg"
+            style={{ left: ctxMenu.x, top: ctxMenu.y }}
+            role="menu"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center px-3 py-1.5 text-left text-xs text-foreground hover:bg-muted/60"
+              onClick={() => {
+                const item = ctxMenu.item;
+                const full = fullCache.get(item.id);
+                const mt = getMaterialType(full?.context_json ?? null);
+                const pool = itemLibraryRef.current.get(item.id);
+                setCtxMenu(null);
+                onEditMaterial(item.id, mt, pool);
+              }}
+            >
+              編集
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -532,6 +616,7 @@ const MaterialThumb = memo(function MaterialThumb({
   onClick,
   onDragStart,
   onItemPointerDown,
+  onContextMenu,
   renderItemOverlay,
 }: {
   item: PoolItemSummary;
@@ -550,6 +635,8 @@ const MaterialThumb = memo(function MaterialThumb({
     e: React.PointerEvent<HTMLDivElement>,
     resolvedPath: string | null,
   ) => boolean;
+  /** 右クリック時に呼ばれる（未指定なら既定のコンテキストメニュー抑制なし）。 */
+  onContextMenu?: (e: React.MouseEvent<HTMLDivElement>) => void;
   /** サムネ上のオーバーレイ ReactNode。未指定は何も描画しない */
   renderItemOverlay?: (item: PoolItemSummary) => ReactNode;
 }) {
@@ -594,6 +681,7 @@ const MaterialThumb = memo(function MaterialThumb({
       onDragStart={onDragStart}
       onPointerDown={onItemPointerDown ? handlePointerDown : undefined}
       onPointerUp={onItemPointerDown ? handlePointerUp : undefined}
+      onContextMenu={onContextMenu}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {

@@ -9,3 +9,4 @@ packages:
   - "../akari-design"
   - "../akari-video"
   - "../akari-synth"
+  - "../akari-sheets"

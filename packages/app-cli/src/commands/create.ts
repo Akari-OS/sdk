@@ -26,6 +26,8 @@ interface TemplateVars {
   appShortId: string;     // e.g. "my_app" (snake_case, last segment of reverse-domain)
   category: string;          // e.g. "productivity"
   tier: Tier;
+  /** Full Tier のレイアウトプロファイル（AKARI-HUB-088 §2-1）。studio=4ペイン / compact=2分割 */
+  profile: "studio" | "compact";
   author: string;
   year: string;
   sdkRange: string;
@@ -108,7 +110,11 @@ export function registerCreateCommand(program: Command): void {
       "--category <category>",
       "App category, e.g. productivity, sns, research"
     )
-    .action(async (name: string, opts: { tier?: string; author?: string; category?: string }) => {
+    .option(
+      "--profile <profile>",
+      "Full Tier layout profile: studio | compact (default: studio)"
+    )
+    .action(async (name: string, opts: { tier?: string; author?: string; category?: string; profile?: string }) => {
       // -----------------------------------------------------------------------
       // 1. Validate name (kebab-case slug)
       // -----------------------------------------------------------------------
@@ -181,6 +187,15 @@ export function registerCreateCommand(program: Command): void {
       const appName = slugToName(name);
       const appShortId = appShortIdFromId(appId);
 
+      // Full Tier のレイアウトプロファイル（AKARI-HUB-088 §2-1）。
+      const profile: "studio" | "compact" = opts.profile === "compact" ? "compact" : "studio";
+      if (opts.profile && opts.profile !== "studio" && opts.profile !== "compact") {
+        console.error(
+          chalk.red(`Error: --profile must be "studio" or "compact", got "${opts.profile}".`)
+        );
+        process.exit(1);
+      }
+
       const vars: TemplateVars = {
         appId,
         appName,
@@ -188,6 +203,7 @@ export function registerCreateCommand(program: Command): void {
         appShortId,
         category,
         tier,
+        profile,
         author,
         year: String(new Date().getFullYear()),
         sdkRange: ">=0.1.0 <1.0",

@@ -46,7 +46,13 @@
     },
     "./PanelTabs": "./src/PanelTabs.tsx",
     "./InspectorShell": "./src/InspectorShell.tsx",
-    "./AIChatPanel": "./src/AIChatPanel.tsx"
+    "./AIChatPanel": "./src/AIChatPanel.tsx",
+    "./types/authoring": {
+      "import": "./src/types/authoring.ts",
+      "types": "./src/types/authoring.ts"
+    },
+    "./shortcuts": "./src/shortcuts.ts",
+    "./AppLayout": "./src/AppLayout.tsx"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -59,6 +65,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.8.0",
     "radix-ui": "^1.4.3",
+    "react-resizable-panels": "^4.9.0",
     "tailwind-merge": "^3.5.0"
   },
   "peerDependencies": {

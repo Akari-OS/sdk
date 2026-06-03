@@ -185,3 +185,23 @@ export {
   type AIChatPanelProps,
   type ChatMessage,
 } from "./AIChatPanel";
+// AKARI-HUB-088 §2-5 (S0-3): 素材オーサリング kit 統一契約型
+export type {
+  AuthoringEditorProps,
+  AuthoringApplyResult,
+  AuthoringStagePreset,
+} from "./types/authoring";
+// AKARI-HUB-088 §2-2 (S0-2): アプリ横断ショートカット登録
+export {
+  createShortcutRegistry,
+  COMMON_SHORTCUTS,
+  type ShortcutDef,
+  type ShortcutRegistry,
+  type ShortcutsDialogProps,
+} from "./shortcuts";
+// AKARI-HUB-088 §2-1 (S0-1): スタジオ系アプリ共通レイアウト枠
+export {
+  AppLayout,
+  type AppLayoutProps,
+  type AppLayoutProfile,
+} from "./AppLayout";
