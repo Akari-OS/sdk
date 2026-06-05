@@ -12,3 +12,4 @@ packages:
   - "../akari-sheets"
   - "../akari-3d"
   - "../akari-diagram"
+  - "../akari-stage"
