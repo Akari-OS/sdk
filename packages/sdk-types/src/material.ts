@@ -27,7 +27,8 @@ export type MaterialType =
   | "text-anim" // motion
   | "diagram-part"
   | "diagram-template" // diagram
-  | "mockup-shot" // mockup
+  | "stage-shot" // stage（モックアップショット・静止/動き）
+  | "mockup-shot" // 旧称（akari-mockup 時代。2026-06-04 stage へ改名。後方互換で残置）
   | "3d-model" // 3d
   | "chart"
   | "chart-template"

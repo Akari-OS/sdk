@@ -37,7 +37,10 @@ interface TemplateVars {
 // Template expansion helpers
 // ---------------------------------------------------------------------------
 
-const TEMPLATES_DIR = path.join(__dirname, "..", "templates");
+// テンプレートは src/templates/ に置き、package.json の files に含めて publish する。
+// ビルド後の実行時 __dirname は dist/ なので "../src/templates" で解決する
+// （local: <pkg>/dist → <pkg>/src/templates / published: 同レイアウトを files で同梱）。
+const TEMPLATES_DIR = path.join(__dirname, "..", "src", "templates");
 
 /**
  * Recursively walk a template directory, render each *.hbs file with Handlebars,
@@ -53,7 +56,9 @@ async function expandTemplate(
   for (const entry of entries) {
     const srcPath = path.join(templateDir, entry.name);
     // Render the entry name itself (allows {{appName}} in dir/file names)
-    const renderedName = Handlebars.compile(entry.name)(vars).replace(/\.hbs$/, "");
+    // noEscape: 出力は TOML / JSON / TS であり HTML ではない。HTML エスケープすると
+    // sdkRange の ">=0.1.0 <1.0" が "&gt;&#x3D;0.1.0 &lt;1.0" に化ける（生成 manifest 破損）。
+    const renderedName = Handlebars.compile(entry.name, { noEscape: true })(vars).replace(/\.hbs$/, "");
     const destPath = path.join(destDir, renderedName);
 
     if (entry.isDirectory()) {
@@ -61,7 +66,7 @@ async function expandTemplate(
       await expandTemplate(srcPath, destPath, vars);
     } else if (entry.name.endsWith(".hbs")) {
       const template = await fs.readFile(srcPath, "utf8");
-      const rendered = Handlebars.compile(template)(vars);
+      const rendered = Handlebars.compile(template, { noEscape: true })(vars);
       await fs.outputFile(destPath, rendered);
     } else {
       // Non-template files are copied as-is

@@ -43,9 +43,16 @@ type ChalkLike = {
 
 function makeChalk(): ChalkLike {
   try {
+    // chalk v5 は ESM-only。CJS バンドル経由の require では ESM namespace（{ default }）が
+    // 返り c.green が undefined になる（Node v25 等）。default を unwrap し、関数形状を確認して
+    // から採用する。形状が想定外なら identity にフォールバック。
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const chalk = require("chalk");
-    return chalk as ChalkLike;
+    const mod = require("chalk");
+    const chalk = mod && mod.default ? mod.default : mod;
+    if (chalk && typeof chalk.green === "function") {
+      return chalk as ChalkLike;
+    }
+    throw new Error("chalk shape unexpected");
   } catch {
     // No chalk — return identity functions
     const id = (s: string) => s;
