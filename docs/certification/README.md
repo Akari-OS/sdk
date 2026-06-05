@@ -169,7 +169,7 @@ akari app certify
 ───────────────────────────────────────
  App:    com.example.my-app
  Tier:   mcp-declarative
- SDK:    @akari/sdk >=0.1.0 <1.0
+ SDK:    @akari-os/sdk >=0.1.0 <1.0
 ───────────────────────────────────────
 
  [1/3] Automated Lint

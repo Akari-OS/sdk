@@ -29,7 +29,7 @@ AKARI では **App が独自ウィンドウを作ることを禁止**してい�
 App コード
     │
     ▼
-@akari/sdk → shell.mountPanel() / shell.dialog.show() / shell.toast.*()
+@akari-os/sdk → shell.mountPanel() / shell.dialog.show() / shell.toast.*()
     │
     ▼
 Shell（WorkspaceHost / Panel Framework）
@@ -41,7 +41,7 @@ Shell（WorkspaceHost / Panel Framework）
 ### インポート
 
 ```typescript
-import { shell } from "@akari/sdk"
+import { shell } from "@akari-os/sdk"
 ```
 
 ### UI surface の一覧
@@ -101,7 +101,7 @@ interface PanelMountOptions {
 #### 使用例
 
 ```typescript
-import { shell } from "@akari/sdk"
+import { shell } from "@akari-os/sdk"
 import { WriterInspector } from "./components/WriterInspector"
 
 // App 初期化時に呼ぶ
@@ -176,7 +176,7 @@ interface PanelSchema {
 #### 使用例
 
 ```typescript
-import { shell } from "@akari/sdk"
+import { shell } from "@akari-os/sdk"
 import xSenderSchema from "./panels/x-sender.schema.json"
 
 shell.mountSchemaPanel({
@@ -192,7 +192,7 @@ shell.mountSchemaPanel({
 Full Tier App が React 内で Schema Panel の Widget セットを部分利用したい場合は `<SchemaPanel>` コンポーネントを使う。
 
 ```typescript
-import { SchemaPanel } from "@akari/sdk/react"
+import { SchemaPanel } from "@akari-os/sdk"
 
 function WriterInspector() {
   return (
@@ -555,7 +555,7 @@ interface HITLPreviewResult {
 #### 使用例 — X 投稿の確認（X Sender App）
 
 ```typescript
-import { shell, permission } from "@akari/sdk"
+import { shell, permission } from "@akari-os/sdk"
 
 async function postToX(text: string, media?: PoolItem[]) {
   // 1. Permission gate（manifest 宣言確認）
@@ -657,7 +657,7 @@ type Unsubscribe = () => void
 #### 使用例
 
 ```typescript
-import { shell } from "@akari/sdk"
+import { shell } from "@akari-os/sdk"
 
 // 現在のテーマを取得
 const theme = shell.theme.get()
@@ -689,7 +689,7 @@ shell.i18n.onLocaleChange(callback: (locale: string) => void): Unsubscribe
 ### 使用例
 
 ```typescript
-import { shell } from "@akari/sdk"
+import { shell } from "@akari-os/sdk"
 
 // キーを解決してローカライズ済み文字列を取得
 const label = shell.i18n.resolve("{{t:post.body}}")
@@ -778,7 +778,7 @@ interface WorkspaceContext {
 #### 使用例
 
 ```typescript
-import { shell } from "@akari/sdk"
+import { shell } from "@akari-os/sdk"
 
 // 現在の Work 情報を取得
 const { work } = shell.workspace.current
@@ -802,7 +802,7 @@ const unsubscribe = shell.workspace.onChange(({ work, activePlatform }) => {
 ### 主要型の一覧
 
 ```typescript
-// @akari/sdk に含まれる UI 関連の型定義
+// @akari-os/sdk に含まれる UI 関連の型定義
 
 // Panel
 export interface PanelMountOptions { /* §2.1 参照 */ }
@@ -916,7 +916,7 @@ MCP-Declarative Tier App として X への投稿フローを実装した例。
 ```typescript
 // panels/x-sender-panel.ts（MCP-Declarative App では通常 JSON で完結するが、
 // Full Tier で同等のフローを書く場合の例）
-import { shell, permission } from "@akari/sdk"
+import { shell, permission } from "@akari-os/sdk"
 
 interface PostOptions {
   text: string
@@ -999,7 +999,7 @@ Full Tier App として、Writer がスタイル選択のカスタムダイア�
 ```typescript
 // components/StyleSelectorDialog.tsx
 import React, { useState } from "react"
-import { shell } from "@akari/sdk"
+import { shell } from "@akari-os/sdk"
 
 type TonePreset =
   | "casual"

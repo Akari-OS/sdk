@@ -57,7 +57,7 @@ Pool は素材を 3 つの tier で管理する：
 
 ```typescript
 // notion-mcp/src/cache/notion-cache.ts
-import { pool, amp } from "@akari/sdk"
+import { pool, amp } from "@akari-os/sdk"
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000  // 24 時間
 
@@ -372,7 +372,7 @@ export const xPostTool = {
 
 ```typescript
 // shared/network-monitor.ts
-import { shell } from "@akari/sdk"
+import { shell } from "@akari-os/sdk"
 
 export function startNetworkMonitor(appId: string): () => void {
   let wasOffline = false
@@ -519,7 +519,7 @@ export async function threeWayMerge(params: {
 
 ```typescript
 // shared/conflict/manual-resolve.ts
-import { shell } from "@akari/sdk"
+import { shell } from "@akari-os/sdk"
 
 export async function requestManualConflictResolution(params: {
   description: string
@@ -578,7 +578,7 @@ Cold tier に移動した素材を必要なときに Hot に戻す（rehydration
 
 ```typescript
 // shared/pool/rehydration.ts
-import { pool, shell } from "@akari/sdk"
+import { pool, shell } from "@akari-os/sdk"
 
 export async function getItemWithRehydration(
   poolId: string
@@ -710,7 +710,7 @@ export async function putWithThumbnail(params: {
 
 ```typescript
 // shared/network/availability.ts
-import { shell } from "@akari/sdk"
+import { shell } from "@akari-os/sdk"
 
 interface NetworkStatus {
   is_online:     boolean

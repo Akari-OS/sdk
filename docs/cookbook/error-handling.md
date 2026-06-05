@@ -45,7 +45,7 @@ AppError           — App 固有のビジネスロジックエラー
 ### TypeScript の型定義
 
 ```typescript
-// @akari/sdk/errors からインポートして使う
+// @akari-os/sdk/errors からインポートして使う
 import {
   AkariError,
   NetworkError,
@@ -59,7 +59,7 @@ import {
   AppError,
   NotFoundError,
   ConflictError,
-} from "@akari/sdk/errors"
+} from "@akari-os/sdk/errors"
 
 // 基底クラス
 class AkariError extends Error {
@@ -121,7 +121,7 @@ permErr.retryable  // → false（ユーザー判断なので自動リトライ�
 **Full Tier（React）での toast**:
 
 ```typescript
-import { shell } from "@akari/sdk"
+import { shell } from "@akari-os/sdk"
 
 // 成功 toast
 shell.toast({ message: "投稿しました", level: "success", duration: 3000 })
@@ -166,7 +166,7 @@ async function safePost(text: string) {
 データ損失・不可逆操作・認証切れなど、ユーザーの意思確認が必要な場合。
 
 ```typescript
-import { shell } from "@akari/sdk"
+import { shell } from "@akari-os/sdk"
 
 // 削除失敗の確認ダイアログ
 async function deletePageWithConfirm(pageId: string) {
@@ -360,7 +360,7 @@ App はこの deadletter イベントを受信して、ユーザーに通知で�
 
 ```typescript
 // mcp-server/index.ts
-import { app } from "@akari/sdk"
+import { app } from "@akari-os/sdk"
 
 app.onDeadletter(async (job) => {
   // deadletter に入ったジョブを受信
@@ -383,7 +383,7 @@ app.onDeadletter(async (job) => {
 ### 基本パターン
 
 ```typescript
-import { amp } from "@akari/sdk"
+import { amp } from "@akari-os/sdk"
 
 async function postWithRecording(
   text: string,
@@ -510,7 +510,7 @@ akari dev --debug   # さらに詳細なログ
 開発時のみ詳細ログを出す：
 
 ```typescript
-import { logger } from "@akari/sdk"
+import { logger } from "@akari-os/sdk"
 
 // 環境に応じたログレベルの切り替え
 const log = logger.create("com.akari.x-sender")  // App ID をプレフィックスに

@@ -112,7 +112,7 @@ App には 2 つの Tier がある。
 
 **[→ api-reference/](./api-reference/)**
 
-AKARI App SDK が提供する 7 つの API 群。すべて `@akari/sdk` からインポートする。
+AKARI App SDK が提供する 7 つの API 群。すべて `@akari-os/sdk` からインポートする。
 
 | API | 役割 | 主要関数 |
 |---|---|---|
@@ -218,7 +218,7 @@ SDK パッケージおよび example App の仕様書。逆算仕様（Reverse S
 
 | ディレクトリ | 内容 |
 |---|---|
-| [`../packages/`](../packages/) | SDK パッケージ実装（`@akari/sdk` など） |
+| [`../packages/`](../packages/) | SDK パッケージ実装（`@akari-os/sdk` など） |
 | [`../examples/`](../examples/) | 参考実装（X Sender / Notion / Web Search / Writer） |
 
 ---

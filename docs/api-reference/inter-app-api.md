@@ -16,7 +16,7 @@ related: [HUB-024, HUB-005, memory-api.md, permission-api.md]
 ## 1. 概要
 
 Inter-App API は、AKARI App 間の **handoff（受け渡し）** を実現する API。
-`@akari/sdk` の `app` オブジェクトを通じて利用する。
+`@akari-os/sdk` の `app` オブジェクトを通じて利用する。
 
 ### "id を渡す" 原則
 
@@ -50,7 +50,7 @@ Inter-App API は、AKARI App 間の **handoff（受け渡し）** を実現す�
 ### シグネチャ
 
 ```typescript
-import { app } from "@akari/sdk"
+import { app } from "@akari-os/sdk"
 
 await app.handoff(targetId: string, payload: HandoffPayload): Promise<HandoffResult>
 ```
@@ -75,7 +75,7 @@ interface HandoffResult {
 ### 最小例
 
 ```typescript
-import { app } from "@akari/sdk"
+import { app } from "@akari-os/sdk"
 
 // Writer → X Sender へ下書きを渡す
 const result = await app.handoff("com.akari.x-sender", {
@@ -155,7 +155,7 @@ interface HandoffHints {
 ### シグネチャ
 
 ```typescript
-import { app } from "@akari/sdk"
+import { app } from "@akari-os/sdk"
 
 app.onHandoff(handler: HandoffHandler): void
 
@@ -179,7 +179,7 @@ interface HandoffResponse {
 ### 実装例（Publishing App 側）
 
 ```typescript
-import { app, amp, pool } from "@akari/sdk"
+import { app, amp, pool } from "@akari-os/sdk"
 
 app.onHandoff(async (handoff) => {
   // kind チェック：自分が処理できる handoff のみ受け入れる
@@ -234,7 +234,7 @@ app.onHandoff(async (handoff) => {
 
 ```typescript
 // Writer 側（送り元）
-import { pool, amp, app, permission } from "@akari/sdk"
+import { pool, amp, app, permission } from "@akari-os/sdk"
 
 async function handoffToPublishing(content: string, targetApp: string) {
   // 1. 下書きを Pool に保存
@@ -285,7 +285,7 @@ Research App が収集した情報を Google Sheets や Excel に出力する。
 
 ```typescript
 // Research App 側（送り元）
-import { amp, app } from "@akari/sdk"
+import { amp, app } from "@akari-os/sdk"
 
 async function exportToSheets(searchResults: SearchResult[]) {
   // 調査結果を AMP に記録
@@ -320,7 +320,7 @@ async function exportToSheets(searchResults: SearchResult[]) {
 
 ```typescript
 // Video App 側（送り元）
-import { pool, amp, app } from "@akari/sdk"
+import { pool, amp, app } from "@akari-os/sdk"
 
 async function exportToPresentationSlides(
   chapterOutline: Chapter[],
@@ -456,7 +456,7 @@ pool = ["read", "write"]
 ### HITL Gate の挿入
 
 ```typescript
-import { permission, app } from "@akari/sdk"
+import { permission, app } from "@akari-os/sdk"
 
 // NG: HITL なしで外部送信 — Certification で reject される
 await app.handoff("com.akari.x-sender", payload)
@@ -569,7 +569,7 @@ app.onHandoff(async (handoff) => {
 ## 10. 型定義
 
 ```typescript
-// @akari/sdk の型定義（抜粋）
+// @akari-os/sdk の型定義（抜粋）
 
 /** handoff を送る */
 declare function handoff(
@@ -622,7 +622,7 @@ interface HandoffResponse {
 
 type HandoffHandler = (handoff: IncomingHandoff) => Promise<HandoffResponse>
 
-/** app オブジェクト（@akari/sdk からインポート） */
+/** app オブジェクト（@akari-os/sdk からインポート） */
 export declare const app: {
   handoff: typeof handoff
   onHandoff: typeof onHandoff
@@ -637,7 +637,7 @@ export declare const app: {
 
 ```typescript
 // writer/src/publish.ts
-import { pool, amp, ace, app, permission, shell } from "@akari/sdk"
+import { pool, amp, ace, app, permission, shell } from "@akari-os/sdk"
 
 export async function publishToX(
   content: string,
@@ -710,7 +710,7 @@ export async function publishToX(
 
 ```typescript
 // writer/src/export-to-notion.ts
-import { pool, amp, app, permission } from "@akari/sdk"
+import { pool, amp, app, permission } from "@akari-os/sdk"
 
 export async function exportToNotion(
   articleContent: string,

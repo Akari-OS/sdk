@@ -132,10 +132,10 @@ mcp = ["x.post", "x.schedule", "x.draft"]
 
 ## 3. Runtime API
 
-すべての Permission API は `@akari/sdk` の `permission` オブジェクトからアクセスする。
+すべての Permission API は `@akari-os/sdk` の `permission` オブジェクトからアクセスする。
 
 ```typescript
-import { permission } from "@akari/sdk"
+import { permission } from "@akari-os/sdk"
 ```
 
 ---
@@ -193,7 +193,7 @@ class PermissionDeniedError extends Error {
 #### 使用例（低リスク操作）
 
 ```typescript
-import { permission, pool } from "@akari/sdk"
+import { permission, pool } from "@akari-os/sdk"
 
 async function saveDraft(content: string): Promise<string> {
   // pool:write は低リスク。manifest 宣言済みなら自動通過
@@ -215,7 +215,7 @@ async function saveDraft(content: string): Promise<string> {
 #### 使用例（高リスク操作 + HITL）
 
 ```typescript
-import { permission } from "@akari/sdk"
+import { permission } from "@akari-os/sdk"
 
 async function postToX(text: string): Promise<void> {
   // x.post は高リスク。HITL でユーザーが目視確認してから実行
@@ -271,7 +271,7 @@ interface PermissionStatus {
 #### 使用例
 
 ```typescript
-import { permission } from "@akari/sdk"
+import { permission } from "@akari-os/sdk"
 
 // OAuth 連携の初回認可フロー
 async function connectXAccount(): Promise<void> {
@@ -297,7 +297,7 @@ function check(scope: PermissionScope): PermissionStatus
 #### 使用例
 
 ```typescript
-import { permission } from "@akari/sdk"
+import { permission } from "@akari-os/sdk"
 
 function PostButton() {
   const status = permission.check("mcp:x.post")
@@ -329,7 +329,7 @@ async function revoke(scope: PermissionScope): Promise<void>
 #### 使用例
 
 ```typescript
-import { permission } from "@akari/sdk"
+import { permission } from "@akari-os/sdk"
 
 // 設定画面の「X 連携を解除」ボタン
 async function disconnectXAccount(): Promise<void> {
@@ -558,7 +558,7 @@ Shell が提供する標準ダイアログには以下の要素が含まれる�
 ### ポリシーの取得・確認
 
 ```typescript
-import { permission } from "@akari/sdk"
+import { permission } from "@akari-os/sdk"
 
 const status = permission.check("mcp:x.post")
 console.log(status.policy)  // "always" | "session" | "ask"
@@ -597,7 +597,7 @@ interface PermissionAuditRecord {
 ### 監査ログの照会
 
 ```typescript
-import { amp } from "@akari/sdk"
+import { amp } from "@akari-os/sdk"
 
 // 自 App の permission ログを取得
 const auditLog = await amp.query({
@@ -614,7 +614,7 @@ const auditLog = await amp.query({
 ## 10. 型定義
 
 ```typescript
-// @akari/sdk の型定義（抜粋）
+// @akari-os/sdk の型定義（抜粋）
 
 /** Permission scope の完全な型 */
 type PermissionScope =
@@ -650,7 +650,7 @@ class PermissionDeniedError extends Error {
   readonly reason: "not-declared" | "user-denied" | "policy-denied" | "timeout"
 }
 
-/** permission オブジェクト（@akari/sdk からエクスポート） */
+/** permission オブジェクト（@akari-os/sdk からエクスポート） */
 interface PermissionAPI {
   gate(options: PermissionGateOptions): Promise<void>
   request(scope: PermissionScope): Promise<PermissionStatus>
@@ -714,7 +714,7 @@ MCP-Declarative Tier では、Shell が `hitl.require: true` を検出して
 #### 初回連携フロー（Full Tier で同等の処理を書く場合）
 
 ```typescript
-import { permission } from "@akari/sdk"
+import { permission } from "@akari-os/sdk"
 
 export async function onMount() {
   // 初回マウント時に OAuth 連携状態を確認
@@ -754,7 +754,7 @@ mcp = ["notion.search", "notion.page.create", "notion.page.update", "notion.page
 #### ページ更新（Full Tier 実装例）
 
 ```typescript
-import { permission } from "@akari/sdk"
+import { permission } from "@akari-os/sdk"
 
 async function updatePage(pageId: string, newContent: string): Promise<void> {
   // 更新は中リスク。HITL は任意だがプレビューで差分を見せる
@@ -772,7 +772,7 @@ async function updatePage(pageId: string, newContent: string): Promise<void> {
 #### ページ削除（高リスク + カスタムプレビュー）
 
 ```typescript
-import { permission } from "@akari/sdk"
+import { permission } from "@akari-os/sdk"
 
 async function deletePage(pageId: string, title: string): Promise<void> {
   // 削除は不可逆。必ず HITL + カスタムメッセージで警告

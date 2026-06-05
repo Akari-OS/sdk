@@ -39,7 +39,7 @@ related:
 ### Skill とは
 
 **Skill** は App が外部に公開する「再利用可能な能力の単位」。
-`@akari/sdk` の `skill` オブジェクトを通じて登録・呼び出しを行う。
+`@akari-os/sdk` の `skill` オブジェクトを通じて登録・呼び出しを行う。
 
 CAA（Costume-Agent Architecture）の文脈では、Skill は**コスチューム（着ぐるみ）が装備できるプロンプト片**として生まれた概念（Skill / Workflow / Template framework (internal spec)）。
 App SDK（HUB-024）においては、それを拡張し**型付き関数**として App 間の契約に昇格させた形が「App Skill」。
@@ -110,7 +110,7 @@ my-app/
 
 ```typescript
 import { z } from "zod"
-import type { SkillDef } from "@akari/sdk"
+import type { SkillDef } from "@akari-os/sdk"
 
 // --- 入力スキーマ ---
 const InputSchema = z.object({
@@ -173,7 +173,7 @@ applicable-costumes: [partner, writer]
 App の起動時（`onMount`）に Skill を Core に登録する。登録後は他 App から呼び出し可能になる。
 
 ```typescript
-import { skill } from "@akari/sdk"
+import { skill } from "@akari-os/sdk"
 import generateDraft from "./skills/generate-draft.js"
 import styleRewrite  from "./skills/style-rewrite.js"
 
@@ -212,7 +212,7 @@ function invoke<T = unknown>(
 ### 使い方
 
 ```typescript
-import { skill } from "@akari/sdk"
+import { skill } from "@akari-os/sdk"
 import type { GenerateDraftOutput } from "@writer/types"
 
 // 型安全な呼び出し（推奨）
@@ -463,7 +463,7 @@ await ctx.amp.record({
 ## 10. 型定義
 
 ```typescript
-// @akari/sdk が export する型定義
+// @akari-os/sdk が export する型定義
 
 import type { ZodSchema }  from "zod"
 import type { JSONSchema7 } from "json-schema"
@@ -511,7 +511,7 @@ export interface SkillInvokeOptions {
   trace_id?:   string
 }
 
-/** skill オブジェクト（`@akari/sdk` から import） */
+/** skill オブジェクト（`@akari-os/sdk` から import） */
 export interface SkillAPI {
   register(skill: SkillDef | SkillDef[]): void
   invoke<T = unknown>(id: string, input: unknown, options?: SkillInvokeOptions): Promise<T>
@@ -541,7 +541,7 @@ Writer App が公開する、スタイル一貫性を維持しながら書き直
 ```typescript
 // skills/style-consistent-rewrite.ts
 import { z } from "zod"
-import type { SkillDef } from "@akari/sdk"
+import type { SkillDef } from "@akari-os/sdk"
 
 const InputSchema = z.object({
   text:               z.string().min(1).describe("書き直すテキスト"),
@@ -587,7 +587,7 @@ export default skill
 呼び出し側（例: Publishing App）：
 
 ```typescript
-import { skill } from "@akari/sdk"
+import { skill } from "@akari-os/sdk"
 
 const rewritten = await skill.invoke<{ rewritten: string; changes: string[] }>(
   "writer.style_consistent_rewrite",

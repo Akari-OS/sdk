@@ -56,7 +56,7 @@ AKARI App SDK を使った開発でつまずいたとき、まずここを見る
 **症状**
 
 ```
-error @akari/sdk: The engine "node" is incompatible with this module.
+error @akari-os/sdk: The engine "node" is incompatible with this module.
 Expected version ">=20.0.0". Got "18.x.x"
 ```
 
@@ -64,7 +64,7 @@ Expected version ">=20.0.0". Got "18.x.x"
 
 **原因**
 
-`@akari/sdk` は Node.js 20 以上を要求する。システムにインストールされている Node.js が古い。
+`@akari-os/sdk` は Node.js 20 以上を要求する。システムにインストールされている Node.js が古い。
 
 **解決**
 
@@ -204,7 +204,7 @@ const db = new Database('./local.db')
 db.exec('CREATE TABLE ...')
 
 // OK: Pool を使う
-import { pool } from '@akari/sdk'
+import { pool } from '@akari-os/sdk'
 const id = await pool.put({ bytes, mime: 'application/json', tags: ['my-data'] })
 const item = await pool.get(id)
 ```
@@ -229,7 +229,7 @@ Guidelines §6.7-3「独自ウィンドウ禁止」違反。Shell の panel 規�
 const win = new BrowserWindow({ width: 800, height: 600 })
 
 // OK: Shell の UI API を使う
-import { shell } from '@akari/sdk'
+import { shell } from '@akari-os/sdk'
 shell.mountPanel({
   id: 'my-app.main',
   title: 'My App',
@@ -257,7 +257,7 @@ Guidelines §6.7-4「エージェント間通信は記憶層経由」違反。Ap
 const res = await fetch('akari://app/com.akari.writer/api/draft')
 
 // OK: Inter-App API で ID のみ渡す
-import { app } from '@akari/sdk'
+import { app } from '@akari-os/sdk'
 await app.handoff({
   to: 'com.akari.writer',
   intent: 'import-draft',
@@ -715,7 +715,7 @@ Shell のサイドバーに App のアイコンが出るが、Panel をクリッ
 |---|---|
 | `shell.mountPanel` の `id` に重複がある | App ID を含んだユニーク名にする（例: `my-app.main`） |
 | Panel コンポーネントが default export されていない | `export default MyPanel` を確認 |
-| Panel の React バージョンが Core と不整合 | `@akari/sdk` が peer dependency に指定する React バージョンを使う |
+| Panel の React バージョンが Core と不整合 | `@akari-os/sdk` が peer dependency に指定する React バージョンを使う |
 | `akari.toml` の `[panels]` の `mount` パスが間違っている | 実際のファイルパスと一致するか確認 |
 | MCP-Declarative なのに `mount` を指定している | MCP-Declarative は `schema` キーを使う（`mount` は Full Tier 用） |
 
@@ -859,7 +859,7 @@ time node mcp-servers/x-sender/index.js --check-only
 **原因 B** — SDK バージョンが古い（パフォーマンス改善が含まれている可能性）
 
 ```bash
-npm update @akari/sdk
+npm update @akari-os/sdk
 ```
 
 **原因 C** — Panel コンポーネントのトップレベルで重い同期処理を実行している
@@ -899,7 +899,7 @@ const all = await pool.search({ query: 'all-items', limit: 1000 })
 return <>{all.map(item => <ItemCard key={item.id} item={item} />)}</>
 
 // OK: ページネーション + 仮想スクロール
-import { VirtualList } from '@akari/sdk/react'
+import { VirtualList } from '@akari-os/sdk'
 const page = await pool.search({ query: 'all-items', limit: 20, offset })
 return <VirtualList items={page} renderItem={(item) => <ItemCard item={item} />} />
 ```
@@ -1165,14 +1165,14 @@ App 開発者が作った App を商用利用・販売する場合は：
 
 - **GitHub Discussions**: [akari-os/akari-os/discussions](https://github.com/akari-os/akari-os/discussions)
   - カテゴリ `Q&A` を選ぶ
-  - App ID（`com.xxx.yyy`）と SDK バージョン（`@akari/sdk x.y.z`）を明記する
+  - App ID（`com.xxx.yyy`）と SDK バージョン（`@akari-os/sdk x.y.z`）を明記する
 
 ### SDK バージョンの確認方法
 
 ```bash
-npm list @akari/sdk
+npm list @akari-os/sdk
 # または
-cat node_modules/@akari/sdk/package.json | grep '"version"'
+cat node_modules/@akari-os/sdk/package.json | grep '"version"'
 ```
 
 ### Issue テンプレート（バグ報告）
@@ -1181,7 +1181,7 @@ cat node_modules/@akari/sdk/package.json | grep '"version"'
 **環境**
 - OS: macOS 15.x / Windows 11
 - Node.js: v20.x.x
-- @akari/sdk: x.y.z
+- @akari-os/sdk: x.y.z
 - akari-app-cli: x.y.z
 
 **App Tier**

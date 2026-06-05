@@ -59,7 +59,7 @@ token_storage = "keychain:com.example.my-service"
 ### MCP サーバー側の実装（TypeScript）
 
 ```typescript
-import { permission, keychain } from "@akari/sdk"
+import { permission, keychain } from "@akari-os/sdk"
 import crypto from "node:crypto"
 
 // ---- PKCE ヘルパー ----
@@ -259,7 +259,7 @@ token_storage = "keychain:com.example.google-workspace"
 ### 実装（TypeScript）
 
 ```typescript
-import { permission, keychain } from "@akari/sdk"
+import { permission, keychain } from "@akari-os/sdk"
 
 const GOOGLE_OAUTH_CONFIG = {
   clientId:     process.env.GOOGLE_CLIENT_ID!,
@@ -473,7 +473,7 @@ keychain         = ["com.example.my-service"]
 
 ```typescript
 // 実行時ゲート — manifest で宣言した action しか gate できない
-import { permission } from "@akari/sdk"
+import { permission } from "@akari-os/sdk"
 
 // 内部操作（Pool 書き込み）— HITL 不要
 await permission.gate({
@@ -652,7 +652,7 @@ export class OAuthRefreshError extends Error {
 
 ```typescript
 // auth/error-recovery.ts
-import { shell, amp } from "@akari/sdk"
+import { shell, amp } from "@akari-os/sdk"
 import { OAuthRefreshError } from "./token-refresh"
 
 export async function withAuth<T>(

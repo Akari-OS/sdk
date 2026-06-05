@@ -225,7 +225,7 @@ Panel を Shell に mount する最小例：
 
 ```typescript
 // panels/main.tsx
-import { shell } from "@akari/sdk"
+import { shell } from "@akari-os/sdk"
 import { MyEditorPanel } from "./MyEditorPanel"
 
 // App の entry point で一度だけ呼ぶ
@@ -241,7 +241,7 @@ lazy import でコード分割する場合：
 
 ```typescript
 import { lazy } from "react"
-import { shell } from "@akari/sdk"
+import { shell } from "@akari-os/sdk"
 
 shell.mountPanel({
   id: "my-editor.main",
@@ -256,7 +256,7 @@ shell.mountPanel({
 Shell は Panel コンポーネントに以下の Props を注入する：
 
 ```typescript
-// @akari/sdk で型定義されている
+// @akari-os/sdk で型定義されている
 export interface PanelProps {
   /** このパネルが現在フォーカスを持っているか */
   isFocused: boolean
@@ -284,7 +284,7 @@ Shell からの通知は `shell.*` イベントハンドラで受け取る。**�
 
 ```typescript
 // panels/main.tsx — module entry point で購読
-import { shell } from "@akari/sdk"
+import { shell } from "@akari-os/sdk"
 import { useEditorStore } from "../src/store/editor"
 
 // App ロード時に 1 回だけ実行
@@ -316,7 +316,7 @@ Panel の状態は Zustand で管理する（ADR-007）。Pool との同期パ�
 ```typescript
 // src/store/editor.ts
 import { create } from "zustand"
-import { pool, amp } from "@akari/sdk"
+import { pool, amp } from "@akari-os/sdk"
 
 interface EditorState {
   content: string
@@ -442,7 +442,7 @@ Certification の Automated Lint は `<app-short-id>_` prefix を強制チェッ
 ### 6.3 Agent API での呼び出し
 
 ```typescript
-import { defineAgent, invoke, spawn } from "@akari/sdk"
+import { defineAgent, invoke, spawn } from "@akari-os/sdk"
 
 // App ロード時にエージェントを定義（一度だけ）
 defineAgent({
@@ -509,7 +509,7 @@ App をアンインストールすると `my_editor_writer` は自動で登録�
 **宣言なしの権限を gate() で要求するとエラー**になり、Lint でも検出される。
 
 ```typescript
-import { permission } from "@akari/sdk"
+import { permission } from "@akari-os/sdk"
 
 // Pool への書き込み（HITL 不要）
 await permission.gate({
@@ -629,7 +629,7 @@ async function transcodeVideo(inputPath: string): Promise<string> {
 ネイティブ処理の結果は必ず Pool に格納する（App が自前 DB を持つことは禁止）：
 
 ```typescript
-import { pool } from "@akari/sdk"
+import { pool } from "@akari-os/sdk"
 import { invoke as tauriInvoke } from "@tauri-apps/api/core"
 
 async function processAndStore(inputPath: string, goalRef: string) {
@@ -686,7 +686,7 @@ Full Tier の React Panel 内に、Shell の汎用 SchemaPanel を埋め込む�
 
 ```tsx
 // panels/main.tsx
-import { SchemaPanel } from "@akari/sdk/components"
+import { SchemaPanel } from "@akari-os/sdk"
 
 // panel.schema.json を import（または動的取得）
 import settingsSchema from "../panels/settings.schema.json"
@@ -718,7 +718,7 @@ export function MyEditorPanel() {
 ### 9.3 SchemaPanel の Props
 
 ```typescript
-// @akari/sdk で型定義されている（HUB-025 Panel Schema v0 準拠）
+// @akari-os/sdk で型定義されている（HUB-025 Panel Schema v0 準拠）
 interface SchemaPanelProps {
   /** panel.schema.json の内容 */
   schema: PanelSchema
@@ -754,7 +754,7 @@ Zustand store はあくまで「UI の一時状態（選択カーソル位置、
 SDK の各 API は失敗時に型付きエラーをスローする。`try/catch` + ユーザーへのフィードバックを必ず実装する：
 
 ```typescript
-import { PoolError, AMPError, PermissionDeniedError } from "@akari/sdk/errors"
+import { PoolError, AMPError, PermissionDeniedError } from "@akari-os/sdk/errors"
 
 async function safeSave(content: string, goalRef: string) {
   try {
@@ -938,7 +938,7 @@ import Database from "@tauri-apps/plugin-sql"
 const db = await Database.load("sqlite:my-app.db")  // ← 禁止
 
 // OK: Pool / AMP 経由
-import { pool, amp } from "@akari/sdk"
+import { pool, amp } from "@akari-os/sdk"
 const id = await pool.put({ bytes, mime: "application/json", tags: ["config"] })
 ```
 

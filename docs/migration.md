@@ -144,8 +144,8 @@ MCP-Declarative の `panel.schema.json` で書いていた各 field / action を
 **変換後（React コンポーネント、`panels/XSenderPanel.tsx`）**:
 
 ```tsx
-import { pool, permission } from "@akari/sdk"
-import { SchemaPanel } from "@akari/sdk/react"
+import { pool, permission } from "@akari-os/sdk"
+import { SchemaPanel } from "@akari-os/sdk"
 import { useState } from "react"
 
 // 段階的移行: 既存の schema をそのまま部分利用する（§2.5 参照）
@@ -206,7 +206,7 @@ tools = ["x.post", "x.schedule"]
 
 ```tsx
 // React Panel から MCP ツールを呼び出す
-import { mcp } from "@akari/sdk"
+import { mcp } from "@akari-os/sdk"
 
 const result = await mcp.call("x.post", { text, media })
 ```
@@ -250,7 +250,7 @@ server.tool("x.post", async ({ text, media }) => {
 })
 
 // 変換後: Skill として登録（skills/post.ts）
-import { skill, permission } from "@akari/sdk"
+import { skill, permission } from "@akari-os/sdk"
 
 skill.register({
   id: "x-sender.post",
@@ -288,13 +288,13 @@ skill.register({
 ### 2.5 `<SchemaPanel>` を Full Tier 内で部分利用する段階的移行
 
 昇格後も、既存の `panel.schema.json` を**すべて書き直す必要はない**。
-`@akari/sdk/react` が提供する `<SchemaPanel>` コンポーネントを使えば、
+`@akari-os/sdk` が提供する `<SchemaPanel>` コンポーネントを使えば、
 既存の schema を React の一部品として再利用できる。
 
 ```tsx
-import { SchemaPanel } from "@akari/sdk/react"
+import { SchemaPanel } from "@akari-os/sdk"
 import xSenderSchema from "../panels/x-sender.schema.json"
-import type { PanelSchema } from "@akari/sdk/react"
+import type { PanelSchema } from "@akari-os/sdk"
 
 function XSenderPanel() {
   // Full Tier で新たに追加したい UI
@@ -469,11 +469,11 @@ const id = await pool.put({
 })
 ```
 
-v1 リリース時には `@akari/sdk` に **codemod ツール**を同梱する予定:
+v1 リリース時には `@akari-os/sdk` に **codemod ツール**を同梱する予定:
 
 ```bash
 # TypeScript ソースを v0 API から v1 API に自動変換
-npx @akari/sdk-codemod@1 --from=0 --to=1 ./src
+npx @akari-os/sdk-codemod@1 --from=0 --to=1 ./src
 ```
 
 ---
@@ -497,9 +497,9 @@ SDK の breaking change は以下のフローで開発者に届く。
 **`akari dev` が出す警告の例**:
 
 ```
-⚠ AKARI SDK: @akari/sdk v0.3 は 2027-01-01 にサポートを終了します。
+⚠ AKARI SDK: @akari-os/sdk v0.3 は 2027-01-01 にサポートを終了します。
   v1.0 への移行ガイド: https://akari.os/docs/guides/sdk/migration
-  自動変換: npx @akari/sdk-codemod@1
+  自動変換: npx @akari-os/sdk-codemod@1
 ```
 
 ---
@@ -534,7 +534,7 @@ AKARI App SDK の Deprecation は、開発者が安心してエコシステム�
 akari app inspect --sdk-compat
 
 # 推奨される最小バージョンへの更新
-npm install @akari/sdk@latest
+npm install @akari-os/sdk@latest
 
 # breaking change の影響範囲を事前チェック
 akari app certify --check-compat
@@ -632,7 +632,7 @@ sdk = ">=0.1.0 <1.0"
 
 **落とし穴 5: `pool.put()` の戻り値の型変化を見落とす**
 
-v0 の間は型定義が変わることがある。`@akari/sdk` を更新したら必ず型チェックを実行する。
+v0 の間は型定義が変わることがある。`@akari-os/sdk` を更新したら必ず型チェックを実行する。
 
 ```bash
 # 型チェックだけ実行（実行はしない）

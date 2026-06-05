@@ -31,7 +31,7 @@ SDK Cookbook は、AKARI App を実際に開発する上でよく直面する**�
 
 ### Cookbook が扱う範囲
 
-- AKARI App SDK（`@akari/sdk`）を使った実装パターン
+- AKARI App SDK（`@akari-os/sdk`）を使った実装パターン
 - Full App / MCP-Declarative App 両 Tier に共通するパターン
 - Tier 固有のパターンは各レシピ内で明示する
 

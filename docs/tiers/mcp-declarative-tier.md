@@ -314,8 +314,8 @@ server.tool(
     media: z.array(z.string()).optional(),
   },
   async ({ text, media }) => {
-    // Pool への保存は @akari/sdk 経由
-    const { pool } = await import("@akari/sdk")
+    // Pool への保存は @akari-os/sdk 経由
+    const { pool } = await import("@akari-os/sdk")
     const id = await pool.put({
       bytes: Buffer.from(text),
       mime: "text/plain",
@@ -343,7 +343,7 @@ await server.connect(transport)
 ### AMP への記録（投稿成功後）
 
 ```typescript
-import { amp } from "@akari/sdk"
+import { amp } from "@akari-os/sdk"
 
 // x.post の成功ハンドラ内
 await amp.record({
@@ -765,7 +765,7 @@ keychain = ["com.akari.deepl"]
 MCP サーバー内での読み取り：
 
 ```typescript
-import { keychain } from "@akari/sdk"
+import { keychain } from "@akari-os/sdk"
 
 const apiKey = await keychain.get({
   service: "com.akari.deepl",
@@ -790,7 +790,7 @@ const apiKey = await keychain.get({
 実行時の権限確認は Permission API で行います。MCP-Declarative Tier では多くの場合、HITL ゲートが Permission API を暗黙的に呼び出しますが、明示的に呼び出すこともできます：
 
 ```typescript
-import { permission } from "@akari/sdk"
+import { permission } from "@akari-os/sdk"
 
 // HITL 必須アクション（外部公開）
 await permission.gate({
@@ -830,7 +830,7 @@ MCP-Declarative App は **「書き込み系だけネットワーク依存、読
 
 ```typescript
 // MCP サーバー内での Pool キャッシュ
-import { pool } from "@akari/sdk"
+import { pool } from "@akari-os/sdk"
 
 const cacheKey = `notion-db-cache:${databaseId}`
 const cached = await pool.search({ tags: [cacheKey], sort: "latest" })
@@ -1017,7 +1017,7 @@ MCP-Declarative で始めて、UI 要件が育ったら Full に昇格できま�
 
 ```tsx
 // Full Tier になっても既存の Schema をそのまま流用できる
-import { SchemaPanel } from "@akari/sdk/react"
+import { SchemaPanel } from "@akari-os/sdk"
 import mainSchema from "./panels/main.schema.json"
 
 export function NotionPanel() {
@@ -1092,7 +1092,7 @@ import Database from "better-sqlite3"
 const db = new Database("my-app.db")  // 禁止！
 
 // 良い例
-import { pool, amp } from "@akari/sdk"
+import { pool, amp } from "@akari-os/sdk"
 await pool.put({ bytes, mime, tags: ["my-data"] })
 await amp.record({ kind: "my-record", content: "...", goal_ref: "..." })
 ```

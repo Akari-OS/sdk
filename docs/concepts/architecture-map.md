@@ -21,7 +21,7 @@ related: [HUB-024, HUB-025, HUB-001]
 │  │  (Full)    │  │  (Full)    │  │ (MCP-Decl) │  │  App         │  │
 │  └──────┬─────┘  └──────┬─────┘  └──────┬─────┘  └──────┬───────┘  │
 │         └───────────────┴───────────────┴───────────────┘           │
-│                     ↕ AKARI App SDK（@akari/sdk）                    │
+│                     ↕ AKARI App SDK（@akari-os/sdk）                    │
 ├─────────────────────────────────────────────────────────────────────┤
 │  AKARI Core                                                          │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐  │
@@ -43,7 +43,7 @@ related: [HUB-024, HUB-025, HUB-001]
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-App 開発者が直接触るのは主に「App 層」と「AKARI App SDK（@akari/sdk）」の境界。
+App 開発者が直接触るのは主に「App 層」と「AKARI App SDK（@akari-os/sdk）」の境界。
 Core の内部実装を直接触ることはない（SDK 経由で全て行う）。
 
 ---
@@ -58,7 +58,7 @@ App が Shell に Panel を表示するまでの流れ。
 [App 起動時]
 
 App (panels/writer.tsx)
-  ↓ import { shell } from "@akari/sdk"
+  ↓ import { shell } from "@akari-os/sdk"
   ↓ shell.mountPanel({
         id: "writer.main",
         title: "Writer",
@@ -72,7 +72,7 @@ Shell (Panel Registry)
 
 Shell (Panel Registry)
   ↓ WriterPanel の React component を render
-  ↓ @akari/sdk のコンテキストを注入（pool / amp / permission 等）
+  ↓ @akari-os/sdk のコンテキストを注入（pool / amp / permission 等）
 
 [ユーザーが Panel を閉じる]
 
@@ -121,7 +121,7 @@ App がカスタムエージェントを呼び出すとき（Full Tier のみ）
 
 ```
 App (src/index.ts)
-  ↓ import { defineAgent, invoke } from "@akari/sdk"
+  ↓ import { defineAgent, invoke } from "@akari-os/sdk"
   ↓ defineAgent({
         id: "writer_editor",
         persona: "文章の編集者",
@@ -166,7 +166,7 @@ App
 [Pool へ書き込む（素材保存）]
 
 App / MCP サーバー
-  ↓ import { pool } from "@akari/sdk"
+  ↓ import { pool } from "@akari-os/sdk"
   ↓ const id = await pool.put({
         bytes,
         mime: "text/markdown",
@@ -188,7 +188,7 @@ App
 [AMP へ記録する（操作ログ）]
 
 MCP サーバー
-  ↓ import { amp } from "@akari/sdk"
+  ↓ import { amp } from "@akari-os/sdk"
   ↓ await amp.record({
         kind: "publish-action",
         content: "X に投稿: https://x.com/...",
@@ -213,7 +213,7 @@ App 同士は**直接通信しない**。全て記憶層（Pool / AMP）経由�
 Writer App
   ↓ 下書きを AMP に記録
   ↓ 添付素材を Pool に保存
-  ↓ import { app } from "@akari/sdk"
+  ↓ import { app } from "@akari-os/sdk"
   ↓ await app.handoff({
         to: "com.akari.x-sender",
         intent: "post-draft",
@@ -313,7 +313,7 @@ VISION.md の 5 層を開発者視点で解釈する：
 | **Agent Runtime** | カスタムエージェントの実行環境 | `defineAgent()` / `invoke()` / `agents/*.md` |
 | **Memory Layer** | データの唯一の保管場所 | `pool.*` / `amp.*` |
 | **Semantic Layer** | 素材から意味を抽出（M2C） | `pool.put()` 後に自動実行（直接触らない） |
-| **Protocol Suite** | 標準化されたツール呼び出し | MCP サーバー実装 / `@akari/sdk` ラッパー |
+| **Protocol Suite** | 標準化されたツール呼び出し | MCP サーバー実装 / `@akari-os/sdk` ラッパー |
 
 App 開発者が「直接触る」のは Shell / Agent Runtime / Memory Layer の 3 層。
 Semantic Layer（M2C）と Protocol Suite は SDK が透過的に処理する。

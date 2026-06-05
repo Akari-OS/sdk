@@ -742,7 +742,7 @@ akari app certify --only contract --timeout 120
 
 ```typescript
 // tests/contract/debug.ts
-import { createMockRunner } from "@akari/sdk/testing"
+import { createMockRunner } from "@akari-os/sdk"
 
 const runner = createMockRunner({
   manifest: "./akari.toml",
@@ -760,7 +760,7 @@ const results = await runner.runAll()
 ### 12.3 モックの事前設定
 
 ```typescript
-import { createMockRunner } from "@akari/sdk/testing"
+import { createMockRunner } from "@akari-os/sdk"
 
 const runner = createMockRunner({ manifest: "./akari.toml" })
 
@@ -855,7 +855,7 @@ App 固有のテストケースを追加したい場合は `tests/contract/custo
 ```typescript
 // tests/contract/custom/my-custom.test.ts
 import { describe, it, expect } from "vitest"
-import { createMockRunner } from "@akari/sdk/testing"
+import { createMockRunner } from "@akari-os/sdk"
 
 describe("My App — Custom Contract", () => {
   let runner: MockRunner

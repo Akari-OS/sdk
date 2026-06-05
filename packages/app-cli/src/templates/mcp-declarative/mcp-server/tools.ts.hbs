@@ -7,12 +7,12 @@
  *   - panel.schema.json actions[].mcp.tool
  *
  * Important:
- *   - Use @akari/sdk pool / amp APIs to persist data — never use local DB (HUB-024 §6.7 rule 2).
+ *   - Use @akari-os/sdk pool / amp APIs to persist data — never use local DB (HUB-024 §6.7 rule 2).
  *   - All amp.record() calls MUST include goal_ref (HUB-024 §6.6).
  *   - Prefer idempotent implementations (same input → same output).
  */
 
-import { pool, amp, permission } from "@akari/sdk";
+import { pool, amp, permission } from "@akari-os/sdk";
 
 // ---------------------------------------------------------------------------
 // Input / output types

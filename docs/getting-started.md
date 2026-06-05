@@ -21,7 +21,7 @@ related: [HUB-024, HUB-025, HUB-007]
 |---|---|
 | Node.js 18 以上 | `node --version` |
 | AKARI Shell インストール済み | `akari --version` |
-| `@akari/sdk` CLI インストール済み | `npx akari-app-cli --version` |
+| `@akari-os/sdk` CLI インストール済み | `npx akari-app-cli --version` |
 | OAuth アプリ作成（外部サービス連携時のみ） | 各サービスの開発者コンソール |
 
 > **Note**: 本チュートリアルはネットワーク不要のデモ App を作る。
@@ -151,7 +151,7 @@ translation | analytics | notification | storage | commerce | community
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod"
-import { amp } from "@akari/sdk"
+import { amp } from "@akari-os/sdk"
 
 const server = new McpServer({
   name: "my-first-app",

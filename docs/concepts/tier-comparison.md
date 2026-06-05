@@ -64,7 +64,7 @@ my-app/
 
 ```tsx
 // panels/writer.tsx（任意のコンポーネント）
-import { shell } from "@akari/sdk"
+import { shell } from "@akari-os/sdk"
 
 export function WriterPanel() {
   const [content, setContent] = useState("")
@@ -212,7 +212,7 @@ tier = "full"   # "mcp-declarative" → "full" に変更
 ```tsx
 // panels/ に React component を追加
 // panels/main.tsx
-import { SchemaPanel } from "@akari/sdk/react"  // ← 既存 schema を部品として使える
+import { SchemaPanel } from "@akari-os/sdk"  // ← 既存 schema を部品として使える
 import { MyCustomComponent } from "./MyCustomComponent"
 
 export function MainPanel() {

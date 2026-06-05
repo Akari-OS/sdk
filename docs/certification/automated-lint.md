@@ -808,7 +808,7 @@ HUB-024 §6.7 Guidelines に違反するパターンをソースコードから�
 ERROR: LINT-050  src/db.ts:3
        'import { drizzle } from "drizzle-orm"' — App は自前 DB を持てません。
        データは Pool（素材）/ AMP（記憶・判断ログ）経由で読み書きしてください。
-       参照: @akari/sdk の pool.put() / pool.get() / amp.record()
+       参照: @akari-os/sdk の pool.put() / pool.get() / amp.record()
 ```
 
 **重大度**: `error`  
@@ -1101,7 +1101,7 @@ const db = drizzle(connection)
 await db.insert(drafts).values({ id, content })
 
 // 修正後
-import { pool } from "@akari/sdk"
+import { pool } from "@akari-os/sdk"
 const id = await pool.put({ bytes: Buffer.from(content), mime: "text/plain", tags: ["draft"] })
 ```
 
@@ -1112,7 +1112,7 @@ const id = await pool.put({ bytes: Buffer.from(content), mime: "text/plain", tag
 const response = await fetch("http://localhost:3002/writer/drafts")
 
 // 修正後
-import { app } from "@akari/sdk"
+import { app } from "@akari-os/sdk"
 await app.handoff({
   to: "com.akari.writer",
   intent: "get-draft",

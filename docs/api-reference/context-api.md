@@ -18,7 +18,7 @@ App が Agent Runtime に渡す context（ACE 準拠）を組み立てるため�
 
 AKARI OS では、すべての AI 推論は **ACE（Agent Context Engineering）** に準拠した context オブジェクトを受け取る。ACE は「AI に何をどう見せるか」の設計論であり、context の品質が応答品質を直接決める。
 
-Context API（`@akari/sdk` の `context` 名前空間）は、App 開発者が ACE 準拠の context を安全に組み立てるための SDK レイヤーである。直接 prompt 文字列を組み立てる代わりに、型付きの `ContextItem` を積み上げ、SDK が token budget 管理・優先度ソート・Lint チェックを行う。
+Context API（`@akari-os/sdk` の `context` 名前空間）は、App 開発者が ACE 準拠の context を安全に組み立てるための SDK レイヤーである。直接 prompt 文字列を組み立てる代わりに、型付きの `ContextItem` を積み上げ、SDK が token budget 管理・優先度ソート・Lint チェックを行う。
 
 ```
 App コード
@@ -48,7 +48,7 @@ Agent Runtime（invoke / spawn）
 ### シグネチャ
 
 ```typescript
-import { context } from "@akari/sdk"
+import { context } from "@akari-os/sdk"
 
 function build(items: ContextItem[]): Promise<AceContext>
 ```
@@ -88,7 +88,7 @@ interface AceContext {
 ### 使用例
 
 ```typescript
-import { context, pool, amp } from "@akari/sdk"
+import { context, pool, amp } from "@akari-os/sdk"
 
 // Pool から素材を取得
 const draft = await pool.get(draftId)
@@ -162,7 +162,7 @@ interface SelectOptions {
 ### 使用例
 
 ```typescript
-import { context } from "@akari/sdk"
+import { context } from "@akari-os/sdk"
 
 // 目的を宣言するだけで記憶層から関連情報を自動収集
 const aceCtx = await context.select({
@@ -314,7 +314,7 @@ UI でのユーザー操作（テキスト範囲選択・要素選択等）は `
 ### 6.2 Handoff ContextItem の取り込み
 
 ```typescript
-import { context } from "@akari/sdk"
+import { context } from "@akari-os/sdk"
 
 // Handoff バッファ（focus.md の Current Selection）を含めた context 生成
 const aceCtx = await context.select({
@@ -328,7 +328,7 @@ const aceCtx = await context.select({
 ### 6.3 手動で Handoff アイテムを追加する
 
 ```typescript
-import { context, shell } from "@akari/sdk"
+import { context, shell } from "@akari-os/sdk"
 
 // Shell から現在の Selection を取得
 const sel = await shell.getCurrentSelection()
@@ -364,7 +364,7 @@ if (sel?.selection_type === "text-range") {
 Inter-App handoff（HUB-024 §6.5）で Writer → Video へ渡された `draft_ref` を context に取り込む例：
 
 ```typescript
-import { context, pool } from "@akari/sdk"
+import { context, pool } from "@akari-os/sdk"
 
 // Video App が Writer からの handoff を受け取る
 app.onHandoff(async (payload) => {
@@ -403,7 +403,7 @@ M2C はメディア（画像・動画・音声等）から「何が写ってい�
 ### 7.2 M2C 特徴量を context に追加する
 
 ```typescript
-import { context, pool } from "@akari/sdk"
+import { context, pool } from "@akari-os/sdk"
 import { m2c } from "@akari/m2c"
 
 const videoItem = await pool.get(videoId)
@@ -488,7 +488,7 @@ Pool.search(query)          AMP.query(filter)
 ### 8.2 Pool → ContextItem 変換
 
 ```typescript
-import { pool, context } from "@akari/sdk"
+import { pool, context } from "@akari-os/sdk"
 
 const results = await pool.search({ query: "先週の下書き", tags: ["draft"] })
 
@@ -509,7 +509,7 @@ const aceCtx = await context.build(items)
 ### 8.3 AMP → ContextItem 変換
 
 ```typescript
-import { amp, context } from "@akari/sdk"
+import { amp, context } from "@akari-os/sdk"
 
 const memories = await amp.query({
   goal_ref: "AKARI-HUB-024",
@@ -646,7 +646,7 @@ interface LintIssue {
 Writer App が「下書きを磨く」エージェントを呼び出す完全なフロー。UI Selection（テキスト範囲選択）と AMP の style memory を組み合わせる。
 
 ```typescript
-import { context, pool, amp, shell, invoke, permission } from "@akari/sdk"
+import { context, pool, amp, shell, invoke, permission } from "@akari-os/sdk"
 
 const GOAL_REF = "writer-polish-draft-2026-04-19"
 
@@ -753,7 +753,7 @@ async function polishDraft(draftPoolId: string) {
 ### Agent API（build した context を invoke に渡す）
 
 ```typescript
-import { invoke, spawn } from "@akari/sdk"
+import { invoke, spawn } from "@akari-os/sdk"
 
 // 単一呼び出し
 const result = await invoke({
@@ -774,7 +774,7 @@ const [planA, planB] = await Promise.all([
 ### Memory API（素材取得）
 
 ```typescript
-import { pool, amp } from "@akari/sdk"
+import { pool, amp } from "@akari-os/sdk"
 
 // context の素材として使う Pool アイテムを検索
 const items = await pool.search({ query: "先週の下書き" })
@@ -788,7 +788,7 @@ const memories = await amp.query({ goal_ref: "AKARI-HUB-024", kind: "style-prefe
 ### `context.lint(items)` — 品質チェック
 
 ```typescript
-import { context } from "@akari/sdk"
+import { context } from "@akari-os/sdk"
 
 const issues = await context.lint(items)
 // issues: LintIssue[]

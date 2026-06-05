@@ -47,7 +47,7 @@ ADR-007 は **Zustand** を推奨する（軽量・ボイラープレートが�
 // src/store/app-store.ts
 import { create } from "zustand"
 import { devtools } from "zustand/middleware"
-import { amp, pool } from "@akari/sdk"
+import { amp, pool } from "@akari-os/sdk"
 
 // Ephemeral（揮発）state の型
 interface EphemeralState {
@@ -169,7 +169,7 @@ App が複数の関心事を持つ場合は slice に分割する：
 ```typescript
 // src/store/slices/pool-slice.ts
 import type { StateCreator } from "zustand"
-import { pool } from "@akari/sdk"
+import { pool } from "@akari-os/sdk"
 
 export interface PoolSlice {
   poolItems:     Array<{ id: string; mime: string; tags: string[] }>
@@ -460,7 +460,7 @@ AMP から最新の state を復元する設計にする。
 ```typescript
 // mcp-server/index.ts
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
-import { amp } from "@akari/sdk"
+import { amp } from "@akari-os/sdk"
 
 const server = new McpServer({ name: "com.akari.x-sender", version: "0.1.0" })
 
@@ -522,7 +522,7 @@ server.tool(
 // panels/writer-panel.tsx
 import { useEffect } from "react"
 import { useAppStore } from "../src/store/app-store"
-import { amp } from "@akari/sdk"
+import { amp } from "@akari-os/sdk"
 
 export function WriterPanel() {
   const { loadDraft, setDraftText } = useAppStore()

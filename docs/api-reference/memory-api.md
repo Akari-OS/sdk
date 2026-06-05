@@ -14,7 +14,7 @@ related: [HUB-024]
 
 ## 1. Memory API 概要 / Overview
 
-Memory API は `@akari/sdk` の `memory` 名前空間が提供する、2 種類の永続層への統一アクセス口。
+Memory API は `@akari-os/sdk` の `memory` 名前空間が提供する、2 種類の永続層への統一アクセス口。
 
 ```
 App
@@ -37,9 +37,9 @@ App
 **インポート**:
 
 ```typescript
-import { memory } from "@akari/sdk"
+import { memory } from "@akari-os/sdk"
 // または分割インポート
-import { pool, amp } from "@akari/sdk"
+import { pool, amp } from "@akari-os/sdk"
 ```
 
 ---
@@ -603,7 +603,7 @@ const ampInfo = await memory.amp.providerInfo()
 Memory API のエラーは `MemoryError` クラスで統一される。AMP spec §14 の JSON-RPC エラーコードと対応。
 
 ```typescript
-import { MemoryError, MemoryErrorCode } from "@akari/sdk"
+import { MemoryError, MemoryErrorCode } from "@akari-os/sdk"
 
 try {
   const item = await memory.pool.get(id)
@@ -787,7 +787,7 @@ declare enum MemoryErrorCode {
 ### 例 1: Writer — 下書きの保存と行動ログ記録
 
 ```typescript
-import { memory, permission } from "@akari/sdk"
+import { memory, permission } from "@akari-os/sdk"
 
 async function saveDraft(title: string, content: string) {
   // 権限確認（manifest に pool.write が必要）
@@ -823,7 +823,7 @@ async function saveDraft(title: string, content: string) {
 ### 例 2: Publisher — 投稿結果の記録
 
 ```typescript
-import { memory, permission } from "@akari/sdk"
+import { memory, permission } from "@akari-os/sdk"
 
 async function recordPublishResult(
   platform: string,
@@ -860,7 +860,7 @@ async function recordPublishResult(
 ### 例 3: Research — 収集結果の保存と知見記録
 
 ```typescript
-import { memory } from "@akari/sdk"
+import { memory } from "@akari-os/sdk"
 
 async function storeResearchFindings(
   sessionId: string,
@@ -910,7 +910,7 @@ async function storeResearchFindings(
 ### 例 4: App 間引き継ぎ — Writer から Video へ
 
 ```typescript
-import { memory, app } from "@akari/sdk"
+import { memory, app } from "@akari-os/sdk"
 
 // Writer App: 下書きと関連素材を Video に渡す
 async function handoffToVideo(draftId: ContentHash, assetIds: ContentHash[]) {

@@ -73,7 +73,7 @@ await app.handoff({
 
 ```typescript
 // panels/writer.tsx または skills/export.ts
-import { app, amp, pool } from "@akari/sdk"
+import { app, amp, pool } from "@akari-os/sdk"
 
 export async function handoffToXSender(
   draftAmpId: string,
@@ -120,8 +120,8 @@ accepts = [
 
 ```typescript
 // mcp-server/handoff-handler.ts
-import { amp, pool } from "@akari/sdk"
-import type { HandoffPayload } from "@akari/sdk/inter-app"
+import { amp, pool } from "@akari-os/sdk"
+import type { HandoffPayload } from "@akari-os/sdk/inter-app"
 
 export async function handlePostDraft(payload: HandoffPayload) {
   const { draft_ref, assets, goal_ref } = payload
@@ -162,7 +162,7 @@ HUB-026（Notion 参考実装）の §6.1 を実装例として参照。
 ### 送信側（Writer App）
 
 ```typescript
-import { app, amp } from "@akari/sdk"
+import { app, amp } from "@akari-os/sdk"
 
 export async function exportToNotion(
   draftAmpId: string,
@@ -187,8 +187,8 @@ export async function exportToNotion(
 
 ```typescript
 // mcp-server/handoff-handler.ts（Notion App）
-import { amp, pool } from "@akari/sdk"
-import type { HandoffPayload } from "@akari/sdk/inter-app"
+import { amp, pool } from "@akari-os/sdk"
+import type { HandoffPayload } from "@akari-os/sdk/inter-app"
 
 export async function handleExportToNotion(payload: HandoffPayload) {
   const { draft_ref, assets, target_db, goal_ref } = payload
@@ -231,7 +231,7 @@ Google Sheets / Airtable のレコードとして書き込む。
 ### 送信側（Research App）
 
 ```typescript
-import { app, amp } from "@akari/sdk"
+import { app, amp } from "@akari-os/sdk"
 
 /**
  * AMP に積まれたリサーチ結果を Sheets に流し込む
@@ -261,8 +261,8 @@ export async function exportResearchToSheets(
 ### 受信側（Google Sheets App）
 
 ```typescript
-import { amp } from "@akari/sdk"
-import type { HandoffPayload } from "@akari/sdk/inter-app"
+import { amp } from "@akari-os/sdk"
+import type { HandoffPayload } from "@akari-os/sdk/inter-app"
 
 export async function handleSaveToDb(payload: HandoffPayload) {
   const { records, target_db, field_map, goal_ref } = payload
@@ -306,7 +306,7 @@ PowerPoint / Google Slides にテンプレ挿入する。
 ### 送信側（Video App）
 
 ```typescript
-import { app, amp, pool } from "@akari/sdk"
+import { app, amp, pool } from "@akari-os/sdk"
 
 export async function generateSlidesFromVideo(
   timelineAmpId: string,     // AMP に記録されたタイムライン（章構成）の ID
@@ -330,8 +330,8 @@ export async function generateSlidesFromVideo(
 ### 受信側（Google Slides / PPT App）
 
 ```typescript
-import { amp, pool } from "@akari/sdk"
-import type { HandoffPayload } from "@akari/sdk/inter-app"
+import { amp, pool } from "@akari-os/sdk"
+import type { HandoffPayload } from "@akari-os/sdk/inter-app"
 
 export async function handleGenerateSlides(payload: HandoffPayload) {
   const { timeline_ref, thumbnails, slide_template, goal_ref } = payload
@@ -370,7 +370,7 @@ HUB-026 §6.3 のユースケースをコードで示す。
 
 ```typescript
 // Notion App の MCP サーバー内
-import { pool, amp } from "@akari/sdk"
+import { pool, amp } from "@akari-os/sdk"
 
 /**
  * Notion database のエントリを Pool に一括取り込む
