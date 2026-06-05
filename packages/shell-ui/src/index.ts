@@ -205,3 +205,5 @@ export {
   type AppLayoutProps,
   type AppLayoutProfile,
 } from "./AppLayout";
+// Akari OS UI/UX 標準: プレビュータイル + ホバー全体ポップアップ（session134 共通化）
+export { PreviewTile, type PreviewTileProps } from "./PreviewTile";
