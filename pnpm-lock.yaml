@@ -225,6 +225,9 @@ importers:
       '@tauri-apps/api':
         specifier: ^2
         version: 2.10.1
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       lucide-react:
         specifier: ^1.8.0
         version: 1.8.0(react@19.2.7)
