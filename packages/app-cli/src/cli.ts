@@ -6,12 +6,17 @@
  *   create   — scaffold a new app (Full or MCP-Declarative tier)
  *   dev      — local development server with hot reload (Phase 2b)
  *   app      — certification and publishing sub-commands
+ *   video    — akari-video MCP sidecar を叩く汎用コマンド群
  */
 
 import { Command } from "commander";
 import { registerCreateCommand } from "./commands/create.js";
 import { registerDevCommand } from "./commands/dev.js";
 import { registerCertifyCommand } from "./commands/certify.js";
+import {
+  registerVideoCommand,
+  registerDynamicVideoSubcommands,
+} from "./commands/video.js";
 
 const program = new Command();
 
@@ -57,4 +62,20 @@ appCmd
     process.exit(1);
   });
 
-program.parse(process.argv);
+// akari video — MCP sidecar 汎用コマンド群
+// process.argv[2] === 'video' のときのみ動的サブコマンドを事前登録する
+const videoCmd = registerVideoCommand(program);
+
+(async () => {
+  if (process.argv[2] === "video") {
+    // sidecar からツール一覧を取得して動的サブコマンドを登録する
+    // 失敗時は内部でエラーメッセージを表示してスキップ (汎用 tools/call は引き続き使用可能)
+    const endpoint =
+      process.argv.includes("--endpoint")
+        ? process.argv[process.argv.indexOf("--endpoint") + 1]
+        : "http://127.0.0.1:47616/mcp";
+    await registerDynamicVideoSubcommands(videoCmd, endpoint);
+  }
+
+  program.parse(process.argv);
+})();
