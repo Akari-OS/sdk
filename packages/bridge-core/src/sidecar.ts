@@ -180,10 +180,15 @@ export function createBridgeSidecar(
   }
 
   function createMcpServer(): McpServer {
-    const server = new McpServer({
-      name: `${opts.appId}-bridge-sidecar`,
-      version: "0.1.0",
-    })
+    const server = new McpServer(
+      {
+        name: `${opts.appId}-bridge-sidecar`,
+        version: "0.1.0",
+      },
+      // 低レベル setRequestHandler(ListTools/CallTool) を直接使うため、
+      // tools capability を明示宣言する（未宣言だと tools/list で assert 例外になる）
+      { capabilities: { tools: {} } },
+    )
 
     server.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: exposedTools.map((tool) => ({
