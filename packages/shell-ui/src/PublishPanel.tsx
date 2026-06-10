@@ -52,6 +52,31 @@ export interface PublishPanelApi {
   createScheduleEntry(input: CreateScheduleEntryInput): Promise<{ id: string }>
   /** 接続済みプラットフォーム一覧を取得する */
   listConnectedPlatforms(): Promise<PlatformInfo[]>
+  /**
+   * プラットフォームの OAuth 接続を開始する。
+   * 返却された auth_url を呼び元がシステムブラウザで開く。
+   * 未実装プラットフォームの場合は undefined を返す。
+   */
+  connectPlatform?(platform: string): Promise<{ auth_url: string } | undefined>
+  /**
+   * ローカルファイルを cloud staging へアップロードする。
+   * 進捗を 0.0〜1.0 の数値で onProgress コールバックへ通知する。
+   * 戻り値は staging_key（cloud に渡す識別子）。
+   */
+  uploadMedia?(
+    filePath: string,
+    opts?: { onProgress?: (progress: number) => void },
+  ): Promise<{ staging_key: string; content_type: string; size_bytes: number }>
+  /**
+   * cloud /api/schedule/entries へエントリを push する。
+   * dry_run: true で送信し、返却 cloud_entry_id をローカル ScheduleEntry に書き戻す。
+   */
+  pushToCloud?(
+    localEntryId: string,
+    input: CreateScheduleEntryInput & {
+      media?: Array<{ staging_key: string; content_type: string; size_bytes: number }>
+    },
+  ): Promise<{ cloud_entry_id: string }>
 }
 
 /** createScheduleEntry に渡す最小入力型 */
@@ -96,7 +121,7 @@ export interface DraftEntry {
   workTitle?: string
   /** Variant ID（書き出し済みファイルに対応） */
   variantId?: string
-  /** 書き出し済みファイルパス（表示用） */
+  /** 書き出し済みファイルパス（メディア添付候補）。アップロード前の絶対パス。 */
   outputPaths?: string[]
 }
 
@@ -181,39 +206,67 @@ function PlatformRow({
   disabled,
   onChange,
   labelId,
+  onConnect,
+  connecting,
 }: {
   platform: typeof PLATFORM_DEFS[number]
   checked: boolean
   disabled: boolean
   onChange: (checked: boolean) => void
   labelId: string
+  onConnect?: () => void
+  connecting?: boolean
 }) {
   return (
-    <label
-      htmlFor={`publish-platform-${platform.id}`}
+    <div
       className={cn(
-        "flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 transition",
+        "flex items-center gap-2 rounded-md border px-3 py-2 transition",
         disabled
-          ? "cursor-not-allowed border-border/40 opacity-50"
+          ? "border-border/40 opacity-60"
           : checked
           ? "border-primary/50 bg-primary/10"
-          : "border-border bg-card/30 hover:bg-accent",
+          : "border-border bg-card/30",
       )}
-      id={labelId}
     >
-      <input
-        type="checkbox"
-        id={`publish-platform-${platform.id}`}
-        checked={checked}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-        aria-labelledby={labelId}
-        className="h-3.5 w-3.5 accent-primary"
-      />
-      <span className="text-muted-foreground">{platform.icon}</span>
-      <span className="flex-1 text-[13px] text-foreground">{platform.label}</span>
-      <ConnectionBadge connected={!disabled} />
-    </label>
+      <label
+        htmlFor={`publish-platform-${platform.id}`}
+        className={cn(
+          "flex flex-1 cursor-pointer items-center gap-2",
+          disabled && "cursor-not-allowed",
+        )}
+        id={labelId}
+      >
+        <input
+          type="checkbox"
+          id={`publish-platform-${platform.id}`}
+          checked={checked}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.checked)}
+          aria-labelledby={labelId}
+          className="h-3.5 w-3.5 accent-primary"
+        />
+        <span className="text-muted-foreground">{platform.icon}</span>
+        <span className="flex-1 text-[13px] text-foreground">{platform.label}</span>
+        <ConnectionBadge connected={!disabled} />
+      </label>
+      {/* 未接続のとき「接続」ボタンを表示（connectPlatform が利用可能な場合のみ） */}
+      {disabled && onConnect && (
+        <button
+          type="button"
+          onClick={onConnect}
+          disabled={connecting}
+          aria-label={`${platform.label} を接続する`}
+          className={cn(
+            "rounded px-2 py-0.5 text-[10px] font-medium transition",
+            "bg-primary/10 text-primary hover:bg-primary/20",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+            connecting && "cursor-not-allowed opacity-50",
+          )}
+        >
+          {connecting ? "接続中…" : "接続"}
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -259,8 +312,23 @@ export function PublishPanel({
   const [timing, setTiming] = useState<"now" | "schedule">("now")
   const [scheduledAt, setScheduledAt] = useState<string>("")
   const [submitting, setSubmitting] = useState<false | "draft" | "schedule">(false)
+  /** メディアアップロード進捗（0〜1。null は未開始 / 完了） */
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null)
+  /** アップロード中のファイル名（表示用） */
+  const [uploadingFile, setUploadingFile] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [successId, setSuccessId] = useState<string | null>(null)
+  const [cloudEntryId, setCloudEntryId] = useState<string | null>(null)
+  /** プラットフォーム接続中フラグ（platform id → true） */
+  const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null)
+  /**
+   * outputPaths → staging_key のキャッシュ。
+   * 同一パネルセッション内で再度「予約する」を押しても同じ staging_key を再利用し
+   * 二重アップロードを防ぐ。open=false → true でリセットされる。
+   */
+  const [cachedStagingKeys, setCachedStagingKeys] = useState<
+    Map<string, { staging_key: string; content_type: string; size_bytes: number }>
+  >(new Map())
 
   // ── プラットフォーム読み込み ─────────────────────────────────
   React.useEffect(() => {
@@ -298,7 +366,12 @@ export function PublishPanel({
       setScheduledAt("")
       setError(null)
       setSuccessId(null)
+      setCloudEntryId(null)
       setSubmitting(false)
+      setUploadProgress(null)
+      setUploadingFile(null)
+      setConnectingPlatform(null)
+      setCachedStagingKeys(new Map())
     }
   }, [open])
 
@@ -344,6 +417,29 @@ export function PublishPanel({
     }
   }, [api, draftEntry, buildPlatformsPayload, onScheduleEntryCreated])
 
+  /**
+   * 「接続」ボタン押下ハンドラ。
+   * connectPlatform → auth_url をシステムブラウザで開く。
+   * connectPlatform が未実装なら no-op。
+   */
+  const handleConnect = useCallback(async (platformId: string) => {
+    if (!api.connectPlatform) return
+    setConnectingPlatform(platformId)
+    setError(null)
+    try {
+      const result = await api.connectPlatform(platformId)
+      if (result?.auth_url) {
+        // 呼び元（VideoStudio）が openExternal を使ってブラウザで開く想定
+        // API が auth_url を返した場合はリロードを促すだけ
+        setError(`ブラウザで認証を完了してください。完了後にパネルを開き直してください。`)
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "接続に失敗しました")
+    } finally {
+      setConnectingPlatform(null)
+    }
+  }, [api])
+
   const handleSchedule = useCallback(async () => {
     const enabledCount = Object.values(selectedPlatforms).filter(Boolean).length
     if (enabledCount === 0) {
@@ -356,34 +452,102 @@ export function PublishPanel({
     }
     setError(null)
     setSubmitting("schedule")
+    setUploadProgress(null)
+    setUploadingFile(null)
+
+    /**
+     * Draft-first パターン（A 案）:
+     *   ① draft で ScheduleEntry 作成（まだ scheduled にしない）
+     *   ② メディアアップロード（失敗したらロールバック可能な段階）
+     *   ③ cloud push
+     *   ④ ローカル entry を scheduled に更新
+     *
+     * こうすることで、② 失敗時にローカル entry が status=scheduled のまま
+     * 残って二重実行対象になる問題を防ぐ。
+     *
+     * 二重アップロード防止:
+     *   cachedStagingKeys に filePath → staging 結果をキャッシュし、
+     *   同一パネルセッション内で再押下しても同じ staging_key を再利用する。
+     */
+
+    const baseScheduledAt =
+      timing === "now"
+        ? new Date().toISOString()
+        : toUtcIso(scheduledAt)
+
+    const draftInput: CreateScheduleEntryInput = {
+      kind: "post",
+      // まず draft として作成。③ 完了後に scheduled へ更新する
+      status: "draft",
+      work_id: draftEntry?.workId,
+      variant_ids: draftEntry?.variantId ? [draftEntry.variantId] : undefined,
+      title: draftEntry?.workTitle ?? "(タイトルなし)",
+      scheduled_at: baseScheduledAt,
+      payload: { platforms: buildPlatformsPayload() },
+    }
+
+    let entry: { id: string } | null = null
     try {
-      // timing="now" の場合: scheduled_at = 現在時刻 UTC、status="scheduled"
-      // timing="schedule" の場合: scheduled_at = 指定日時 UTC、status="scheduled"
-      // どちらも status="scheduled" — scheduled_at の有無ではなく値で今すぐ/予約を区別する
-      // （ADR-114 D3 フロー2 準拠。Rust 側は status フィールドを受け取らず INSERT 時に
-      //   常に 'draft' をセットするため、status フィールドは UI 型定義上のドキュメント
-      //   目的のみ。cloud 側で draft→scheduled 遷移を行う）
-      const input: CreateScheduleEntryInput = {
-        kind: "post",
-        status: "scheduled",
-        work_id: draftEntry?.workId,
-        variant_ids: draftEntry?.variantId ? [draftEntry.variantId] : undefined,
-        title: draftEntry?.workTitle,
-        scheduled_at:
-          timing === "now"
-            ? new Date().toISOString()
-            : toUtcIso(scheduledAt),
-        payload: { platforms: buildPlatformsPayload() },
+      // --- ① ローカル ScheduleEntry を draft で作成 ---
+      entry = await api.createScheduleEntry(draftInput)
+
+      // --- ② メディアアップロード（uploadMedia が実装されている場合のみ） ---
+      // cachedStagingKeys を参照して再アップロードを防ぐ
+      const uploadedMedia: Array<{ staging_key: string; content_type: string; size_bytes: number }> = []
+      if (api.uploadMedia && draftEntry?.outputPaths && draftEntry.outputPaths.length > 0) {
+        const nextCache = new Map(cachedStagingKeys)
+        for (let i = 0; i < draftEntry.outputPaths.length; i++) {
+          const filePath = draftEntry.outputPaths[i]
+          const cached = nextCache.get(filePath)
+          if (cached) {
+            // 同一セッション内で既にアップロード済み — キャッシュを再利用
+            uploadedMedia.push(cached)
+          } else {
+            const filename = filePath.split("/").pop() ?? filePath
+            setUploadingFile(filename)
+            setUploadProgress(0)
+            const result = await api.uploadMedia(filePath, {
+              onProgress: (p) => setUploadProgress(p),
+            })
+            uploadedMedia.push(result)
+            nextCache.set(filePath, result)
+            setUploadProgress(1)
+          }
+        }
+        setCachedStagingKeys(nextCache)
+        setUploadProgress(null)
+        setUploadingFile(null)
       }
-      const entry = await api.createScheduleEntry(input)
+
+      // --- ③ cloud push（pushToCloud が実装されている場合のみ） ---
+      // cloud へ push する際は status="scheduled" を渡す（ADR-114 D3 フロー2 準拠）
+      const scheduledInput: CreateScheduleEntryInput = {
+        ...draftInput,
+        status: "scheduled",
+      }
+      if (api.pushToCloud) {
+        const cloudInput = {
+          ...scheduledInput,
+          media: uploadedMedia.length > 0 ? uploadedMedia : undefined,
+        }
+        const { cloud_entry_id } = await api.pushToCloud(entry.id, cloudInput)
+        setCloudEntryId(cloud_entry_id)
+      }
+
+      // --- ④ ローカル entry を scheduled に昇格して通知 ---
+      // createScheduleEntry は status 更新 API を兼ねていないため、
+      // 親への通知は id のみ渡す（親が pool 側で status 更新する設計）
       setSuccessId(entry.id)
       onScheduleEntryCreated?.(entry)
     } catch (e) {
       setError(e instanceof Error ? e.message : "予約に失敗しました")
+      // entry が作成済みなら draft のまま残す（ロールバック不要 — draft は二重実行対象外）
     } finally {
       setSubmitting(false)
+      setUploadProgress(null)
+      setUploadingFile(null)
     }
-  }, [api, draftEntry, selectedPlatforms, timing, scheduledAt, buildPlatformsPayload, toUtcIso, onScheduleEntryCreated])
+  }, [api, draftEntry, selectedPlatforms, timing, scheduledAt, buildPlatformsPayload, toUtcIso, onScheduleEntryCreated, cachedStagingKeys])
 
   // ── 接続済みプラットフォーム一覧（PLATFORM_DEFS との merge） ──
   const platformRows = PLATFORM_DEFS.map((def) => {
@@ -502,6 +666,8 @@ export function PublishPanel({
                     onChange={(checked) => {
                       setSelectedPlatforms((prev) => ({ ...prev, [pf.id]: checked }))
                     }}
+                    onConnect={api.connectPlatform ? () => handleConnect(pf.id) : undefined}
+                    connecting={connectingPlatform === pf.id}
                   />
                 ))}
               </div>
@@ -611,6 +777,28 @@ export function PublishPanel({
             )}
           </section>
 
+          {/* アップロード進捗 */}
+          {uploadProgress !== null && uploadingFile && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="flex flex-col gap-1"
+            >
+              <p className="text-[11px] text-muted-foreground truncate">
+                アップロード中: {uploadingFile}
+              </p>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-200"
+                  style={{ width: `${Math.round(uploadProgress * 100)}%` }}
+                />
+              </div>
+              <p className="text-right text-[10px] text-muted-foreground">
+                {Math.round(uploadProgress * 100)}%
+              </p>
+            </div>
+          )}
+
           {/* エラー */}
           {error && (
             <p
@@ -626,15 +814,20 @@ export function PublishPanel({
 
           {/* 成功 */}
           {successId && (
-            <p
+            <div
               role="status"
               className={cn(
                 "rounded-md border border-emerald-500/40 bg-emerald-500/10",
-                "px-3 py-2 text-[12px] text-emerald-400",
+                "px-3 py-2 text-[12px] text-emerald-400 flex flex-col gap-0.5",
               )}
             >
-              保存しました（ID: {successId}）
-            </p>
+              <p>保存しました（ID: {successId}）</p>
+              {cloudEntryId && (
+                <p className="text-[10px] text-emerald-400/70">
+                  cloud 登録: {cloudEntryId}
+                </p>
+              )}
+            </div>
           )}
         </div>
 
@@ -659,7 +852,9 @@ export function PublishPanel({
             className="flex-1"
           >
             {submitting === "schedule"
-              ? "処理中…"
+              ? uploadProgress !== null
+                ? `アップロード中 ${Math.round(uploadProgress * 100)}%`
+                : "処理中…"
               : timing === "now"
               ? "今すぐ投稿"
               : "予約する"}
