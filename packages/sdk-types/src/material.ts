@@ -25,6 +25,7 @@ export type MaterialType =
   | "effect"
   | "sticker"
   | "text-anim" // motion
+  | "telop-template" // telop（ATF テロップテンプレ、docFormat: atf）
   | "diagram-part"
   | "diagram-template" // diagram
   | "stage-shot" // stage（モックアップショット・静止/動き）

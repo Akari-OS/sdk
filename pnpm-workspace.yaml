@@ -6,6 +6,7 @@ packages:
   # 独立リポの公式 App（akari-writer / akari-design / akari-video）も同 workspace に含める。
   # workspace:* 越境解決と pnpm filter（@akari-os/app-writer 等）を有効化するため。
   - "../akari-writer"
+  - "../akari-telop"
   - "../akari-design"
   - "../akari-video"
   - "../akari-synth"
