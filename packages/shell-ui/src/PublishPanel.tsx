@@ -418,6 +418,15 @@ export function PublishPanel({
           open ? "translate-x-0" : "translate-x-full",
           className,
         )}
+        // ホストアプリ側に Tailwind ユーティリティが無い環境でも開閉が成立するよう、
+        // transform はインラインで強制する（shadow の滲み対策で 110% 退避）
+        style={{
+          transform: open ? "translateX(0%)" : "translateX(110%)",
+          // 閉じるときは退避アニメーション完了後に visibility を落とす
+          transition: `transform 300ms ease-in-out, visibility 0s linear ${open ? "0s" : "300ms"}`,
+          pointerEvents: open ? "auto" : "none",
+          visibility: open ? "visible" : "hidden",
+        }}
       >
         {/* ── ヘッダー ─────────────────────────────────────────── */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
