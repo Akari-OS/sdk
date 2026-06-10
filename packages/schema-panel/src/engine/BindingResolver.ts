@@ -97,13 +97,15 @@ export interface BindingResolverOptions {
  */
 export class BindingResolver {
   // `mcp.*` binding の resolver は今後 MCP query 経由を実装する（現状は state/pool/amp/literal のみ）。
-  private mcp: McpClient;
+  // _mcp: 将来の MCP resource 読み取り実装（Panel Schema v0 Q-4）に備えて保持。現状は未使用。
+  // 将来実装時に削除: 現状 MCP resource 読み取りは未実装のためダミー参照でコンパイラ警告を抑制
+  protected readonly _mcp: McpClient;
   private pool: PoolClient;
   private amp: AmpClient;
   private state: PanelStateAccessor;
 
   constructor(options: BindingResolverOptions) {
-    this.mcp = options.mcpClient;
+    this._mcp = options.mcpClient;
     this.pool = options.poolClient;
     this.amp = options.ampClient;
     this.state = options.stateAccessor;

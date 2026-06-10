@@ -207,3 +207,12 @@ export {
 } from "./AppLayout";
 // Akari OS UI/UX 標準: プレビュータイル + ホバー全体ポップアップ（session134 共通化）
 export { PreviewTile, type PreviewTileProps } from "./PreviewTile";
+// ADR-114: Publishing Capability — 共通投稿パネル（印刷ダイアログ相当）
+export {
+  PublishPanel,
+  type PublishPanelProps,
+  type PublishPanelApi,
+  type PlatformInfo,
+  type DraftEntry,
+  type CreateScheduleEntryInput,
+} from "./PublishPanel";
