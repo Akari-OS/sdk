@@ -6,6 +6,8 @@ related: [HUB-024, HUB-005]
 
 # App Lifecycle — インストールから廃止まで / From Install to Uninstall
 
+詳細なディレクトリ構造は [app-directory-layout.md](./app-directory-layout.md) を参照。
+
 > App は「インストール → 有効化 → 開発 → 公開 → 更新 → 無効化 → アンインストール」の
 > ライフサイクルを持つ。各フェーズで Core（Shell / Agent Runtime / Memory Layer）との
 > 関係がどう変わるかを理解することで、正しい App 設計ができる。

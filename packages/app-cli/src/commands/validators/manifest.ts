@@ -61,8 +61,14 @@ export interface ManifestSkills {
   imported?: ManifestSkillsImported;
 }
 
+export interface ManifestCompat {
+  shell_api?: string;
+  sdk?: string;
+}
+
 export interface AppManifest {
   app: ManifestApp;
+  compat?: ManifestCompat;
   permissions: ManifestPermissions;
   panels?: { [panelId: string]: ManifestPanel };
   mcp?: ManifestMcp;
@@ -85,6 +91,38 @@ export interface ManifestValidationResult {
   errors: ValidationError[];
   warnings: string[];
   manifest?: AppManifest;
+}
+
+const MISSING_COMPAT_SHELL_API_WARNING =
+  "[compat].shell_api 未宣言: shell 0.x 期間は互換とみなされるが、新規アプリは宣言を必須とする (AKARI-HUB-108 3-5)";
+
+function isValidLooseVersion(version: string): boolean {
+  const looseRegex =
+    /^(0|[1-9]\d*)(?:\.(0|[1-9]\d*)(?:\.(0|[1-9]\d*))?)?(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+  return looseRegex.test(version);
+}
+
+function isValidVersionRange(range: string): boolean {
+  const trimmed = range.trim();
+  if (trimmed.length === 0) return false;
+
+  const parts = trimmed.split(",").map((part) => part.trim());
+  for (const part of parts) {
+    if (!part) return false;
+
+    let versionPart: string;
+    if (/^[\^~]/.test(part)) {
+      versionPart = part.replace(/^[\^~]/, "");
+    } else if (/^(>=|<=|>|<|=)/.test(part)) {
+      versionPart = part.replace(/^(>=|<=|>|<|=)/, "");
+    } else {
+      versionPart = part;
+    }
+
+    if (!isValidLooseVersion(versionPart)) return false;
+  }
+
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -141,6 +179,32 @@ export function validateManifest(raw: unknown): ManifestValidationResult {
   // ── [permissions] section ─────────────────────────────────────────────────
   if (!data.permissions || typeof data.permissions !== "object") {
     errors.push({ field: "[permissions]", message: "Missing required [permissions] section", code: "MISSING_PERMISSIONS_SECTION" });
+  }
+
+  // ── [compat] section ─────────────────────────────────────────────────────
+  if (data.compat !== undefined && (typeof data.compat !== "object" || data.compat === null)) {
+    errors.push({ field: "[compat]", message: "Field compat must be a TOML table", code: "INVALID_COMPAT_SECTION" });
+  } else {
+    const compat = data.compat as Record<string, unknown> | undefined;
+    const shellApi = compat?.shell_api;
+
+    if (shellApi === undefined) {
+      warnings.push(MISSING_COMPAT_SHELL_API_WARNING);
+    } else if (typeof shellApi !== "string" || !isValidVersionRange(shellApi)) {
+      errors.push({
+        field: "[compat] shell_api",
+        message: "Field shell_api must be a valid semver range (e.g. '^0.1' or '>=0.1 <1.0')",
+        code: "INVALID_COMPAT_SHELL_API",
+      });
+    }
+
+    if (compat?.sdk !== undefined && typeof compat.sdk !== "string") {
+      errors.push({
+        field: "[compat] sdk",
+        message: "Field sdk must be a string",
+        code: "INVALID_COMPAT_SDK",
+      });
+    }
   }
 
   // ── Tier-specific checks ──────────────────────────────────────────────────

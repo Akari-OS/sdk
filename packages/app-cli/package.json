@@ -16,7 +16,7 @@
   "scripts": {
     "build": "tsup src/cli.ts --format cjs --target node18 --outDir dist --clean",
     "dev": "tsup src/cli.ts --format cjs --target node18 --outDir dist --watch",
-    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "test": "tsc --outDir /tmp/akari-app-cli-test --declaration false --declarationMap false --sourceMap false && node --test /tmp/akari-app-cli-test/commands/validators/__tests__/manifest.test.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

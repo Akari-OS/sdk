@@ -10,7 +10,7 @@
  * in their `akari.toml`. The Shell parses it at install / discovery time and
  * renders the fields generically inside the Settings UI. Apps remain in
  * control of how the saved values are interpreted at runtime — the Shell
- * only persists them to `~/.akari/apps/<app-id>/settings.json` on user edit.
+ * only persists them to `~/.akari/app-data/<app-id>/settings.json` on user edit.
  *
  * Types are derived from Zod schemas via `z.infer<>` so the static types and
  * the runtime validators stay in lock-step (single source of truth).
@@ -167,7 +167,7 @@ export const appSettingsSchemaSchema = z.object({
 export type AppSettingsSchema = z.infer<typeof appSettingsSchemaSchema>
 
 // ---------------------------------------------------------------------------
-// Persisted values (`~/.akari/apps/<app-id>/settings.json` shape)
+// Persisted values (`~/.akari/app-data/<app-id>/settings.json` shape)
 // AKARI-HUB-064 Phase 1c — runtime validation
 // ---------------------------------------------------------------------------
 
@@ -201,7 +201,7 @@ export function parseAppSettings(input: unknown): AppSettingsSchema {
 
 /**
  * Validate persisted user values loaded from
- * `~/.akari/apps/<app-id>/settings.json`. Throws `z.ZodError` if the JSON
+ * `~/.akari/app-data/<app-id>/settings.json`. Throws `z.ZodError` if the JSON
  * is not a `Record<string, Record<string, unknown>>`.
  *
  * Per-field kind checking is intentionally **not** done here: the Shell

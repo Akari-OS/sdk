@@ -9,6 +9,10 @@ author  = "{{author}}"
 tier    = "mcp-declarative"       # MCP-Declarative Tier: MCP server + panel.schema.json
 sdk     = "{{sdkRange}}"          # Core SDK compatibility range (HUB-024 §6.5)
 
+# Shell API 互換範囲 (AKARI-HUB-108)
+[compat]
+shell_api = "^0.1"
+
 [mcp]
 # Path to the bundled MCP server (relative to this manifest).
 # May also be a remote URL (note: remote MCP makes the app network-dependent — see HUB-024 Q-10).

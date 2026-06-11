@@ -11,6 +11,10 @@ sdk        = "{{sdkRange}}"        # Core SDK 互換レンジ（HUB-024 §6.5）
 category   = "{{category}}"        # 例: studio / productivity / sns
 profile    = "{{profile}}"         # AppLayout プロファイル（studio=4ペイン / compact=2分割）
 
+# Shell API 互換範囲 (AKARI-HUB-108)
+[compat]
+shell_api = "^0.1"
+
 [permissions]
 # Default deny — このアプリが実際に使うものだけ宣言する（HUB-024 §6.7 rule 5）
 pool             = ["read", "write"]
