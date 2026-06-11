@@ -14,4 +14,7 @@ packages:
   - "../akari-3d"
   - "../akari-diagram"
   - "../akari-stage"
+  - "../akari-svg"
+  - "../akari-groove"
+  - "../akari-slot"
   - "../akari-circuit"
