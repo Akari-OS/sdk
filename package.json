@@ -23,5 +23,34 @@
   "devDependencies": {
     "quicktype-core": "^23.0.0",
     "typescript": "^5.4.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@tscircuit/high-density-a01": "^0.0.37"
+    },
+    "packageExtensions": {
+      "@tscircuit/infgrid-ijump-astar": {
+        "dependencies": {
+          "@tscircuit/soup-util": "*"
+        }
+      },
+      "@tscircuit/core": {
+        "dependencies": {
+          "@tscircuit/copper-pour-solver": "*",
+          "@tscircuit/miniflex": "*",
+          "minicssgrid": "*",
+          "@tscircuit/schematic-trace-solver": "*",
+          "circuit-json-to-spice": "*",
+          "spicey": "*",
+          "@tscircuit/infer-cable-insertion-point": "*",
+          "spicets": "*"
+        }
+      },
+      "@tscircuit/schematic-trace-solver": {
+        "dependencies": {
+          "connectivity-map": "*"
+        }
+      }
+    }
   }
 }
