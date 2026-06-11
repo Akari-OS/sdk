@@ -49,6 +49,8 @@ npm error network request to https://registry.npmjs.org/... failed, reason: geta
 
 この実行環境では npm registry の名前解決ができず、公開済みかどうかは確認不能だった。なお npm はデフォルトで `/Users/ryoma/.npm/_logs` にログを書こうとしたため、以後は `NPM_CONFIG_CACHE=/tmp/akari-cleanroom-20260612/npm-cache` を指定した。
 
+> **追記（2026-06-12、ホスト環境で確認済み）**: `npm view @akari-os/app-cli` / `npm view @akari-os/sdk` はいずれも **404 Not Found = npm 未公開**。package.json は `private: false` + `publishConfig.access: public` で公開準備済みだが publish されていない。外部開発者は CLI の入手自体ができず、**P0-1（workspace:* 依存）以前の入口で停止する**。npm publish（または GitHub Packages / tarball 配布）の判断が SDK 配布の最初のブロッカー。
+
 ローカル代替:
 
 ```bash
