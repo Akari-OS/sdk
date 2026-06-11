@@ -75,8 +75,36 @@ export interface PublishPanelApi {
     localEntryId: string,
     input: CreateScheduleEntryInput & {
       media?: Array<{ staging_key: string; content_type: string; size_bytes: number }>
+      platform_config?: Record<string, unknown>
     },
   ): Promise<{ cloud_entry_id: string }>
+  /**
+   * プラットフォーム固有のメディア検証を行う。
+   * - x: 動画 140 秒以下 / 512MB 以下 / 動画 1 本以下
+   * - youtube: 検証なし（YouTube は長尺対応）
+   * ok=false のとき reason に表示用メッセージを返す。
+   */
+  validateMediaForPlatform?(
+    platform: string,
+    filePaths: string[],
+  ): Promise<{ ok: boolean; reason?: string }>
+  /**
+   * YouTube Resumable Upload でローカル動画を直接アップロードする。
+   * access_token は cloud GET /api/oauth/youtube/access-token から取得する。
+   * 進捗は onProgress コールバック（0.0〜1.0）で通知する。
+   * 戻り値は YouTube video ID。
+   */
+  youtubeUpload?(
+    filePath: string,
+    opts: {
+      accessToken: string
+      title: string
+      caption?: string
+      scheduledAt?: string
+      timing: "now" | "schedule"
+      onProgress?: (progress: number) => void
+    },
+  ): Promise<{ videoId: string }>
 }
 
 /** createScheduleEntry に渡す最小入力型 */
@@ -319,6 +347,10 @@ export function PublishPanel({
   const [error, setError] = useState<string | null>(null)
   const [successId, setSuccessId] = useState<string | null>(null)
   const [cloudEntryId, setCloudEntryId] = useState<string | null>(null)
+  /** YouTube 予約完了時の video ID（youtu.be リンク表示用） */
+  const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null)
+  /** YouTube dry-run フラグ（接続前のフォールバック） */
+  const [youtubeDryRun, setYoutubeDryRun] = useState<boolean>(false)
   /** プラットフォーム接続中フラグ（platform id → true） */
   const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null)
   /**
@@ -367,6 +399,8 @@ export function PublishPanel({
       setError(null)
       setSuccessId(null)
       setCloudEntryId(null)
+      setYoutubeVideoId(null)
+      setYoutubeDryRun(false)
       setSubmitting(false)
       setUploadProgress(null)
       setUploadingFile(null)
@@ -450,6 +484,22 @@ export function PublishPanel({
       setError("予約日時を指定してください")
       return
     }
+
+    // X 向けメディア事前検証（X が選択 & 添付ファイルあり & validateMediaForPlatform 実装済み）
+    const xEnabled = selectedPlatforms["x"] === true
+    if (
+      xEnabled &&
+      api.validateMediaForPlatform &&
+      draftEntry?.outputPaths &&
+      draftEntry.outputPaths.length > 0
+    ) {
+      const validation = await api.validateMediaForPlatform("x", draftEntry.outputPaths)
+      if (!validation.ok) {
+        setError(validation.reason ?? "X へのアップロード検証に失敗しました")
+        return
+      }
+    }
+
     setError(null)
     setSubmitting("schedule")
     setUploadProgress(null)
@@ -458,7 +508,7 @@ export function PublishPanel({
     /**
      * Draft-first パターン（A 案）:
      *   ① draft で ScheduleEntry 作成（まだ scheduled にしない）
-     *   ② メディアアップロード（失敗したらロールバック可能な段階）
+     *   ② メディアアップロード（X: cloud staging / YouTube: Rust 直アップロード）
      *   ③ cloud push
      *   ④ ローカル entry を scheduled に更新
      *
@@ -491,10 +541,59 @@ export function PublishPanel({
       // --- ① ローカル ScheduleEntry を draft で作成 ---
       entry = await api.createScheduleEntry(draftInput)
 
-      // --- ② メディアアップロード（uploadMedia が実装されている場合のみ） ---
-      // cachedStagingKeys を参照して再アップロードを防ぐ
+      // YouTube が選択されているか判定
+      const youtubeEnabled = selectedPlatforms["youtube"] === true
+
+      // --- ② YouTube 直アップロードパス ---
+      // YouTube は cloud staging を経由せず Rust コマンドで直接アップロードする
+      let youtubeVideoId: string | null = null
+      let youtubeDryRun = false
+      if (
+        youtubeEnabled &&
+        api.youtubeUpload &&
+        draftEntry?.outputPaths &&
+        draftEntry.outputPaths.length > 0
+      ) {
+        // 動画ファイルを 1 本だけ対象にする（YouTube は 1 投稿 1 本）
+        const videoPath = draftEntry.outputPaths.find(
+          (p) => /\.(mp4|mov|webm|mkv|avi)$/i.test(p),
+        ) ?? draftEntry.outputPaths[0]
+        const filename = videoPath.split("/").pop() ?? videoPath
+        setUploadingFile(filename)
+        setUploadProgress(0)
+        try {
+          const result = await api.youtubeUpload(videoPath, {
+            accessToken: "", // VideoStudio.tsx 側で access-token API を呼んで渡す
+            title: draftEntry?.workTitle ?? "(タイトルなし)",
+            caption,
+            scheduledAt: timing === "schedule" ? baseScheduledAt : undefined,
+            timing,
+            onProgress: (p) => setUploadProgress(p),
+          })
+          youtubeVideoId = result.videoId
+        } catch (e) {
+          // YouTube アップロード失敗時は dry-run として続行
+          // （youtubeUpload 実装が dry-run モードを返した場合も同様）
+          if (e instanceof Error && e.message.includes("dry-run")) {
+            youtubeDryRun = true
+          } else {
+            throw e
+          }
+        }
+        setUploadProgress(null)
+        setUploadingFile(null)
+      }
+
+      // --- ③ X パス: メディアアップロード（uploadMedia が実装されている場合のみ） ---
+      // YouTube 専用投稿（X 非選択）の場合は staging upload をスキップ
       const uploadedMedia: Array<{ staging_key: string; content_type: string; size_bytes: number }> = []
-      if (api.uploadMedia && draftEntry?.outputPaths && draftEntry.outputPaths.length > 0) {
+      const xOnlyOrMixed = !youtubeEnabled || xEnabled
+      if (
+        xOnlyOrMixed &&
+        api.uploadMedia &&
+        draftEntry?.outputPaths &&
+        draftEntry.outputPaths.length > 0
+      ) {
         const nextCache = new Map(cachedStagingKeys)
         for (let i = 0; i < draftEntry.outputPaths.length; i++) {
           const filePath = draftEntry.outputPaths[i]
@@ -519,22 +618,39 @@ export function PublishPanel({
         setUploadingFile(null)
       }
 
-      // --- ③ cloud push（pushToCloud が実装されている場合のみ） ---
+      // --- ④ cloud push（pushToCloud が実装されている場合のみ） ---
       // cloud へ push する際は status="scheduled" を渡す（ADR-114 D3 フロー2 準拠）
+      // YouTube の video_id は platform_config.youtube.video_id に格納
       const scheduledInput: CreateScheduleEntryInput = {
         ...draftInput,
         status: "scheduled",
       }
       if (api.pushToCloud) {
+        const platformConfig: Record<string, unknown> = {}
+        if (youtubeEnabled) {
+          if (youtubeVideoId) {
+            platformConfig["youtube"] = { video_id: youtubeVideoId }
+          } else if (youtubeDryRun) {
+            platformConfig["youtube"] = { dry_run: true }
+          }
+        }
         const cloudInput = {
           ...scheduledInput,
           media: uploadedMedia.length > 0 ? uploadedMedia : undefined,
+          platform_config: Object.keys(platformConfig).length > 0 ? platformConfig : undefined,
         }
         const { cloud_entry_id } = await api.pushToCloud(entry.id, cloudInput)
         setCloudEntryId(cloud_entry_id)
+        // YouTube 予約済みの場合は video_id を state に保持してリンク表示
+        if (youtubeVideoId) {
+          setYoutubeVideoId(youtubeVideoId)
+        }
+        if (youtubeDryRun) {
+          setYoutubeDryRun(true)
+        }
       }
 
-      // --- ④ ローカル entry を scheduled に昇格して通知 ---
+      // --- ⑤ ローカル entry を scheduled に昇格して通知 ---
       // createScheduleEntry は status 更新 API を兼ねていないため、
       // 親への通知は id のみ渡す（親が pool 側で status 更新する設計）
       setSuccessId(entry.id)
@@ -547,7 +663,7 @@ export function PublishPanel({
       setUploadProgress(null)
       setUploadingFile(null)
     }
-  }, [api, draftEntry, selectedPlatforms, timing, scheduledAt, buildPlatformsPayload, toUtcIso, onScheduleEntryCreated, cachedStagingKeys])
+  }, [api, draftEntry, selectedPlatforms, caption, timing, scheduledAt, buildPlatformsPayload, toUtcIso, onScheduleEntryCreated, cachedStagingKeys])
 
   // ── 接続済みプラットフォーム一覧（PLATFORM_DEFS との merge） ──
   const platformRows = PLATFORM_DEFS.map((def) => {
@@ -671,6 +787,12 @@ export function PublishPanel({
                   />
                 ))}
               </div>
+            )}
+            {/* YouTube 選択中の注意書き */}
+            {selectedPlatforms["youtube"] === true && (
+              <p className="mt-1.5 text-[10px] text-muted-foreground/70 leading-relaxed">
+                ※ YouTube は長尺対応ですが、15 分超の動画はチャンネルの確認（電話番号登録）が必要です。
+              </p>
             )}
           </section>
 
@@ -825,6 +947,16 @@ export function PublishPanel({
               {cloudEntryId && (
                 <p className="text-[10px] text-emerald-400/70">
                   cloud 登録: {cloudEntryId}
+                </p>
+              )}
+              {youtubeVideoId && (
+                <p className="text-[11px] text-emerald-300">
+                  YouTube 側で予約済み — youtu.be/{youtubeVideoId}
+                </p>
+              )}
+              {youtubeDryRun && !youtubeVideoId && (
+                <p className="text-[11px] text-amber-400/80">
+                  YouTube: dry-run（接続後に実アップロード）
                 </p>
               )}
             </div>
