@@ -150,12 +150,27 @@ type ToolResult = {
   isError?: boolean
 }
 
+/**
+ * sidecar 側ローカルハンドラから renderer を呼ぶための関数型。
+ * `tool` にはレンダラ側で処理されるツール名（内部ツールも可）、
+ * `input` はそのツールの入力オブジェクトを渡す。
+ * レスポンスが ok=false の場合は Error として reject される。
+ */
+export type RendererCallFn = (tool: string, input: unknown) => Promise<unknown>
+
+/**
+ * sidecar ローカルハンドラの関数型。
+ * 第 2 引数 `callRenderer` を使うと、ハンドラ内から renderer 側のツールを呼べる。
+ * 既存の `(input) => Promise<unknown>` 形式とも互換（第 2 引数を無視すれば良い）。
+ */
+export type LocalHandlerFn = (input: unknown, callRenderer: RendererCallFn) => Promise<unknown>
+
 export interface CreateBridgeSidecarOptions {
   appId: string
   ports: BridgePorts
   toolDefs: ToolDef[]
   exposedToolNames: string[]
-  localHandlers?: Record<string, (input: unknown) => Promise<unknown>>
+  localHandlers?: Record<string, LocalHandlerFn>
 }
 
 export interface BridgeSidecar {
@@ -277,11 +292,20 @@ export function createBridgeSidecar(
     })
   }
 
+  /** localHandler から renderer を直接呼べるラッパー関数。 */
+  async function callRendererUnwrapped(tool: string, input: unknown): Promise<unknown> {
+    const response = await callRenderer(tool, input)
+    if (!response.ok) {
+      throw new Error(response.error ?? `renderer returned ok=false for ${tool}`)
+    }
+    return response.result
+  }
+
   async function invokeTool(name: string, input: unknown): Promise<ToolResult> {
     try {
       const localHandler = opts.localHandlers?.[name]
       if (localHandler) {
-        return valueToToolResult(await localHandler(input))
+        return valueToToolResult(await localHandler(input, callRendererUnwrapped))
       }
 
       const response = await callRenderer(name, input)
