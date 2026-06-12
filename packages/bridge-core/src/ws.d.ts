@@ -1,6 +1,7 @@
 declare module "ws" {
   import { EventEmitter } from "node:events"
-  import type { Server } from "node:http"
+  import type { IncomingMessage, Server } from "node:http"
+  import type { Duplex } from "node:stream"
 
   export type RawData = Buffer | ArrayBuffer | Buffer[]
 
@@ -20,8 +21,21 @@ declare module "ws" {
   }
 
   export class WebSocketServer extends EventEmitter {
-    constructor(options: { host?: string; port?: number; server?: Server })
+    constructor(options: {
+      host?: string
+      port?: number
+      server?: Server
+      /** noServer=true にすると自動 listen しない。upgrade イベントで手動処理する */
+      noServer?: boolean
+    })
     address(): string | { address: string; family: string; port: number } | null
     close(cb?: (err?: Error) => void): void
+    /** upgrade イベントで認証後にこれを呼ぶと WS コネクションを確立する */
+    handleUpgrade(
+      request: IncomingMessage,
+      socket: Duplex,
+      head: Buffer,
+      callback: (ws: WebSocket, request: IncomingMessage) => void,
+    ): void
   }
 }

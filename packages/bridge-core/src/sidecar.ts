@@ -1,4 +1,8 @@
 import crypto from "node:crypto"
+import * as fs from "node:fs"
+import * as fsPromises from "node:fs/promises"
+import * as os from "node:os"
+import * as path from "node:path"
 import http from "node:http"
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
@@ -19,6 +23,117 @@ import type {
 const HOST = "127.0.0.1"
 const MCP_HTTP_PATH = "/mcp"
 const RESPONSE_TIMEOUT_MS = 15_000
+
+// ────────────────────────────────────────────────────────────────────────────
+// MCP ブリッジ認証（akari-video bridge-auth.ts 踏襲、依存ゼロ・インライン）
+// 共有トークン: ~/.akari/secrets/mcp-bridge-token（0600）
+// AKARI_MCP_AUTH=off で無効化できる脱出ハッチ（既定は on）
+// ────────────────────────────────────────────────────────────────────────────
+
+const SECRETS_DIR = path.join(os.homedir(), ".akari", "secrets")
+const TOKEN_FILE = path.join(SECRETS_DIR, "mcp-bridge-token")
+
+function isAuthEnabled(): boolean {
+  return (process.env.AKARI_MCP_AUTH ?? "on").toLowerCase() !== "off"
+}
+
+/** 起動時に 1 回呼ぶ。ファイルが無ければ生成して返す。あれば読んで返す。 */
+async function loadOrCreateToken(): Promise<string> {
+  if (!isAuthEnabled()) {
+    console.error("[bridge-auth] auth=OFF (AKARI_MCP_AUTH=off)")
+    return ""
+  }
+
+  await fsPromises.mkdir(SECRETS_DIR, { recursive: true, mode: 0o700 })
+
+  if (fs.existsSync(TOKEN_FILE)) {
+    const token = (await fsPromises.readFile(TOKEN_FILE, "utf8")).trim()
+    if (token.length > 0) {
+      console.error("[bridge-auth] auth=ON  token loaded from", TOKEN_FILE)
+      return token
+    }
+  }
+
+  const token = crypto.randomBytes(32).toString("hex")
+  await fsPromises.writeFile(TOKEN_FILE, token + "\n", { encoding: "utf8", mode: 0o600 })
+  console.error("[bridge-auth] auth=ON  token generated and saved to", TOKEN_FILE)
+  return token
+}
+
+function isAllowedHost(hostHeader: string | undefined, port: number): boolean {
+  if (!hostHeader) return false
+  const normalised = hostHeader.toLowerCase().trim()
+  return normalised === `127.0.0.1:${port}` || normalised === `localhost:${port}`
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length === 0 || b.length === 0) return false
+  const bufA = Buffer.from(a, "utf8")
+  const bufB = Buffer.from(b, "utf8")
+  if (bufA.length !== bufB.length) {
+    const padded = Buffer.alloc(bufB.length)
+    bufA.copy(padded, 0, 0, Math.min(bufA.length, padded.length))
+    crypto.timingSafeEqual(padded, bufB)
+    return false
+  }
+  return crypto.timingSafeEqual(bufA, bufB)
+}
+
+/** HTTP MCP リクエスト認証（失敗時は res に 401/403 を書いて false を返す）。 */
+function checkHttpAuth(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  port: number,
+  authToken: string,
+): boolean {
+  if (!isAuthEnabled()) return true
+
+  if (!isAllowedHost(req.headers.host, port)) {
+    res.writeHead(403, { "content-type": "text/plain" })
+    res.end()
+    return false
+  }
+
+  const authHeader = req.headers.authorization ?? ""
+  const bearerPrefix = "Bearer "
+  if (!authHeader.startsWith(bearerPrefix)) {
+    res.writeHead(401, { "content-type": "text/plain", "www-authenticate": "Bearer" })
+    res.end()
+    return false
+  }
+  const provided = authHeader.slice(bearerPrefix.length).trim()
+  if (!timingSafeEqual(provided, authToken)) {
+    res.writeHead(401, { "content-type": "text/plain", "www-authenticate": "Bearer" })
+    res.end()
+    return false
+  }
+
+  return true
+}
+
+/** WebSocket upgrade 認証（失敗時は socket を destroy して false を返す）。 */
+function checkWsAuth(
+  req: http.IncomingMessage,
+  socket: { destroy: (err?: Error) => void },
+  port: number,
+  authToken: string,
+): boolean {
+  if (!isAuthEnabled()) return true
+
+  if (!isAllowedHost(req.headers.host, port)) {
+    socket.destroy(new Error("bridge-auth: forbidden host"))
+    return false
+  }
+
+  const urlObj = new URL(req.url ?? "/", `http://127.0.0.1:${port}`)
+  const provided = urlObj.searchParams.get("token") ?? ""
+  if (!timingSafeEqual(provided, authToken)) {
+    socket.destroy(new Error("bridge-auth: unauthorized"))
+    return false
+  }
+
+  return true
+}
 
 type PendingCall = {
   resolve: (response: BridgeResponse) => void
@@ -217,7 +332,13 @@ export function createBridgeSidecar(
   async function handleMcpHttpRequest(
     req: http.IncomingMessage,
     res: http.ServerResponse,
+    authToken: string,
   ): Promise<void> {
+    // 認証チェック（Host + Bearer トークン）
+    if (!checkHttpAuth(req, res, opts.ports.mcp, authToken)) {
+      return
+    }
+
     const urlPath = (req.url ?? "/").split("?")[0]
     if (urlPath !== MCP_HTTP_PATH) {
       writeJsonRpcError(res, 404, -32601, `Not found: ${urlPath}`)
@@ -265,8 +386,23 @@ export function createBridgeSidecar(
     }
   }
 
-  async function startWebSocketServer(): Promise<WebSocketServer> {
-    const wss = new WebSocketServer({ host: HOST, port: opts.ports.ws })
+  async function startWebSocketServer(authToken: string): Promise<WebSocketServer> {
+    // noServer=true にして upgrade イベントで認証してから acceptUpgrade する
+    const wss = new WebSocketServer({ noServer: true })
+
+    const httpServer = http.createServer((_req, res) => {
+      res.writeHead(404)
+      res.end()
+    })
+
+    httpServer.on("upgrade", (req, socket, head) => {
+      if (!checkWsAuth(req, socket, opts.ports.ws, authToken)) {
+        return
+      }
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit("connection", ws, req)
+      })
+    })
 
     wss.on("connection", attachRendererSocket)
     wss.on("error", (error: Error) => {
@@ -274,8 +410,12 @@ export function createBridgeSidecar(
     })
 
     await new Promise<void>((resolve, reject) => {
-      wss.once("listening", resolve)
-      wss.once("error", reject)
+      const onError = (error: Error) => reject(error)
+      httpServer.once("error", onError)
+      httpServer.listen(opts.ports.ws, HOST, () => {
+        httpServer.off("error", onError)
+        resolve()
+      })
     })
 
     console.error(
@@ -284,9 +424,9 @@ export function createBridgeSidecar(
     return wss
   }
 
-  async function startMcpHttpServer(): Promise<http.Server> {
+  async function startMcpHttpServer(authToken: string): Promise<http.Server> {
     const httpServer = http.createServer((req, res) => {
-      void handleMcpHttpRequest(req, res)
+      void handleMcpHttpRequest(req, res, authToken)
     })
 
     await new Promise<void>((resolve, reject) => {
@@ -315,8 +455,10 @@ export function createBridgeSidecar(
 
   return {
     async start(): Promise<void> {
-      await startWebSocketServer()
-      await startMcpHttpServer()
+      // 認証トークンをロード or 生成（AKARI_MCP_AUTH=off なら "" を返す）
+      const authToken = await loadOrCreateToken()
+      await startWebSocketServer(authToken)
+      await startMcpHttpServer(authToken)
     },
   }
 }

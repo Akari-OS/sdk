@@ -18,13 +18,43 @@ export interface BridgeConnection {
   disconnect(): void
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// トークン読み取り（Tauri 環境: system_read_text_file / それ以外: 空文字列）
+// ────────────────────────────────────────────────────────────────────────────
+
+/** キャッシュ済みトークン（初回読み取り後に保持）。null = 未取得。*/
+let cachedToken: string | null = null
+
+/**
+ * ~/.akari/secrets/mcp-bridge-token を読み取る。
+ * Tauri WebView 上では system_read_text_file invoke を使う。
+ * dev ブラウザ / invoke 不可の場合は空文字列を返す（AKARI_MCP_AUTH=off 相当）。
+ */
+async function readTokenFile(): Promise<string> {
+  if (cachedToken !== null) return cachedToken
+  try {
+    if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) {
+      cachedToken = ""
+      return ""
+    }
+    const { invoke } = await import("@tauri-apps/api/core")
+    const raw = await invoke<string>("system_read_text_file", {
+      path: "~/.akari/secrets/mcp-bridge-token",
+    }).catch(() => "")
+    cachedToken = (raw ?? "").trim()
+  } catch {
+    cachedToken = ""
+  }
+  return cachedToken
+}
+
 export function connectBridge(opts: ConnectBridgeOptions): BridgeConnection {
   let socket: WebSocket | null = null
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
   let reconnectDelayMs = 1_000
   let closedByClient = false
 
-  const bridgeUrl = `ws://127.0.0.1:${opts.ports.ws}`
+  const bridgeBaseUrl = `ws://127.0.0.1:${opts.ports.ws}`
 
   function scheduleReconnect(): void {
     if (closedByClient || reconnectTimer) return
@@ -33,7 +63,8 @@ export function connectBridge(opts: ConnectBridgeOptions): BridgeConnection {
     reconnectDelayMs = Math.min(reconnectDelayMs * 2, MAX_RECONNECT_DELAY_MS)
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null
-      openSocket()
+      // トークンを再取得してから再接続（トークンが変わった場合に対応）
+      void readTokenFile().then((token) => openSocket(token))
     }, delay)
   }
 
@@ -67,7 +98,7 @@ export function connectBridge(opts: ConnectBridgeOptions): BridgeConnection {
     }
   }
 
-  function openSocket(): void {
+  function openSocket(token: string): void {
     if (closedByClient) return
     if (typeof WebSocket === "undefined") {
       console.warn("[akari-bridge] WebSocket is not available")
@@ -75,8 +106,13 @@ export function connectBridge(opts: ConnectBridgeOptions): BridgeConnection {
     }
     if (socket && socket.readyState !== WebSocket.CLOSED) return
 
+    // トークンが有れば ?token= クエリを付与（ブラウザ WS はカスタムヘッダ不可）
+    const url = token
+      ? `${bridgeBaseUrl}?token=${encodeURIComponent(token)}`
+      : bridgeBaseUrl
+
     try {
-      socket = new WebSocket(bridgeUrl)
+      socket = new WebSocket(url)
     } catch (error) {
       console.warn("[akari-bridge] failed to create WebSocket", error)
       socket = null
@@ -116,7 +152,8 @@ export function connectBridge(opts: ConnectBridgeOptions): BridgeConnection {
     })
   }
 
-  openSocket()
+  // トークンを非同期で取得してから接続
+  void readTokenFile().then((token) => openSocket(token))
 
   return {
     disconnect(): void {
