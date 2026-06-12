@@ -16,7 +16,16 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "ws": "^8.18.3"
   },
+  "peerDependencies": {
+    "@tauri-apps/api": "^2"
+  },
+  "peerDependenciesMeta": {
+    "@tauri-apps/api": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@tauri-apps/api": "^2",
     "@types/ws": "^8.18.1",
     "typescript": "^5.7.0"
   }
