@@ -31,7 +31,17 @@ interface TemplateVars {
   author: string;
   year: string;
   sdkRange: string;
+  /** package.json の @akari-os/sdk 依存値（workspace:* または公開 semver range） */
+  sdkDependency: string;
+  /** package.json の @akari-os/shell-ui 依存値（同上） */
+  shellUiDependency: string;
 }
+
+/**
+ * npm 公開版 @akari-os/* の現行 range。SDK のメジャー / マイナー公開時に更新する。
+ * sdkRange（akari.toml の Core SDK 互換宣言）とは別物: こちらは npm 依存解決用。
+ */
+const PUBLISHED_DEP_RANGE = "^0.1.0";
 
 // ---------------------------------------------------------------------------
 // Template expansion helpers
@@ -91,6 +101,35 @@ function slugToName(slug: string): string {
 function appShortIdFromId(appId: string): string {
   const last = appId.split(".").at(-1) ?? appId;
   return last.replace(/-/g, "_");
+}
+
+/**
+ * scaffold 先が「@akari-os/sdk を含む pnpm workspace」の内側かを判定する。
+ *
+ * 内側 → `workspace:*` で兄弟パッケージへ直リンク（monorepo 開発者）。
+ * 外側 → npm 公開版の semver range（外部開発者）。`workspace:*` のままだと
+ * monorepo 外では npm / pnpm とも install 不能になる（HUB-108 K-3 クリーンルーム
+ * 検証 P0-1）。判定は pnpm-workspace.yaml を上方探索し、その workspace が
+ * @akari-os/sdk（packages/sdk-types）を含む場合のみ内側とみなす。
+ * 無関係な pnpm workspace 内で scaffold した場合も workspace:* は解決不能なため外側扱い。
+ */
+function isInsideAkariSdkWorkspace(startDir: string): boolean {
+  let dir = startDir;
+  for (;;) {
+    if (fs.existsSync(path.join(dir, "pnpm-workspace.yaml"))) {
+      try {
+        const pkg = fs.readJsonSync(
+          path.join(dir, "packages", "sdk-types", "package.json")
+        ) as { name?: string };
+        return pkg?.name === "@akari-os/sdk";
+      } catch {
+        return false;
+      }
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) return false;
+    dir = parent;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -201,6 +240,12 @@ export function registerCreateCommand(program: Command): void {
         process.exit(1);
       }
 
+      // 依存戦略（HUB-108 K-3 P0-1）: monorepo 内 scaffold は workspace 直リンク、
+      // 外部開発者は npm 公開版の range。
+      const insideWorkspace = isInsideAkariSdkWorkspace(process.cwd());
+      const sdkDependency = insideWorkspace ? "workspace:*" : PUBLISHED_DEP_RANGE;
+      const shellUiDependency = insideWorkspace ? "workspace:*" : PUBLISHED_DEP_RANGE;
+
       const vars: TemplateVars = {
         appId,
         appName,
@@ -212,6 +257,8 @@ export function registerCreateCommand(program: Command): void {
         author,
         year: String(new Date().getFullYear()),
         sdkRange: ">=0.1.0 <1.0",
+        sdkDependency,
+        shellUiDependency,
       };
 
       // -----------------------------------------------------------------------
@@ -245,6 +292,14 @@ export function registerCreateCommand(program: Command): void {
       console.log("  App ID      :", chalk.bold(appId));
       console.log("  Tier        :", chalk.bold(tier));
       console.log("  Directory   :", chalk.bold(`./${name}/`));
+      console.log(
+        "  Dependencies:",
+        chalk.bold(
+          insideWorkspace
+            ? "workspace:* (monorepo 内リンク)"
+            : `npm 公開版 ${PUBLISHED_DEP_RANGE}`
+        )
+      );
       console.log();
       console.log("Next steps:");
       console.log(chalk.dim(`  cd ${name}`));
