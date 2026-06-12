@@ -111,25 +111,38 @@ function checkHttpAuth(
   return true
 }
 
-/** WebSocket upgrade 認証（失敗時は socket を destroy して false を返す）。 */
+/**
+ * WebSocket upgrade 認証（失敗時は 401 を書いて socket を閉じ、false を返す）。
+ * 注意: `socket.destroy(new Error(...))` はリスナー不在の 'error' イベントを発火させ
+ * **sidecar プロセスごと落とす**ため使わない（実際に dev ブラウザの無認証接続で全断した）。
+ */
 function checkWsAuth(
   req: http.IncomingMessage,
-  socket: { destroy: (err?: Error) => void },
+  socket: { destroy: (err?: Error) => void; write?: (data: string) => void },
   port: number,
   authToken: string,
 ): boolean {
+  const reject = (reason: string): false => {
+    console.error(`[bridge-auth] ws upgrade rejected: ${reason}`)
+    try {
+      socket.write?.("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n")
+    } catch {
+      // 書き込み失敗は無視（すでに切断済みなど）
+    }
+    socket.destroy()
+    return false
+  }
+
   if (!isAuthEnabled()) return true
 
   if (!isAllowedHost(req.headers.host, port)) {
-    socket.destroy(new Error("bridge-auth: forbidden host"))
-    return false
+    return reject("forbidden host")
   }
 
   const urlObj = new URL(req.url ?? "/", `http://127.0.0.1:${port}`)
   const provided = urlObj.searchParams.get("token") ?? ""
   if (!timingSafeEqual(provided, authToken)) {
-    socket.destroy(new Error("bridge-auth: unauthorized"))
-    return false
+    return reject("unauthorized")
   }
 
   return true
@@ -420,6 +433,10 @@ export function createBridgeSidecar(
     })
 
     httpServer.on("upgrade", (req, socket, head) => {
+      // 生 socket の 'error' は未処理だとプロセスを落とすため必ず吸収する
+      socket.on("error", (error) => {
+        console.error(`[${opts.appId}-sidecar] ws upgrade socket error`, error.message)
+      })
       if (!checkWsAuth(req, socket, opts.ports.ws, authToken)) {
         return
       }
