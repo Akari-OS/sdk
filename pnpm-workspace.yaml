@@ -18,3 +18,5 @@ packages:
   - "../akari-groove"
   - "../akari-slot"
   - "../akari-circuit"
+  - "../akari-site"
+  - "../akari-site/sidecar"
