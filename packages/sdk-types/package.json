@@ -30,17 +30,18 @@
     "./chat-context": "./src/chat-context.ts",
     "./ui-hooks": "./src/ui-hooks.ts",
     "./partner": "./src/partner.ts",
-    "./generated": "./src/generated/index.ts"
+    "./generated": "./src/generated/index.ts",
+    "./schemas/*": "./schemas/*"
   },
   "files": [
     "src/",
     "dist/",
-    "../../schemas/compatibility.schema.json"
+    "schemas/"
   ],
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "pnpm run build"
+    "prepublishOnly": "node ../../scripts/copy-compat-schema.mjs && pnpm run build"
   },
   "peerDependencies": {
     "@tauri-apps/api": "^2",
