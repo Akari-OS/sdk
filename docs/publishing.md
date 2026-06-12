@@ -78,6 +78,24 @@ pnpm publish --access public
 
 ---
 
+## publish 前の自動検証 / Pre-publish Verification (必須)
+
+**publish 前に必ず以下を実行すること（AKARI-HUB-108 K-3 P0 恒久ガード）。**
+
+```bash
+# monorepo ルートで実行
+pnpm verify:external
+```
+
+`scripts/verify-external-scaffold.mjs` が以下を自動検証する:
+
+1. `@akari-os/sdk` / `@akari-os/shell-ui` を tarball に pack
+2. monorepo 外の /tmp 作業ディレクトリで `akari create verify-app --tier full` を scaffold
+3. `file:<tarball>` に依存を書き換えて `npm install` → `vite build` を実行
+4. `dist/index.js` の存在確認 + bare specifier 検査（Shell の import map 外の依存が漏れていないか）
+
+全ステップがパスしてから publish に進む。失敗時は exit 1 で原因を表示する。
+
 ## publish 後の確認 / Post-publish Verification
 
 ```bash

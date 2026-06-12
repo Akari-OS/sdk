@@ -18,7 +18,8 @@
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",
     "codegen": "node scripts/codegen.mjs",
-    "sync-schemas": "node scripts/sync-schemas.mjs"
+    "sync-schemas": "node scripts/sync-schemas.mjs",
+    "verify:external": "node scripts/verify-external-scaffold.mjs"
   },
   "devDependencies": {
     "quicktype-core": "^23.0.0",
