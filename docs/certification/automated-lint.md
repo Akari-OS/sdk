@@ -613,7 +613,7 @@ Action:
 **Core 11 カテゴリ（固定 enum）**:
 
 ```
-publishing / documents / design / asset-gen / research /
+publishing / documents / design / asset-generation / research /
 translation / analytics / notification / storage / commerce / community
 ```
 

@@ -731,9 +731,6 @@ akari app certify --only contract
 # 特定のスイートのみ実行
 akari app certify --only contract --suite memory,permission
 
-# verbose 出力（各テストケースの詳細）
-akari app certify --only contract --verbose
-
 # タイムアウト設定（デフォルト 60 秒）
 akari app certify --only contract --timeout 120
 ```

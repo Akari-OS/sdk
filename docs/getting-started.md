@@ -32,8 +32,12 @@ related: [HUB-024, HUB-025, HUB-007]
 ## Step 1: 雛形生成 / Scaffold the App
 
 ```bash
+# 対話モード（TTY 環境 / ローカル開発）
 npx akari-app-cli create my-first-app --tier mcp-declarative
 cd my-first-app
+
+# 非対話モード（CI / スクリプト）— オプションを完全に渡すことで inquirer プロンプトを回避
+npx akari-app-cli create my-first-app --tier mcp-declarative --author "Your Name" --category research
 ```
 
 生成されるディレクトリ構造：
@@ -84,7 +88,7 @@ amp  = ["write"]                             # AMP への記録
 **`category` の選択肢**（HUB-005 v0.2 §6.2）:
 
 ```
-publishing | documents | design | asset-gen | research
+publishing | documents | design | asset-generation | research
 translation | analytics | notification | storage | commerce | community
 ```
 

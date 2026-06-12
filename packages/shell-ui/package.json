@@ -2,9 +2,22 @@
   "name": "@akari-os/shell-ui",
   "version": "0.1.0",
   "description": "AKARI OS Shell UI — shell と app で共有する shadcn ベースの汎用 UI 部品群",
-  "private": true,
+  "private": false,
+  "license": "MIT",
   "type": "module",
   "main": "./src/index.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Akari-OS/sdk",
+    "directory": "packages/shell-ui"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./button": "./src/button.tsx",
@@ -13,6 +26,7 @@
     "./DelegationAccordion": "./src/DelegationAccordion.tsx",
     "./MaterialPanel": "./src/MaterialPanel.tsx",
     "./ContextSlotPanel": "./src/ContextSlotPanel.tsx",
+    "./SourceToolbar": "./src/SourceToolbar.tsx",
     "./WorkPanel": "./src/WorkPanel.tsx",
     "./PoolBadge": "./src/PoolBadge.tsx",
     "./VariantTabBar": "./src/VariantTabBar.tsx",
@@ -57,7 +71,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
     "@akari-os/sdk": "workspace:*",

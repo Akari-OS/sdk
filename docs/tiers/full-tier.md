@@ -103,7 +103,11 @@ Core の 7 Agent（Partner / Studio / Operator / Researcher / Guardian / Memory 
 `akari-app-cli` で Full Tier の雛形を生成するコマンド：
 
 ```bash
+# 対話モード（TTY 環境 / ローカル開発）
 akari-app-cli create my-app --tier full
+
+# 非対話モード（CI / スクリプト）— author と category を明示してプロンプトを回避
+akari-app-cli create my-app --tier full --author "Your Name" --category research
 ```
 
 生成される構造：

@@ -157,10 +157,10 @@ akari app certify --output json > certify-report.json
 
 # 失敗しても終了コード 0 で返す（CI でのベストエフォート確認）
 akari app certify --no-fail-on-error
-
-# verbose 出力（各ルールの詳細ログ）
-akari app certify --verbose
 ```
+
+> **注意**: 詳細出力オプション（`--verbose`）は現行 CLI では未実装。将来 `--json` オプションによる構造化出力を検討中。
+
 
 ### 4.2 出力例（通過時）
 

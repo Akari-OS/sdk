@@ -211,19 +211,27 @@ export function registerCreateCommand(program: Command): void {
       const authorDefault = opts.author ?? process.env.USER ?? "anonymous";
       const categoryDefault = opts.category ?? "productivity";
 
+      // 非対話モード: !process.stdin.isTTY (CI / pipe) かつオプション未指定はデフォルト採用。
+      // TTY では従来どおり inquirer プロンプトを表示する（P1: HUB-108 K-3 cleanroom 対応）。
+      const isInteractive = process.stdin.isTTY;
+
       const author =
         opts.author ??
-        (await input({
-          message: "Author name:",
-          default: authorDefault,
-        }));
+        (isInteractive
+          ? await input({
+              message: "Author name:",
+              default: authorDefault,
+            })
+          : authorDefault);
 
       const category =
         opts.category ??
-        (await input({
-          message: "Category (e.g. productivity, sns, research):",
-          default: categoryDefault,
-        }));
+        (isInteractive
+          ? await input({
+              message: "Category (e.g. productivity, sns, research):",
+              default: categoryDefault,
+            })
+          : categoryDefault);
 
       // App ID follows reverse-domain convention (ADR-011 / HUB-024 §6.7)
       const appId = `com.user.${name}`;

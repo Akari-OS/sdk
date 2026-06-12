@@ -113,6 +113,16 @@ export async function runCertify(appDir: string): Promise<number> {
     printWarnings(manifestResult.warnings);
   }
 
+  // compat.shell_api の出力（P1: HUB-108 K-3 cleanroom 対応）
+  if (manifestResult.manifest) {
+    const compatApi = manifestResult.manifest.compat?.shell_api;
+    if (compatApi) {
+      console.log(`  ${c.green("✓")} compat.shell_api: ${c.cyan(compatApi)}`);
+    } else {
+      console.log(`  ${c.yellow("!")} compat.shell_api 未宣言 — [compat] shell_api = "^0.1" の追加を推奨`);
+    }
+  }
+
   // If manifest is invalid, we can't proceed with tier-dependent checks
   if (!manifestResult.manifest) {
     console.log(c.red("\n✗ Certification aborted — fix akari.toml errors above first."));
