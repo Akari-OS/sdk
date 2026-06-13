@@ -1,0 +1,51 @@
+# AKARI App Manifest — AKARI App SDK (MCP-Declarative Tier)
+# Reference implementation of AKARI-HUB-104 (Web Research & Scraping Connector).
+#
+# Sibling of the web-search example: web-search is the API-based ingestion
+# connector (HUB-099); this is the Playwright browser-automation connector
+# (HUB-104). Channel policy (§5-1): X is API-only (web-search), Instagram is
+# scrape (Phase 1b, not in this build), Google/web/images are scrape (here).
+
+[app]
+id       = "com.akari.example.web-scrape"
+name     = "Web Scrape"
+version  = "0.1.0"
+author   = "akari-os-examples"
+tier     = "mcp-declarative"
+sdk      = ">=0.1.0 <1.0"
+category = "research"
+
+[mcp]
+# Distribution note: unlike web-search, Playwright cannot be bundled into a
+# single ESM artifact (it spawns native browser binaries). This app runs from
+# its own node_modules and requires `npx playwright install chromium`.
+server = "dist/mcp-server/index.js"
+
+tools = [
+  "scrape.search",
+  "scrape.images",
+  "scrape.page",
+  "scrape.save_to_pool",
+]
+
+[mcp.env]
+# HUB-104 §6-2 [scrape_config] — interval/politeness knobs (all optional; the
+# server falls back to spec defaults). Users set these in the Shell settings.
+SCRAPE_INTERVAL_MODE    = "literal:exponential"
+SCRAPE_INTERVAL_BASE_MS = "literal:3000"
+SCRAPE_RESPECT_ROBOTS_TXT = "literal:true"
+SCRAPE_STEALTH_ENGINE   = "literal:patchright"
+SCRAPE_HEADLESS         = "literal:true"
+
+[panels]
+main = { title = "Web Scrape", schema = "panel.schema.json" }
+
+[permissions]
+# Default deny. Browser automation needs broad network egress (any site), plus
+# local process spawn for the Chromium binary.
+external-network = ["*"]
+process          = true
+
+# Memory layer — Pool for collected items (with usage_right), AMP for actions.
+pool = ["read", "write"]
+amp  = ["write"]

@@ -1,0 +1,48 @@
+{
+  "app.title": "Web スクレイプ",
+
+  "tab.search": "検索",
+  "tab.images": "画像",
+  "tab.pool_export": "Pool 保存",
+
+  "search.query.label": "検索クエリ",
+  "search.query.placeholder": "Google で調べたいキーワード",
+  "search.max_results.label": "最大件数",
+  "search.deep_read.label": "本文取得（上位 N 件）",
+  "search.deep_read.helper": "上位 N 件のリンク先を訪問して本文を取得します（0 = 一覧のみ）。間隔・robots.txt を守って巡回します。",
+  "search.results.label": "検索結果",
+  "search.col.title": "タイトル",
+  "search.col.url": "URL",
+  "search.col.snippet": "要約",
+
+  "images.query.label": "画像検索クエリ",
+  "images.query.placeholder": "集めたいビジュアルのキーワード",
+  "images.url.label": "ページ URL（任意）",
+  "images.url.placeholder": "指定ページから画像を集める場合",
+  "images.max.label": "最大枚数",
+  "images.results.label": "収集した画像",
+  "images.col.src": "画像 URL",
+  "images.col.alt": "代替テキスト",
+
+  "export.usage_right.label": "権利フラグ",
+  "export.usage_right.helper": "既定は reference_only（参考閲覧のみ・再配布不可）。再利用は自作 / ライセンス取得済み / パブリックドメインのみ昇格してください。",
+  "export.right.reference_only": "参考のみ（reference_only）",
+  "export.right.own": "自作（own）",
+  "export.right.licensed": "ライセンス取得済み（licensed）",
+  "export.right.public_domain": "パブリックドメイン（public_domain）",
+  "export.note.label": "メモ",
+  "export.note.placeholder": "保存時の補足メモ（任意）",
+
+  "action.search.label": "検索する",
+  "action.images.label": "画像を集める",
+  "action.save_results.label": "選択結果を Pool に保存",
+  "action.save_media.label": "選択画像を Pool に保存",
+
+  "hitl.save_results": "以下の件数を Pool に保存します",
+  "hitl.save_media": "以下の枚数を Pool に保存します",
+
+  "toast.search_done": "検索が完了しました",
+  "toast.images_done": "画像を収集しました",
+  "toast.saved_to_pool": "Pool に保存しました",
+  "toast.error": "エラー"
+}

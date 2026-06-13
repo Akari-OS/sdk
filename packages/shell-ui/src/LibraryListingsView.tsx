@@ -25,7 +25,7 @@
  *     akari-design / akari-writer も同 component を共有
  */
 
-import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Image as ImageIcon, AlertCircle, Loader2 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import type { LibraryListing } from "./types/listing";
@@ -63,6 +63,10 @@ export interface LibraryListingsViewProps {
     e: ReactPointerEvent<HTMLButtonElement>,
     listing: LibraryListing,
   ) => void;
+  searchQuery?: string;
+  sortField?: "published_at" | "download_count" | null;
+  sortDir?: "asc" | "desc";
+  categoryFilter?: string | null;
 }
 
 interface DownloadedBundle {
@@ -102,24 +106,28 @@ async function getCloudAccessToken(): Promise<string | null> {
   }
 }
 
-const containerStyle: React.CSSProperties = {
+const containerStyle = {
   display: "flex",
   flexDirection: "column",
   gap: 6,
   padding: "8px 4px",
-};
+} as const;
 
-const hintStyle: React.CSSProperties = {
+const hintStyle = {
   fontSize: 11,
   color: "#888",
   margin: 0,
-};
+} as const;
 
 export function LibraryListingsView({
   formatId,
   workId: _workId,
   onPickListing,
   onCardPointerDown,
+  searchQuery = "",
+  sortField = null,
+  sortDir = "desc",
+  categoryFilter = null,
 }: LibraryListingsViewProps) {
   const [listings, setListings] = useState<LibraryListing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -169,6 +177,47 @@ export function LibraryListingsView({
     };
   }, [formatId]);
 
+  const displayListings = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const category = categoryFilter?.trim() || null;
+    let items = listings;
+
+    if (category) {
+      items = items.filter((listing) => listing.category === category);
+    }
+
+    if (q) {
+      items = items.filter((listing) =>
+        [
+          listing.title,
+          listing.description,
+          listing.category,
+          listing.format_id,
+          ...listing.tags,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(q),
+      );
+    }
+
+    if (sortField) {
+      const direction = sortDir === "asc" ? 1 : -1;
+      items = [...items].sort((a, b) => {
+        if (sortField === "published_at") {
+          const aTime = Date.parse(a.published_at);
+          const bTime = Date.parse(b.published_at);
+          const aValue = Number.isNaN(aTime) ? 0 : aTime;
+          const bValue = Number.isNaN(bTime) ? 0 : bTime;
+          return (aValue - bValue) * direction;
+        }
+        return (a.download_count - b.download_count) * direction;
+      });
+    }
+
+    return items;
+  }, [categoryFilter, listings, searchQuery, sortDir, sortField]);
+
   async function handlePick(listing: LibraryListing) {
     if (!onPickListing) return;
     if (pickingId) return;
@@ -205,18 +254,20 @@ export function LibraryListingsView({
     );
   }
 
-  if (listings.length === 0) {
+  if (displayListings.length === 0) {
     return (
       <div style={containerStyle}>
         <ImageIcon size={20} color="#888" />
-        <p style={hintStyle}>{emptyMessage(formatId)}</p>
+        <p style={hintStyle}>
+          {listings.length === 0 ? emptyMessage(formatId) : "条件に一致するアイテムはありません"}
+        </p>
       </div>
     );
   }
 
   return (
     <div style={containerStyle}>
-      <p style={hintStyle}>AKARI Library ({listings.length} 件)</p>
+      <p style={hintStyle}>AKARI Library ({displayListings.length} 件)</p>
       {pickError && (
         <p
           role="alert"
@@ -232,7 +283,7 @@ export function LibraryListingsView({
           gap: 8,
         }}
       >
-        {listings.map((listing) => {
+        {displayListings.map((listing) => {
           const interactive = Boolean(onPickListing);
           const isPicking = pickingId === listing.id;
           const isOtherPicking = pickingId !== null && pickingId !== listing.id;

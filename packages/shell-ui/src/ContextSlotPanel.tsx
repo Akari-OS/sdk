@@ -26,8 +26,14 @@
  *       design `akari-os/docs/design/studio-left-panel-modes-2026-05-30.md` §2
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { DragEvent, MouseEvent as ReactMouseEvent, PointerEvent, ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type {
+  CSSProperties,
+  DragEvent,
+  MouseEvent as ReactMouseEvent,
+  PointerEvent,
+  ReactNode,
+} from "react";
 import {
   Plus,
   Sparkles,
@@ -43,17 +49,25 @@ import {
   ChevronRight,
   Music,
 } from "lucide-react";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { SLOT_ROLE_LABELS, ALL_SLOT_ROLES, type SlotRole } from "@akari-os/sdk/slot";
 import {
   listItems,
   slotListEntries,
   slotAddEntry,
   slotRemoveEntry,
-  getItemThumbnail,
+  archiveItem,
   analyzeItem,
   type PoolItemSummary,
 } from "@akari-os/sdk/pool";
+import {
+  ensureThumb,
+  getCachedThumb,
+  isThumbGenerating,
+  useThumbCacheSubscription,
+  useThumbGeneratingSubscription,
+  cancelPendingThumbs,
+  usePreviewPlaybackActive,
+} from "./lib/pool-thumbnail-cache";
 
 // ADR-108 Wave2: 全 SlotRole は @akari-os/sdk/slot の ALL_SLOT_ROLES が SSOT（手動再列挙を廃止）。
 
@@ -107,10 +121,121 @@ interface DisplayEntry {
   sourceLabel?: string;
   /** true の場合は WorkPool slot からの削除を出さない。 */
   readonly?: boolean;
+  /** ADR-110: true = 他アプリの作業状態（is_work_state）。素材とは別セクションで表示する。 */
+  workState?: boolean;
+  /** 作業状態の出力元 app（"stage" / "design" 等、context_json.source_app）。 */
+  sourceApp?: string | null;
+}
+
+/**
+ * onEntryPointerDown へ渡す追加メタ。作業状態エントリ（workState=true）の D&D を
+ * アプリ側（video 等）が素材エントリと区別して扱うために使う。
+ */
+export interface EntryPointerMeta {
+  workState?: boolean;
+  sourceApp?: string | null;
+}
+
+/** "stage" → "Stage" のような表示用 app 名。 */
+function appDisplayName(app: string | null | undefined): string {
+  if (!app) return "App";
+  return app.charAt(0).toUpperCase() + app.slice(1);
+}
+
+/** updatedAt の相対表示（同期の鮮度をひと目で見せる用）。 */
+function relativeTimeLabel(iso: string | null): string {
+  if (!iso) return "";
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "";
+  const diffSec = Math.max(0, (Date.now() - t) / 1000);
+  if (diffSec < 60) return "たった今";
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}分前`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}時間前`;
+  return `${Math.floor(diffSec / 86400)}日前`;
 }
 
 const AKARI_POOL_ITEM_MIME = "application/x-akari-pool-item";
+/** @deprecated workId がある場合は lib で "work-{workId}" が導出される。モックモード専用。 */
 const FALLBACK_POOL_LIBRARY = "akari-uploads";
+const WORKPOOL_LEGACY_SYNC_LIMIT = 80;
+const RELATED_POOL_LOAD_LIMIT = 60;
+const WORKPOOL_RENDER_BATCH = 36;
+const RELATED_POOL_RENDER_BATCH = 24;
+const MATERIAL_CARD_DEFER_STYLE: CSSProperties = {
+  contentVisibility: "auto",
+  containIntrinsicSize: "96px",
+};
+const WORKPOOL_PANEL_CONTAIN_STYLE: CSSProperties = {
+  // paint を含めると contain がクリップ境界を作り、フィルター「表示条件」ポップオーバー
+  // (絶対配置) が下のリストに被って欠けて見える。layout/style だけ残してクリップは外す。
+  contain: "layout style",
+};
+
+type VisibleCallback = () => void;
+const visibleCallbacks = new WeakMap<Element, VisibleCallback>();
+let visibleObserver: IntersectionObserver | null = null;
+
+function getVisibleObserver(): IntersectionObserver | null {
+  if (typeof IntersectionObserver === "undefined") return null;
+  if (!visibleObserver) {
+    visibleObserver = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const cb = visibleCallbacks.get(entry.target);
+          if (!cb) continue;
+          visibleObserver?.unobserve(entry.target);
+          visibleCallbacks.delete(entry.target);
+          cb();
+        }
+      },
+      { root: null, rootMargin: "320px", threshold: 0.01 },
+    );
+  }
+  return visibleObserver;
+}
+
+function useVisibleMount(onMount?: () => void) {
+  const nodeRef = useRef<HTMLElement | null>(null);
+  const ranRef = useRef(false);
+  const run = useCallback(() => {
+    if (ranRef.current) return;
+    ranRef.current = true;
+    onMount?.();
+  }, [onMount]);
+
+  const ref = useCallback(
+    (node: HTMLElement | null) => {
+      const prev = nodeRef.current;
+      if (prev && prev !== node) {
+        visibleObserver?.unobserve(prev);
+        visibleCallbacks.delete(prev);
+      }
+      nodeRef.current = node;
+      if (!node || !onMount || ranRef.current) return;
+      const observer = getVisibleObserver();
+      if (!observer) {
+        run();
+        return;
+      }
+      visibleCallbacks.set(node, run);
+      observer.observe(node);
+    },
+    [onMount, run],
+  );
+
+  useEffect(
+    () => () => {
+      const node = nodeRef.current;
+      if (!node) return;
+      visibleObserver?.unobserve(node);
+      visibleCallbacks.delete(node);
+    },
+    [],
+  );
+
+  return ref;
+}
 
 type MaterialStatusFilter = "all" | "analyzed" | "unanalyzed";
 type MaterialSortMode = "added-desc" | "added-asc" | "name-asc" | "analysis";
@@ -130,8 +255,9 @@ export interface RelatedPoolSection {
 }
 
 function relatedSectionTitle(section: RelatedPoolSection): string {
-  if (section.kind === "brand") return `親元ブランド: ${section.label}`;
-  if (section.kind === "domain") return `親元ドメイン: ${section.label}`;
+  // brand は parent チェーンに関係なく常時表示されるため「親元」表記はしない
+  if (section.kind === "brand") return `ブランド: ${section.label}`;
+  if (section.kind === "domain") return `ドメイン: ${section.label}`;
   return section.label;
 }
 
@@ -157,10 +283,6 @@ function entryLibrary(entry: DisplayEntry, fallbackLibrary: string | null): stri
 
 function entryKey(entry: DisplayEntry, fallbackLibrary: string | null): string {
   return `${entryLibrary(entry, fallbackLibrary)}:${entry.assetId ?? entry.id}`;
-}
-
-function thumbCacheKey(library: string, assetId: string): string {
-  return `${library}:${assetId}`;
 }
 
 function filterLabel(
@@ -210,9 +332,14 @@ export interface ContextSlotPanelProps {
     assetId: string,
     e: PointerEvent<HTMLElement>,
     library?: string | null,
+    meta?: EntryPointerMeta,
   ) => void;
   /** 制作素材カードのクリック選択。Preview / Inspector の source 切替に使う。 */
   onEntryClick?: (assetId: string, library?: string | null) => void;
+  /** 制作素材カードのダブルクリック。insert / import の確定に使う。 */
+  onEntryDoubleClick?: (assetId: string, library?: string | null) => void;
+  /** true の場合、制作素材カードは HTML5 drag payload も載せる。 */
+  enableEntryHtmlDrag?: boolean;
   /**
    * 制作素材の分析リクエスト。
    * 指定された場合は内蔵の簡易分析ダイアログを出さず、親アプリ側に処理を委譲する。
@@ -232,13 +359,15 @@ export interface ContextSlotPanelProps {
   relatedPoolSections?: readonly RelatedPoolSection[];
 }
 
-export function ContextSlotPanel({
+export const ContextSlotPanel = memo(function ContextSlotPanel({
   workId,
   variantId,
   library,
   renderPoolPicker,
   onEntryPointerDown,
   onEntryClick,
+  onEntryDoubleClick,
+  enableEntryHtmlDrag,
   onRequestEntryAnalyze,
   onAddFromLocal,
   visibleRoles,
@@ -246,9 +375,12 @@ export function ContextSlotPanel({
 }: ContextSlotPanelProps) {
   /** 永続モード = Work / Variant が確定しているとき */
   const bound = !!(workId && variantId);
-  const lib = library ?? null;
+  // library 未指定時は workId から "work-{workId}" を導出する（akari-uploads フォールバック廃止）
+  const lib = library ?? (workId ? `work-${workId}` : null);
 
   const [entries, setEntries] = useState<DisplayEntry[]>([]);
+  // ADR-110: 他アプリの作業状態（is_work_state）。素材（import/書き出し）と混ぜず別セクションで出す。
+  const [workStateEntries, setWorkStateEntries] = useState<DisplayEntry[]>([]);
   const [relatedEntries, setRelatedEntries] = useState<DisplayEntry[]>([]);
   const [statusFilter, setStatusFilter] = useState<MaterialStatusFilter>("all");
   const [roleFilter, setRoleFilter] = useState<SlotRole | null>(null);
@@ -259,21 +391,20 @@ export function ContextSlotPanel({
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [dropActive, setDropActive] = useState(false);
   const [selectedEntryKey, setSelectedEntryKey] = useState<string | null>(null);
+  // 複数選択 (⌘/Ctrl+クリックでトグル)。一括削除に使う。単一クリックは preview 用の
+  // selectedEntryKey と連動し、ここを {key} にリセットする。
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
   const [entryContextMenu, setEntryContextMenu] = useState<EntryContextMenuState | null>(null);
   const [analysisDialogEntry, setAnalysisDialogEntry] = useState<DisplayEntry | null>(null);
   /** ソース選択パネルの開閉（true = 展開中） */
   const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
-  /**
-   * `${library}:${assetId}` → サムネ URL（convertFileSrc 変換済み）。
-   * getItemThumbnail で取得した JPEG パスを convertFileSrc で変換して保持。
-   * freeze-safe: 実動画 URL は渡さない（ADR-100 遵守）。
-   */
-  const [thumbCache, setThumbCache] = useState<Map<string, string>>(new Map());
-  /**
-   * サムネ取得中の `${library}:${assetId}` セット（重複リクエスト防止）。
-   * useRef で保持し setState を呼ばない（再レンダ不要）。
-   */
-  const thumbFetchingRef = useRef<Set<string>>(new Set());
+  // サムネは共有キャッシュ（低並列 + dedupe + rAF バッチ通知）経由で取得する。
+  // cache 更新時の再描画はこの subscription 1 本に集約され、サムネ完了ごとの
+  // パネル全体再描画 + Map 全コピー（O(N^2)）を解消する（freeze-safe / ADR-100 準拠）。
+  useThumbCacheSubscription();
+  useThumbGeneratingSubscription();
+  const previewPlaying = usePreviewPlaybackActive();
+  useEffect(() => () => cancelPendingThumbs(), []);
   /**
    * 分析中の entryId セット（ボタン busy 表示用）。
    */
@@ -282,6 +413,7 @@ export function ContextSlotPanel({
    * Pool ピッカーのモーダル開閉。null = 一覧表示。
    */
   const [pickerMode, setPickerMode] = useState<"pool" | null>(null);
+  const [sectionRenderLimits, setSectionRenderLimits] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const filterPopoverRef = useRef<HTMLDivElement | null>(null);
   const roleFilterOptions = useMemo(
@@ -308,6 +440,10 @@ export function ContextSlotPanel({
       setRoleFilter(null);
     }
   }, [roleFilter, roleFilterOptions]);
+
+  useEffect(() => {
+    setSectionRenderLimits({});
+  }, [workId, variantId, lib, statusFilter, roleFilter, typeFilter, sortMode]);
 
   useEffect(() => {
     if (!entryContextMenu) return;
@@ -341,19 +477,38 @@ export function ContextSlotPanel({
   }, [filterPopoverOpen]);
 
   useEffect(() => {
-    if (!selectedEntryKey) return;
     const allEntries = [...entries, ...relatedEntries];
-    if (!allEntries.some((entry) => entryKey(entry, lib) === selectedEntryKey)) {
+    const validKeys = new Set(allEntries.map((entry) => entryKey(entry, lib)));
+    if (selectedEntryKey && !validKeys.has(selectedEntryKey)) {
       setSelectedEntryKey(null);
     }
+    // reload 等で消えたエントリの選択を取り除く
+    setSelectedKeys((prev) => {
+      if (prev.size === 0) return prev;
+      let changed = false;
+      const next = new Set<string>();
+      for (const key of prev) {
+        if (validKeys.has(key)) next.add(key);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
   }, [entries, relatedEntries, lib, selectedEntryKey]);
 
   // --- 永続モード: backend から読み込み ---
+  // 同時に複数の reload が走ると auto-sync が重複 slot_entry を作る競合状態を防ぐ
+  const reloadRunningRef = useRef(false);
   const reload = useCallback(async () => {
     if (!bound) return;
+    if (reloadRunningRef.current) return;
+    reloadRunningRef.current = true;
     try {
       let views = await slotListEntries(lib, workId!, variantId!);
       let poolItemMap = new Map<string, PoolItemSummary>();
+      // library = workpool（自動同期）: Work 専用ライブラリ `work-<id>` の素材を毎回
+      // ワークプールへ取り込む。以前は views.length === 0（空のとき限定）だったため、
+      // Pool ビューア等で後から足した素材がワークプールに反映されなかった。
+      // 「外す」操作は removeEntry で library からも archive するので resurrection しない。
       if (lib) {
         const existingAssetIds = new Set(
           views.map((v) => v.asset_id).filter((id): id is string => Boolean(id)),
@@ -361,14 +516,43 @@ export function ContextSlotPanel({
         const poolItems = await listItems(lib, {
           sortBy: "updated_at",
           sortOrder: "desc",
-          limit: 500,
+          limit: WORKPOOL_LEGACY_SYNC_LIMIT,
         }).catch((e) => {
           console.warn("[制作素材] pool item auto-sync 失敗", e);
           return [] as PoolItemSummary[];
         });
         poolItemMap = new Map(poolItems.map((item) => [item.id, item]));
+        // ADR-110: working-state は素材セクションには出さないが、「作業状態」
+        // セクションとして別枠表示する（import 素材との区別がつくように）。
+        setWorkStateEntries(
+          poolItems
+            .filter((item) => !item.archived_at && item.is_work_state)
+            .sort(
+              (a, b) => (Date.parse(b.updated_at) || 0) - (Date.parse(a.updated_at) || 0),
+            )
+            .map((item, index): DisplayEntry => ({
+              id: `state:${item.id}`,
+              label: item.name ?? "(無題)",
+              role: "misc",
+              itemType: item.item_type ?? null,
+              createdAt: item.created_at ?? null,
+              updatedAt: item.updated_at ?? null,
+              position: index,
+              analyzed: false,
+              assetId: item.id,
+              sourceLibrary: lib,
+              readonly: true,
+              workState: true,
+              sourceApp: item.source_app ?? null,
+            })),
+        );
         const missing = poolItems.filter(
-          (item) => !item.archived_at && !existingAssetIds.has(item.id),
+          (item) =>
+            !item.archived_at &&
+            // ADR-110 D-2: app 私的 working-state（[<app> state]）は素材でないので
+            // WorkPool に auto-slot しない。これを入れないと stage 等の状態が混入する。
+            !item.is_work_state &&
+            !existingAssetIds.has(item.id),
         );
         if (missing.length > 0) {
           for (const item of missing) {
@@ -387,23 +571,37 @@ export function ContextSlotPanel({
         }
       }
       setEntries(
-        views.map((v) => ({
-          id: v.id,
-          label: v.asset_name ?? v.external_url ?? "(無題)",
-          role: v.role,
-          itemType: v.asset_id ? (poolItemMap.get(v.asset_id)?.item_type ?? null) : null,
-          createdAt: v.created_at ?? null,
-          updatedAt: v.updated_at ?? null,
-          position: v.position,
-          analyzed: v.asset_analyzed_at != null,
-          assetId: v.asset_id,
-          sourceLibrary: lib,
-        })),
+        views
+          // ADR-110 D-2: 既に slot 化済みの working-state（[<app> state]）も
+          // 素材ビューから隠す。slot_entry は残すが表示・カウントには出さない。
+          .filter((v) => !(v.asset_id && poolItemMap.get(v.asset_id)?.is_work_state))
+          .map((v) => ({
+            id: v.id,
+            label: v.asset_name ?? v.external_url ?? "(無題)",
+            role: v.role,
+            itemType: v.asset_id ? (poolItemMap.get(v.asset_id)?.item_type ?? null) : null,
+            createdAt: v.created_at ?? null,
+            updatedAt: v.updated_at ?? null,
+            position: v.position,
+            analyzed: v.asset_analyzed_at != null,
+            assetId: v.asset_id,
+            sourceLibrary: lib,
+          })),
       );
       setError(null);
     } catch (e) {
-      console.warn("[制作素材] slot_list_entries 失敗", e);
-      setError("素材の読み込みに失敗しました");
+      // pool が未作成（初回 Work open）は空リストとして扱う（ユーザーにエラー表示しない）
+      const msg = String(e);
+      if (msg.includes("ライブラリが見つからない") || msg.includes("LibraryNotFound")) {
+        setEntries([]);
+        setWorkStateEntries([]);
+        setError(null);
+      } else {
+        console.warn("[制作素材] slot_list_entries 失敗", e);
+        setError("素材の読み込みに失敗しました");
+      }
+    } finally {
+      reloadRunningRef.current = false;
     }
   }, [bound, lib, workId, variantId]);
 
@@ -422,10 +620,11 @@ export function ContextSlotPanel({
           const items = await listItems(section.library, {
             sortBy: "updated_at",
             sortOrder: "desc",
-            limit: 500,
+            limit: RELATED_POOL_LOAD_LIMIT,
           });
           return items
-            .filter((item) => !item.archived_at)
+            // ADR-110 D-2: 関連 Pool でも working-state は素材として出さない
+            .filter((item) => !item.archived_at && !item.is_work_state)
             .map((item, index): DisplayEntry => ({
               id: `${section.library}:${item.id}`,
               label: item.name ?? "(無題)",
@@ -477,6 +676,27 @@ export function ContextSlotPanel({
     return () => window.removeEventListener("akari:pool-analyze-complete", onAnalyzeComplete);
   }, [bound, lib, normalizedRelatedSections, reload, reloadRelated]);
 
+  // Pool ビューア等で素材が追加/変更されたら、対象ライブラリのワークプールを即 reload。
+  // （library=workpool 自動同期。同一 webview 内の CustomEvent で他 view からの追加を拾う）
+  useEffect(() => {
+    if (!bound) return;
+    const onItemsChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ library?: string | null }>).detail;
+      const mainLibrary = lib ?? FALLBACK_POOL_LIBRARY;
+      if (!detail?.library || detail.library === mainLibrary) {
+        void reload();
+      }
+      if (
+        detail?.library &&
+        normalizedRelatedSections.some((section) => section.library === detail.library)
+      ) {
+        void reloadRelated();
+      }
+    };
+    window.addEventListener("akari:pool-items-changed", onItemsChanged);
+    return () => window.removeEventListener("akari:pool-items-changed", onItemsChanged);
+  }, [bound, lib, normalizedRelatedSections, reload, reloadRelated]);
+
   /** モックモード: in-memory にエントリ追加 */
   const addMockEntry = useCallback((role: SlotRole, label: string) => {
     setEntries((prev) => [
@@ -523,15 +743,26 @@ export function ContextSlotPanel({
     [bound, lib, workId, variantId, addMockEntry, reload],
   );
 
-  /** エントリ削除（永続 = slot_remove_entry / モック = in-memory） */
+  /** エントリ削除。
+   *  library=workpool 自動同期方針のため、自 Work ライブラリ（lib）由来の素材は
+   *  slot_entry だけでなく library 実体も archive する（archive しないと次回 reload の
+   *  自動同期で復活してしまう）。他ライブラリ参照（cross-pool ref）は slot_entry のみ外す
+   *  （他 Work / 共有 pool の実体を巻き込んで消さない）。 */
   const removeEntry = useCallback(
-    async (id: string) => {
+    async (entry: DisplayEntry) => {
       if (!bound) {
-        setEntries((prev) => prev.filter((e) => e.id !== id));
+        setEntries((prev) => prev.filter((e) => e.id !== entry.id));
         return;
       }
       try {
-        await slotRemoveEntry(lib, id);
+        await slotRemoveEntry(lib, entry.id);
+        if (entry.assetId && entry.sourceLibrary && entry.sourceLibrary === lib) {
+          try {
+            await archiveItem(lib, entry.assetId);
+          } catch (e) {
+            console.warn("[制作素材] library archive 失敗", entry.assetId, e);
+          }
+        }
         await reload();
       } catch (e) {
         console.warn("[制作素材] slot_remove_entry 失敗", e);
@@ -541,39 +772,42 @@ export function ContextSlotPanel({
     [bound, lib, reload],
   );
 
+  /** 複数選択した素材を一括削除（workpool の削除可能エントリのみ対象）。
+   *  個別 removeEntry を都度 reload せず、まとめて外して最後に一度だけ reload する。 */
+  const removeSelectedEntries = useCallback(async () => {
+    const targets = entries.filter((e) => selectedKeys.has(entryKey(e, lib)));
+    if (targets.length === 0) return;
+    if (!bound) {
+      const ids = new Set(targets.map((e) => e.id));
+      setEntries((prev) => prev.filter((e) => !ids.has(e.id)));
+      setSelectedKeys(new Set());
+      return;
+    }
+    try {
+      for (const entry of targets) {
+        await slotRemoveEntry(lib, entry.id);
+        if (entry.assetId && entry.sourceLibrary && entry.sourceLibrary === lib) {
+          try {
+            await archiveItem(lib, entry.assetId);
+          } catch (e) {
+            console.warn("[制作素材] library archive 失敗", entry.assetId, e);
+          }
+        }
+      }
+      setSelectedKeys(new Set());
+      await reload();
+    } catch (e) {
+      console.warn("[制作素材] 一括削除失敗", e);
+      setError("素材の一括削除に失敗しました");
+    }
+  }, [bound, entries, lib, reload, selectedKeys]);
+
   /** モックモード: 分析済みフラグをトグル（永続モードでは display-only） */
   const analyzeMock = useCallback((id: string) => {
     setEntries((prev) =>
       prev.map((e) => (e.id === id ? { ...e, analyzed: true } : e)),
     );
   }, []);
-
-  /**
-   * assetId に対して JPEG サムネを遅延取得してキャッシュ。
-   * freeze-safe: getItemThumbnail → convertFileSrc を使い、実動画 URL は渡さない（ADR-100）。
-   * assetId が null / 既にキャッシュ済み / 取得中 の場合は即 return。
-   * library が未確定なら lib を null として pool-impl 側の current Pool fallback に委ねる。
-   */
-  const fetchThumb = useCallback(
-    async (assetId: string, sourceLibrary?: string | null) => {
-      const targetLibrary = sourceLibrary ?? lib ?? FALLBACK_POOL_LIBRARY;
-      const cacheKey = thumbCacheKey(targetLibrary, assetId);
-      if (thumbCache.has(cacheKey)) return;
-      if (thumbFetchingRef.current.has(cacheKey)) return;
-      thumbFetchingRef.current.add(cacheKey);
-      try {
-        // lib が null の場合 pool-impl は current Pool にフォールバックする
-        const thumbPath = await getItemThumbnail(targetLibrary, assetId).catch(() => null);
-        if (thumbPath) {
-          const url = convertFileSrc(thumbPath);
-          setThumbCache((prev) => new Map(prev).set(cacheKey, url));
-        }
-      } finally {
-        thumbFetchingRef.current.delete(cacheKey);
-      }
-    },
-    [lib, thumbCache],
-  );
 
   const analyzeEntry = useCallback(
     async (
@@ -737,6 +971,27 @@ export function ContextSlotPanel({
   const hasRoleFilter = roleFilter != null;
   const activeFilterLabel = filterLabel(statusFilter, roleFilter, typeFilter, sortMode);
 
+  const handleEntryDragStart = useCallback(
+    (
+      e: DragEvent<HTMLElement>,
+      entry: DisplayEntry,
+      sourceLibrary?: string | null,
+    ) => {
+      if (!entry.assetId) return;
+      e.dataTransfer.effectAllowed = "copy";
+      e.dataTransfer.setData(
+        AKARI_POOL_ITEM_MIME,
+        JSON.stringify({
+          source: "shell",
+          itemId: entry.assetId,
+          library: sourceLibrary ?? undefined,
+        }),
+      );
+      e.dataTransfer.setData("text/plain", displayNameWithoutPath(entry.label));
+    },
+    [],
+  );
+
   const closePicker = useCallback(() => {
     setPickerMode(null);
     void reload();
@@ -754,6 +1009,19 @@ export function ContextSlotPanel({
     });
   }, []);
 
+  const showMoreInSection = useCallback(
+    (sectionId: string, batchSize: number, total: number) => {
+      setSectionRenderLimits((prev) => {
+        const current = prev[sectionId] ?? batchSize;
+        return {
+          ...prev,
+          [sectionId]: Math.min(total, current + batchSize),
+        };
+      });
+    },
+    [],
+  );
+
   const renderMaterialSection = ({
     sectionId,
     title,
@@ -769,6 +1037,10 @@ export function ContextSlotPanel({
   }) => {
     const empty = sectionEntries.length === 0;
     const collapsed = collapsedSectionIds.has(sectionId);
+    const batchSize = readonly ? RELATED_POOL_RENDER_BATCH : WORKPOOL_RENDER_BATCH;
+    const renderLimit = sectionRenderLimits[sectionId] ?? batchSize;
+    const renderedEntries = sectionEntries.slice(0, renderLimit);
+    const hiddenCount = Math.max(0, sectionEntries.length - renderedEntries.length);
     return (
       <section className="flex flex-col gap-1">
         <button
@@ -811,54 +1083,95 @@ export function ContextSlotPanel({
                   : `ここに素材を D&D${hasRoleFilter ? `（${addRoleLabel} に分類）` : ""}`}
               </div>
             ) : (
-              <div
-                className={
-                  viewMode === "grid"
-                    ? "grid grid-cols-3 gap-1"
-                    : viewMode === "compact"
-                      ? "grid justify-items-center gap-x-1.5 gap-y-2"
-                      : "flex flex-col gap-1"
-                }
-                style={
-                  viewMode === "compact"
-                    ? { gridTemplateColumns: "repeat(auto-fill, minmax(3.75rem, 1fr))" }
-                    : undefined
-                }
-              >
-                {sectionEntries.map((entry) => {
-                  const sourceLibrary = entryLibrary(entry, lib);
-                  const selectedKey = entryKey(entry, lib);
-                  const commonProps = {
-                    entry,
-                    thumbUrl: entry.assetId
-                      ? (thumbCache.get(thumbCacheKey(sourceLibrary, entry.assetId)) ?? null)
-                      : null,
-                    isAnalyzing: analyzingIds.has(entry.id),
-                    selected: selectedKey === selectedEntryKey,
-                    onPointerDown:
-                      onEntryPointerDown && entry.assetId
-                        ? (e: PointerEvent<HTMLElement>) =>
-                            onEntryPointerDown(entry.assetId!, e, sourceLibrary)
-                        : undefined,
-                    onClick: entry.assetId
-                      ? () => {
-                          setSelectedEntryKey(selectedKey);
-                          onEntryClick?.(entry.assetId!, sourceLibrary);
-                        }
-                      : undefined,
-                    onContextMenu: (e: ReactMouseEvent<HTMLElement>) =>
-                      handleCardContextMenu(entry, e),
-                    onMount: entry.assetId
-                      ? () => void fetchThumb(entry.assetId!, sourceLibrary)
-                      : undefined,
-                  };
-                  if (viewMode === "grid") return <MaterialCard key={entry.id} {...commonProps} />;
-                  if (viewMode === "compact") {
-                    return <MaterialCompactIcon key={entry.id} {...commonProps} />;
+              <>
+                <div
+                  className={
+                    viewMode === "grid"
+                      ? "grid grid-cols-3 gap-1"
+                      : viewMode === "compact"
+                        ? "grid justify-items-center gap-x-1.5 gap-y-2"
+                        : "flex flex-col gap-1"
                   }
-                  return <MaterialListRow key={entry.id} {...commonProps} />;
-                })}
-              </div>
+                  style={
+                    viewMode === "compact"
+                      ? { gridTemplateColumns: "repeat(auto-fill, minmax(3.75rem, 1fr))" }
+                      : undefined
+                  }
+                >
+                  {renderedEntries.map((entry) => {
+                    const sourceLibrary = entryLibrary(entry, lib);
+                    const selectedKey = entryKey(entry, lib);
+                    const commonProps = {
+                      entry,
+                      thumbUrl:
+                        !previewPlaying && entry.assetId
+                          ? (getCachedThumb(sourceLibrary, entry.assetId) ?? null)
+                          : null,
+                      thumbGenerating:
+                        entry.assetId ? isThumbGenerating(sourceLibrary, entry.assetId) : false,
+                      isAnalyzing: analyzingIds.has(entry.id),
+                      selected:
+                        selectedKey === selectedEntryKey ||
+                        selectedKeys.has(selectedKey),
+                      onPointerDown:
+                        onEntryPointerDown && entry.assetId
+                          ? (e: PointerEvent<HTMLElement>) =>
+                              onEntryPointerDown(entry.assetId!, e, sourceLibrary)
+                          : undefined,
+                      onClick: entry.assetId
+                        ? (e: ReactMouseEvent<HTMLElement>) => {
+                            // ⌘/Ctrl+クリック: 複数選択トグル (preview は変えない)。
+                            if (e.metaKey || e.ctrlKey) {
+                              setSelectedKeys((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(selectedKey)) next.delete(selectedKey);
+                                else next.add(selectedKey);
+                                return next;
+                              });
+                              return;
+                            }
+                            // 通常クリック: 単一選択 + preview。複数選択もこの 1 件にリセット。
+                            setSelectedEntryKey(selectedKey);
+                            setSelectedKeys(new Set([selectedKey]));
+                            onEntryClick?.(entry.assetId!, sourceLibrary);
+                          }
+                        : undefined,
+                      onDoubleClick: entry.assetId
+                        ? () => {
+                            setSelectedEntryKey(selectedKey);
+                            onEntryDoubleClick?.(entry.assetId!, sourceLibrary);
+                          }
+                        : undefined,
+                      draggable: Boolean(enableEntryHtmlDrag && entry.assetId),
+                      onDragStart:
+                        enableEntryHtmlDrag && entry.assetId
+                          ? (e: DragEvent<HTMLElement>) =>
+                              handleEntryDragStart(e, entry, sourceLibrary)
+                          : undefined,
+                      onContextMenu: (e: ReactMouseEvent<HTMLElement>) =>
+                        handleCardContextMenu(entry, e),
+                      onMount:
+                        !previewPlaying && entry.assetId
+                          ? () => void ensureThumb(sourceLibrary, entry.assetId!)
+                          : undefined,
+                    };
+                    if (viewMode === "grid") return <MaterialCard key={entry.id} {...commonProps} />;
+                    if (viewMode === "compact") {
+                      return <MaterialCompactIcon key={entry.id} {...commonProps} />;
+                    }
+                    return <MaterialListRow key={entry.id} {...commonProps} />;
+                  })}
+                </div>
+                {hiddenCount > 0 && (
+                  <button
+                    type="button"
+                    className="mt-1 w-full rounded border border-border bg-background px-2 py-1 text-[10px] text-muted-foreground hover:border-primary/60 hover:text-primary"
+                    onClick={() => showMoreInSection(sectionId, batchSize, sectionEntries.length)}
+                  >
+                    さらに表示 {Math.min(batchSize, hiddenCount)} / {hiddenCount}
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
@@ -866,8 +1179,80 @@ export function ContextSlotPanel({
     );
   };
 
+  /**
+   * 作業状態セクション（ADR-110）。他アプリ（stage / design 等）が live sync している
+   * 編集状態を、import / 書き出し素材と区別できる別枠で表示する。
+   * D&D は onEntryPointerDown に meta.workState=true を付けてアプリ側へ委譲する
+   * （video 側は最新書き出しをプロキシに配置し、以後の変更を追跡する）。
+   */
+  const renderWorkStateSection = () => {
+    const sectionId = "workstate";
+    const collapsed = collapsedSectionIds.has(sectionId);
+    const title = "作業状態（他アプリ・同期）";
+    return (
+      <section className="flex flex-col gap-1">
+        <button
+          type="button"
+          className="flex min-w-0 items-center justify-between gap-1 rounded px-0.5 py-0.5 text-left hover:bg-muted/50"
+          onClick={() => toggleSectionCollapsed(sectionId)}
+          title={collapsed ? `${title} を開く` : `${title} を閉じる`}
+        >
+          <div className="flex min-w-0 items-center gap-1">
+            {collapsed ? (
+              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+            )}
+            <div className="truncate text-[10px] font-medium text-foreground" title={title}>
+              {title}
+            </div>
+          </div>
+          <div className="shrink-0 text-[9px] text-muted-foreground">
+            {workStateEntries.length}
+          </div>
+        </button>
+        {!collapsed && (
+          <div className="flex flex-col gap-1 rounded border border-dashed border-primary/40 bg-primary/5 p-1">
+            {workStateEntries.map((entry) => (
+              <div
+                key={entry.id}
+                className={`flex items-center gap-1.5 rounded border border-border bg-background px-1.5 py-1 select-none ${
+                  onEntryPointerDown ? "cursor-grab hover:border-primary/60" : ""
+                }`}
+                onPointerDown={
+                  onEntryPointerDown && entry.assetId
+                    ? (e: PointerEvent<HTMLElement>) =>
+                        onEntryPointerDown(entry.assetId!, e, entryLibrary(entry, lib), {
+                          workState: true,
+                          sourceApp: entry.sourceApp ?? null,
+                        })
+                    : undefined
+                }
+                title={`${appDisplayName(entry.sourceApp)} の現在の編集状態（自動同期）。タイムラインへドラッグすると最新の書き出しで配置され、以後の変更を追跡します`}
+              >
+                <span className="relative flex h-1.5 w-1.5 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-50" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+                </span>
+                <span className="shrink-0 rounded bg-primary/15 px-1 py-px text-[9px] font-medium text-primary">
+                  {appDisplayName(entry.sourceApp)}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[10px] text-foreground">
+                  作業状態（同期中）
+                </span>
+                <span className="shrink-0 text-[9px] text-muted-foreground">
+                  {relativeTimeLabel(entry.updatedAt)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  };
+
   return (
-    <div className="flex flex-col gap-2 p-2 text-xs">
+    <div className="flex flex-col gap-2 p-2 text-xs" style={WORKPOOL_PANEL_CONTAIN_STYLE}>
       {error && (
         <div className="rounded border border-destructive/40 bg-destructive/10 px-1.5 py-1 text-[9px] text-destructive">
           {error}
@@ -1132,7 +1517,32 @@ export function ContextSlotPanel({
         </div>
       )}
 
-      {/* 素材棚: WorkPool を優先表示し、関連 Pool は別セクションで続ける。 */}
+      {/* 複数選択 (⌘/Ctrl+クリック) 中の一括操作バー。 */}
+      {selectedKeys.size >= 2 && (
+        <div className="flex items-center justify-between gap-2 rounded border border-primary/40 bg-primary/5 px-2 py-1 text-[10px]">
+          <span className="font-medium text-primary">{selectedKeys.size}件選択中</span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              className="rounded px-1.5 py-0.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              onClick={() => setSelectedKeys(new Set())}
+            >
+              選択解除
+            </button>
+            <button
+              type="button"
+              className="flex items-center gap-1 rounded bg-destructive/90 px-1.5 py-0.5 font-medium text-destructive-foreground transition hover:bg-destructive"
+              onClick={() => void removeSelectedEntries()}
+            >
+              <Trash2 className="h-3 w-3" />
+              削除
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 素材棚: WorkPool（import/書き出し素材）→ 作業状態（他アプリ・同期）→ 関連 Pool
+          （ドメイン → ブランド）の順に区切って表示する。 */}
       <div className="flex flex-col gap-2">
         {renderMaterialSection({
           sectionId: "workpool",
@@ -1140,6 +1550,9 @@ export function ContextSlotPanel({
           entries: visibleWorkEntries,
           totalCount: entries.length,
         })}
+        {workStateEntries.length > 0 && (
+          <div className="border-t border-border/70 pt-2">{renderWorkStateSection()}</div>
+        )}
         {visibleRelatedSections.map((section) => (
           <div key={section.library} className="border-t border-border/70 pt-2">
             {renderMaterialSection({
@@ -1164,7 +1577,7 @@ export function ContextSlotPanel({
             setEntryContextMenu(null);
           }}
           onRemove={() => {
-            void removeEntry(entryContextMenu.entry.id);
+            void removeEntry(entryContextMenu.entry);
             setEntryContextMenu(null);
           }}
           removable={!entryContextMenu.entry.readonly}
@@ -1200,7 +1613,7 @@ export function ContextSlotPanel({
       )}
     </div>
   );
-}
+});
 
 function PoolPickerModal({
   children,
@@ -1276,47 +1689,59 @@ function FilterChip({
   );
 }
 
-function MaterialCard({
+const MaterialCard = memo(function MaterialCard({
   entry,
   thumbUrl,
+  thumbGenerating,
   isAnalyzing,
   selected,
   onPointerDown,
   onClick,
+  onDoubleClick,
+  draggable,
+  onDragStart,
   onContextMenu,
   onMount,
 }: {
   entry: DisplayEntry;
   thumbUrl: string | null;
+  thumbGenerating: boolean;
   isAnalyzing: boolean;
   selected: boolean;
   onPointerDown?: (e: PointerEvent<HTMLElement>) => void;
-  onClick?: () => void;
+  onClick?: (e: ReactMouseEvent<HTMLElement>) => void;
+  onDoubleClick?: () => void;
+  draggable?: boolean;
+  onDragStart?: (e: DragEvent<HTMLElement>) => void;
   onContextMenu: (e: ReactMouseEvent<HTMLElement>) => void;
   onMount?: () => void;
 }) {
-  useEffect(() => {
-    onMount?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entry.assetId]);
-
+  const mountRef = useVisibleMount(onMount);
   const name = displayNameWithoutPath(entry.label);
   const typeLabel = formatItemType(entry.itemType);
+  const isAudio = (entry.itemType ?? "").toLowerCase() === "audio";
   const title = `${name}\n${typeLabel} / ${SLOT_ROLE_LABELS[entry.role]}${
     entry.analyzed ? "\n分析済み" : "\n未分析"
   }`;
 
   return (
     <button
+      ref={mountRef}
       type="button"
       className={`group relative min-w-0 overflow-hidden rounded border bg-background text-left transition hover:border-primary/50 hover:bg-muted/30 ${
         selected ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border"
       } ${
         onPointerDown && entry.assetId ? "cursor-grab active:cursor-grabbing" : ""
+      } ${
+        draggable ? "hover:border-dashed" : ""
       }`}
+      style={MATERIAL_CARD_DEFER_STYLE}
       title={title}
+      draggable={draggable}
       onPointerDown={onPointerDown}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
+      onDragStart={onDragStart}
       onContextMenu={onContextMenu}
     >
       <div className="relative aspect-square w-full overflow-hidden bg-muted/40">
@@ -1325,11 +1750,21 @@ function MaterialCard({
             src={thumbUrl}
             alt=""
             className="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
             draggable={false}
           />
+        ) : thumbGenerating ? (
+          <div className="flex h-full w-full items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/50" />
+          </div>
         ) : (
           <div className="flex h-full w-full items-center justify-center">
-            <FileImage className="h-5 w-5 text-muted-foreground/50" />
+            {isAudio ? (
+              <Music className="h-5 w-5 text-muted-foreground/50" />
+            ) : (
+              <FileImage className="h-5 w-5 text-muted-foreground/50" />
+            )}
           </div>
         )}
         {entry.analyzed ? (
@@ -1356,49 +1791,61 @@ function MaterialCard({
       </div>
     </button>
   );
-}
+}, areMaterialEntryPropsEqual);
 
-function MaterialListRow({
+const MaterialListRow = memo(function MaterialListRow({
   entry,
   thumbUrl,
+  thumbGenerating,
   isAnalyzing,
   selected,
   onPointerDown,
   onClick,
+  onDoubleClick,
+  draggable,
+  onDragStart,
   onContextMenu,
   onMount,
 }: {
   entry: DisplayEntry;
   thumbUrl: string | null;
+  thumbGenerating: boolean;
   isAnalyzing: boolean;
   selected: boolean;
   onPointerDown?: (e: PointerEvent<HTMLElement>) => void;
-  onClick?: () => void;
+  onClick?: (e: ReactMouseEvent<HTMLElement>) => void;
+  onDoubleClick?: () => void;
+  draggable?: boolean;
+  onDragStart?: (e: DragEvent<HTMLElement>) => void;
   onContextMenu: (e: ReactMouseEvent<HTMLElement>) => void;
   onMount?: () => void;
 }) {
-  useEffect(() => {
-    onMount?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entry.assetId]);
-
+  const mountRef = useVisibleMount(onMount);
   const name = displayNameWithoutPath(entry.label);
   const typeLabel = formatItemType(entry.itemType);
+  const isAudio = (entry.itemType ?? "").toLowerCase() === "audio";
   const title = `${name}\n${typeLabel} / ${SLOT_ROLE_LABELS[entry.role]}${
     entry.analyzed ? "\n分析済み" : "\n未分析"
   }`;
 
   return (
     <button
+      ref={mountRef}
       type="button"
       className={`group flex min-w-0 items-center gap-2 rounded border bg-background px-1.5 py-1 text-left transition hover:border-primary/50 hover:bg-muted/30 ${
         selected ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border"
       } ${
         onPointerDown && entry.assetId ? "cursor-grab active:cursor-grabbing" : ""
+      } ${
+        draggable ? "hover:border-dashed" : ""
       }`}
+      style={MATERIAL_CARD_DEFER_STYLE}
       title={title}
+      draggable={draggable}
       onPointerDown={onPointerDown}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
+      onDragStart={onDragStart}
       onContextMenu={onContextMenu}
     >
       <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded border border-border bg-muted/40">
@@ -1407,11 +1854,21 @@ function MaterialListRow({
             src={thumbUrl}
             alt=""
             className="h-full w-full object-cover"
+            loading="lazy"
+            decoding="async"
             draggable={false}
           />
+        ) : thumbGenerating ? (
+          <div className="flex h-full w-full items-center justify-center">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground/50" />
+          </div>
         ) : (
           <div className="flex h-full w-full items-center justify-center">
-            <FileImage className="h-3.5 w-3.5 text-muted-foreground/50" />
+            {isAudio ? (
+              <Music className="h-3.5 w-3.5 text-muted-foreground/50" />
+            ) : (
+              <FileImage className="h-3.5 w-3.5 text-muted-foreground/50" />
+            )}
           </div>
         )}
         {entry.analyzed ? (
@@ -1440,32 +1897,36 @@ function MaterialListRow({
       )}
     </button>
   );
-}
+}, areMaterialEntryPropsEqual);
 
-function MaterialCompactIcon({
+const MaterialCompactIcon = memo(function MaterialCompactIcon({
   entry,
   thumbUrl,
+  thumbGenerating,
   isAnalyzing,
   selected,
   onPointerDown,
   onClick,
+  onDoubleClick,
+  draggable,
+  onDragStart,
   onContextMenu,
   onMount,
 }: {
   entry: DisplayEntry;
   thumbUrl: string | null;
+  thumbGenerating: boolean;
   isAnalyzing: boolean;
   selected: boolean;
   onPointerDown?: (e: PointerEvent<HTMLElement>) => void;
-  onClick?: () => void;
+  onClick?: (e: ReactMouseEvent<HTMLElement>) => void;
+  onDoubleClick?: () => void;
+  draggable?: boolean;
+  onDragStart?: (e: DragEvent<HTMLElement>) => void;
   onContextMenu: (e: ReactMouseEvent<HTMLElement>) => void;
   onMount?: () => void;
 }) {
-  useEffect(() => {
-    onMount?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entry.assetId]);
-
+  const mountRef = useVisibleMount(onMount);
   const name = displayNameWithoutPath(entry.label);
   const typeLabel = formatItemType(entry.itemType);
   const title = `${name}\n${typeLabel} / ${SLOT_ROLE_LABELS[entry.role]}${
@@ -1475,15 +1936,22 @@ function MaterialCompactIcon({
 
   return (
     <button
+      ref={mountRef}
       type="button"
       className={`group flex w-full max-w-[4.5rem] min-w-0 flex-col items-center gap-0.5 rounded px-0.5 py-1 text-center transition hover:bg-muted/40 ${
         selected ? "bg-primary/10 ring-1 ring-primary/30" : ""
       } ${
         onPointerDown && entry.assetId ? "cursor-grab active:cursor-grabbing" : ""
+      } ${
+        draggable ? "outline outline-1 outline-transparent hover:outline-dashed hover:outline-primary/40" : ""
       }`}
+      style={MATERIAL_CARD_DEFER_STYLE}
       title={title}
+      draggable={draggable}
       onPointerDown={onPointerDown}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
+      onDragStart={onDragStart}
       onContextMenu={onContextMenu}
     >
       <div className="relative h-12 w-12 overflow-hidden rounded border border-border bg-muted/40 shadow-sm">
@@ -1492,8 +1960,14 @@ function MaterialCompactIcon({
             src={thumbUrl}
             alt=""
             className="h-full w-full object-contain"
+            loading="lazy"
+            decoding="async"
             draggable={false}
           />
+        ) : thumbGenerating ? (
+          <div className="flex h-full w-full items-center justify-center bg-background/80">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/50" />
+          </div>
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-background/80">
             {isAudio ? (
@@ -1521,6 +1995,31 @@ function MaterialCompactIcon({
         {name}
       </div>
     </button>
+  );
+}, areMaterialEntryPropsEqual);
+
+function areMaterialEntryPropsEqual(
+  prev: {
+    entry: DisplayEntry;
+    thumbUrl: string | null;
+    thumbGenerating: boolean;
+    isAnalyzing: boolean;
+    selected: boolean;
+  },
+  next: {
+    entry: DisplayEntry;
+    thumbUrl: string | null;
+    thumbGenerating: boolean;
+    isAnalyzing: boolean;
+    selected: boolean;
+  },
+): boolean {
+  return (
+    prev.entry === next.entry &&
+    prev.thumbUrl === next.thumbUrl &&
+    prev.thumbGenerating === next.thumbGenerating &&
+    prev.isAnalyzing === next.isAnalyzing &&
+    prev.selected === next.selected
   );
 }
 

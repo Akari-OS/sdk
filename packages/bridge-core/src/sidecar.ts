@@ -371,12 +371,30 @@ export function createBridgeSidecar(
     res: http.ServerResponse,
     authToken: string,
   ): Promise<void> {
+    const urlPath = (req.url ?? "/").split("?")[0]
+
+    // 軽量ステータス（GET /status、認証不要）。
+    // 127.0.0.1 バインドのみで秘匿情報を含まないため認証前に応答する。
+    // AKARI shell / daemon が「bridge 生存 + renderer 接続状態」を確認するために使う
+    // （AKARI-HUB-112 T-5: MCP 接続状況の可視化）。
+    if (urlPath === "/status" && req.method === "GET") {
+      res.writeHead(200, { "content-type": "application/json" })
+      res.end(
+        JSON.stringify({
+          ok: true,
+          appId: opts.appId,
+          rendererConnected:
+            rendererSocket !== null && rendererSocket.readyState === WebSocket.OPEN,
+        }),
+      )
+      return
+    }
+
     // 認証チェック（Host + Bearer トークン）
     if (!checkHttpAuth(req, res, opts.ports.mcp, authToken)) {
       return
     }
 
-    const urlPath = (req.url ?? "/").split("?")[0]
     if (urlPath !== MCP_HTTP_PATH) {
       writeJsonRpcError(res, 404, -32601, `Not found: ${urlPath}`)
       return

@@ -1,6 +1,6 @@
 ---
 title: Getting Started — 最初の App を 5 分で作る
-updated: 2026-04-19
+updated: 2026-06-12
 related: [HUB-024, HUB-025, HUB-007]
 ---
 

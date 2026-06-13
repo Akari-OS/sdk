@@ -113,12 +113,12 @@ export function PanelTabs({
       : null
 
   return (
-    <div className={cn("h-full flex flex-col bg-card", className)}>
+    <div className={cn("h-full flex flex-col bg-card overflow-hidden", className)}>
       {/* タブリスト */}
       <div
         role="tablist"
         aria-label="パネルタブ"
-        className="flex items-center gap-0.5 px-2 py-1.5 border-b border-border overflow-x-auto shrink-0"
+        className="sticky top-0 z-20 flex items-center gap-0.5 px-2 py-1.5 border-b border-border overflow-x-auto shrink-0 bg-card/95 backdrop-blur"
       >
         {tabs.map((tab) => {
           const isActive = tab.id === activeId
@@ -151,7 +151,7 @@ export function PanelTabs({
         <div
           role="tabpanel"
           className={cn(
-            "flex-1 overflow-y-auto relative",
+            "flex-1 min-h-0 overflow-y-auto relative",
             highlight && "ring-2 ring-primary/40 ring-inset animate-pulse-slow",
           )}
         >

@@ -59,8 +59,8 @@ AKARI App SDK を通じて、あなたの App は以下にアクセスできま�
 
 ## ドキュメント / Documentation
 
-- [Getting Started](./docs/guides/getting-started.md) — 最初の App を動かす
-- [Tier Comparison](./docs/guides/concepts/tier-comparison.md) — Full vs MCP-Declarative
+- [Getting Started](./docs/getting-started.md) — 最初の App を動かす
+- [Tier Comparison](./docs/concepts/tier-comparison.md) — Full vs MCP-Declarative
 - [API Reference](./docs/api-reference/) — 7 API 群のリファレンス
 - [Certification Guide](./docs/certification/) — マーケット掲載のための品質ゲート
 - [Cookbook](./docs/cookbook/) — 典型ユースケースのレシピ集
@@ -75,6 +75,8 @@ packages/
 ├── sdk-types/           @akari-os/sdk              — 7 API 群のコアライブラリ（型定義 + Phase 1 runtime）
 ├── app-cli/             @akari-os/app-cli          — 雛形生成・開発・配布ツール（create / certify）
 ├── schema-panel/        @akari-os/schema-panel     — MCP-Declarative の宣言的 UI レンダラー
+├── bridge-core/         @akari-os/bridge-core      — Tauri WS / MCP ブリッジ（内部用、private: true）
+├── headless-render/     @akari-os/headless-render  — canvas アプリ（design / video）のヘッドレスレンダラー
 ├── markdown-core/       @akari-os/markdown-core    — Markdown → HTML / Markdown 変換（内部用）
 ├── pipeline-core/       @akari-os/pipeline-core    — Writer 投稿ワークフロー（内部用）
 ├── shell-ui/            @akari-os/shell-ui         — Shell UI コンポーネント群（内部用）
@@ -82,8 +84,8 @@ packages/
 └── writer-style-core/   @akari-os/writer-style-core— スタイル管理（内部用）
 ```
 
-**公開 API**: sdk-types, app-cli, schema-panel  
-**内部パッケージ** (`private: true`): markdown-core, pipeline-core, shell-ui, templates-core, writer-style-core
+**公開 API**: sdk-types, app-cli, schema-panel, headless-render  
+**内部パッケージ** (`private: true`): bridge-core, markdown-core, pipeline-core, shell-ui, templates-core, writer-style-core
 
 ---
 
@@ -91,9 +93,11 @@ packages/
 
 ```
 examples/
-├── hello-full/  Full Tier リファレンス実装 — React Panel + Agent + Skill 完全構成
-├── notion/      Notion 連携 — 既存 API を AKARI に載せる典型パターン（MCP-Declarative）
-└── x-sender/    X (Twitter) への投稿 — MCP-Declarative の最小構成
+├── hello-full/   Full Tier リファレンス実装 — React Panel + Agent + Skill 完全構成
+├── notion/       Notion 連携 — 既存 API を AKARI に載せる典型パターン（MCP-Declarative）
+├── web-scrape/   Web スクレイピング — MCP-Declarative + 外部ネットワーク権限の活用例
+├── web-search/   Web 検索（Research カテゴリ）— Tavily / AI answer / Pool export
+└── x-sender/     X (Twitter) への投稿 — MCP-Declarative の最小構成
 ```
 
 ---

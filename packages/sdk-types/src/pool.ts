@@ -59,6 +59,9 @@ export interface PoolItemSummary {
   source_work_title?: string | null
   /** ADR-085 D-5': true = Reference 経路（user 元 path 参照）/ false = Copy 経路 */
   is_referenced?: boolean
+  /** ADR-110 D-1: true = app 私的 working-state（context_json.work_state）。
+   * provenance facet `state` 判定 key。producer 境界(D-2)で素材ビューには既定で出さない。 */
+  is_work_state?: boolean
 }
 
 export interface PoolSearchResult {

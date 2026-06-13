@@ -1075,7 +1075,7 @@ Review の主な観点：
 - HITL が必要な破壊的操作で `hitl: true` が設定されているか
 - オフライン動作の graceful degradation が実装されているか
 
-詳細は [Marketplace 公開ガイド](./tiers/marketplace-publishing.md) を参照。
+詳細は [公開フローガイド](./publishing.md) を参照。
 
 ---
 

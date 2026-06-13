@@ -1,0 +1,48 @@
+{
+  "app.title": "Web Scrape",
+
+  "tab.search": "Search",
+  "tab.images": "Images",
+  "tab.pool_export": "Save to Pool",
+
+  "search.query.label": "Search query",
+  "search.query.placeholder": "Keywords to search on Google",
+  "search.max_results.label": "Max results",
+  "search.deep_read.label": "Deep-read top N",
+  "search.deep_read.helper": "Visit the top N result links to fetch full body text (0 = list only). Crawls politely, honouring intervals and robots.txt.",
+  "search.results.label": "Results",
+  "search.col.title": "Title",
+  "search.col.url": "URL",
+  "search.col.snippet": "Snippet",
+
+  "images.query.label": "Image query",
+  "images.query.placeholder": "Keywords for the visuals to collect",
+  "images.url.label": "Page URL (optional)",
+  "images.url.placeholder": "Harvest images from a specific page",
+  "images.max.label": "Max images",
+  "images.results.label": "Collected images",
+  "images.col.src": "Image URL",
+  "images.col.alt": "Alt text",
+
+  "export.usage_right.label": "Usage right",
+  "export.usage_right.helper": "Default reference_only (view only, no redistribution). Promote to own / licensed / public_domain only for reusable assets.",
+  "export.right.reference_only": "Reference only",
+  "export.right.own": "Own work",
+  "export.right.licensed": "Licensed",
+  "export.right.public_domain": "Public domain",
+  "export.note.label": "Note",
+  "export.note.placeholder": "Optional memo saved with the records",
+
+  "action.search.label": "Search",
+  "action.images.label": "Collect images",
+  "action.save_results.label": "Save selected results to Pool",
+  "action.save_media.label": "Save selected images to Pool",
+
+  "hitl.save_results": "Save this many results to Pool",
+  "hitl.save_media": "Save this many images to Pool",
+
+  "toast.search_done": "Search complete",
+  "toast.images_done": "Images collected",
+  "toast.saved_to_pool": "Saved to Pool",
+  "toast.error": "Error"
+}

@@ -116,7 +116,7 @@ AKARI App SDK が提供する 7 つの API 群。すべて `@akari-os/sdk` か�
 
 | API | 役割 | 主要関数 |
 |---|---|---|
-| **Agent API** | App 固有エージェントの定義・呼び出し | `defineAgent()` / `invoke()` / `spawn()` |
+| **Agent API** | App 固有エージェントの定義・呼び出し | `agent.register()` / `agent.invoke()` / `agent.spawn()` |
 | **Memory API** | Pool（素材）/ AMP（記憶）アクセス | `pool.put()` / `pool.search()` / `amp.record()` |
 | **Context API** | ACE でコンテキストを組み立てる | `ace.build()` / `ace.lint()` |
 | **UI API** | Shell への panel mount | `shell.mountPanel()` / `shell.onSelection()` |
@@ -181,6 +181,7 @@ SDK パッケージおよび example App の仕様書。逆算仕様（Reverse S
 | **AKARI-SDK-002** | [spec-reverse-schema-panel.md](./specs/spec-reverse-schema-panel.md) | `@akari-os/schema-panel` — Panel Schema v0 React Renderer |
 | **AKARI-SDK-003** | [spec-reverse-app-cli.md](./specs/spec-reverse-app-cli.md) | `akari-app-cli` — App Toolchain（create / dev / certify） |
 | **AKARI-SDK-004** | [spec-example-web-search.md](./specs/spec-example-web-search.md) | `examples/web-search` — Research カテゴリ参考実装（Tavily / AI answer / Pool export） |
+| **AKARI-SDK-005** | [spec-headless-render.md](./specs/spec-headless-render.md) | `@akari-os/headless-render` — Unified Headless Renderer（canvas app の Pool export / バッチレンダリング） status: implemented |
 
 ---
 
@@ -208,7 +209,36 @@ SDK パッケージおよび example App の仕様書。逆算仕様（Reverse S
 | X Sender（Publishing カテゴリ） | MCP-Declarative | [examples/x-sender](./examples/x-sender.md) |
 | Notion（Documents カテゴリ） | MCP-Declarative | [examples/notion](./examples/notion.md) |
 | Web Search（Research カテゴリ） | MCP-Declarative | [examples/web-search](./examples/web-search.md) |
-| Writer（Full Tier リファレンス） | Full | （別リポ / 未着手） |
+| hello-full（Full Tier リファレンス） | Full | [examples/hello-full](../examples/hello-full/) |
+
+---
+
+### 10. Tiers（Full / MCP-Declarative 詳細ガイド）
+
+**[→ tiers/](./tiers/)**
+
+2 つの Tier それぞれの実装詳細・選び方・昇格手順の詳細ガイド。
+
+- [Full Tier ガイド](./tiers/full-tier.md) — React Panel + Agent + Skill の完全実装リファレンス
+- [MCP-Declarative Tier ガイド](./tiers/mcp-declarative-tier.md) — MCP サーバー + Panel Schema のみで完結する最短実装
+
+---
+
+### 11. Codegen（型定義自動生成）
+
+**[→ codegen.md](./codegen.md)**
+
+`@akari-os/sdk` の型定義の一部は M2C / AMP スキーマから quicktype で自動生成されている。
+Generated Wiki 層（手書き編集禁止）の仕組みと、codegen drift を防ぐ CI 検証手順を解説する。
+
+---
+
+### 12. Publishing（npm / Marketplace 公開フロー）
+
+**[→ publishing.md](./publishing.md)**
+
+App を npm に公開する手順・Marketplace 申請フロー・Review チェックリスト。
+Certification（`akari app certify`）通過後の公開ステップを解説する。
 
 ---
 

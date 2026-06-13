@@ -10,9 +10,13 @@
  * 関連: design `akari-os/docs/design/studio-left-panel-modes-2026-05-30.md`
  */
 
-import { useState, type PointerEvent, type ReactNode } from "react";
+import { memo, useState, type PointerEvent, type ReactNode } from "react";
 import { Package, Wrench, ListOrdered } from "lucide-react";
-import { ContextSlotPanel, type RelatedPoolSection } from "./ContextSlotPanel";
+import {
+  ContextSlotPanel,
+  type EntryPointerMeta,
+  type RelatedPoolSection,
+} from "./ContextSlotPanel";
 import { OperationsPanel } from "./OperationsPanel";
 import { WorkflowPanel } from "./WorkflowPanel";
 import type { SlotRole } from "@akari-os/sdk/slot";
@@ -42,9 +46,14 @@ export interface WorkPanelProps {
     assetId: string,
     e: PointerEvent<HTMLElement>,
     library?: string | null,
+    meta?: EntryPointerMeta,
   ) => void;
   /** 制作素材カードのクリック選択（Preview / Inspector 切替用） */
   onEntryClick?: (assetId: string, library?: string | null) => void;
+  /** 制作素材カードのダブルクリック（import / insert 用） */
+  onEntryDoubleClick?: (assetId: string, library?: string | null) => void;
+  /** 制作素材カードの HTML5 drag を有効化（design canvas などの drop 用） */
+  enableEntryHtmlDrag?: boolean;
   /** 制作素材の分析リクエスト（Pool Browser の分析ポップアップ等へ委譲） */
   onRequestEntryAnalyze?: (assetId: string, library?: string | null) => void;
   /** 「ローカルから取込」ハンドラ（ContextSlotPanel へ pass-through） */
@@ -61,7 +70,7 @@ export interface WorkPanelProps {
   mode?: WorkMode;
 }
 
-export function WorkPanel({
+export const WorkPanel = memo(function WorkPanel({
   workId,
   variantId,
   library,
@@ -69,6 +78,8 @@ export function WorkPanel({
   renderPoolPicker,
   onEntryPointerDown,
   onEntryClick,
+  onEntryDoubleClick,
+  enableEntryHtmlDrag,
   onRequestEntryAnalyze,
   onAddFromLocal,
   visibleRoles,
@@ -113,6 +124,8 @@ export function WorkPanel({
             renderPoolPicker={renderPoolPicker}
             onEntryPointerDown={onEntryPointerDown}
             onEntryClick={onEntryClick}
+            onEntryDoubleClick={onEntryDoubleClick}
+            enableEntryHtmlDrag={enableEntryHtmlDrag}
             onRequestEntryAnalyze={onRequestEntryAnalyze}
             onAddFromLocal={onAddFromLocal}
             visibleRoles={visibleRoles}
@@ -132,4 +145,4 @@ export function WorkPanel({
       </div>
     </div>
   );
-}
+});

@@ -11,6 +11,14 @@
  *     defaultLibrary) は同じ shape で受け付ける
  *   - `enableScopeTab` は互換性のため受け付けるが、現行のフラット表示では使用しない
  *   - `defaultLibrary` 指定時は libraries fetch を skip して当該 1 件だけ扱う
+ *
+ * 性能設計 (2026-06-06, ワークプール激重 fix / A 案):
+ *   ContextSlotPanel と同じ共有サムネキャッシュ (`./lib/pool-thumbnail-cache`,
+ *   MAX_CONCURRENT=1 + inflight 集約 + rAF コアレス通知) に載せ替え、旧実装の
+ *   「カード mount ごとに getItemThumbnail(ffmpeg) を無制限並列で投げ、完了ごとに
+ *   new Map(prev) で thumbCache を作り直してパネル全体を再描画する O(N^2)」を解消した。
+ *   さらに `useVisibleMount` (IntersectionObserver) で画面外カードのロードを defer し、
+ *   通常 browse では getItem(full) を省いて summary の item_type で表示する。
  */
 
 import React, {
@@ -31,11 +39,19 @@ import {
   searchItems,
   getItem,
   getItemFilePath,
-  getItemThumbnail,
   type PoolItemSummary,
   type PoolItemFull,
 } from "@akari-os/sdk/pool";
 import { getMaterialType, type MaterialType } from "@akari-os/sdk/material";
+import {
+  ensureThumb,
+  getCachedThumb,
+  isThumbGenerating,
+  useThumbCacheSubscription,
+  useThumbGeneratingSubscription,
+  cancelPendingThumbs,
+} from "./lib/pool-thumbnail-cache";
+import { useVisibleMount } from "./lib/use-visible-mount";
 
 export interface MaterialPick {
   id: string;
@@ -130,7 +146,14 @@ interface MaterialPanelProps {
 const POOL_LIBRARIES_FALLBACK = ["akari-uploads", "akari-outputs"];
 const AKARI_POOL_ITEM_MIME = "application/x-akari-pool-item";
 
+// カード描画コスト削減: 画面外カードはブラウザ側でも layout/paint を defer する。
+const MATERIAL_CARD_DEFER_STYLE = {
+  contentVisibility: "auto",
+  containIntrinsicSize: "96px",
+} as React.CSSProperties;
+
 export function MaterialPanel({
+  workId,
   onInsert,
   onUpload,
   uploadAccept = "image/*",
@@ -156,17 +179,24 @@ export function MaterialPanel({
   const [fullCache, setFullCache] = useState<Map<string, PoolItemFull>>(
     new Map(),
   );
-  const [thumbCache, setThumbCache] = useState<Map<string, string>>(new Map());
-  // 内部 pathCache: thumbCache が convertFileSrc 後 URL を保持するのに対し、
-  // pathCache は getItemFilePath で得た絶対 path を保持する (consumer 向け)。
+  // 内部 pathCache: getItemFilePath で得た絶対 path を保持する (consumer 向け)。
+  // サムネ URL は共有キャッシュ (pool-thumbnail-cache) 側で保持する。
   const [pathCache, setPathCache] = useState<Map<string, string>>(new Map());
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // サムネ共有キャッシュの更新購読。cache / generating の変化はこの 2 本の subscription
+  // (rAF コアレス) に集約され、サムネ完了ごとのパネル全体再描画 + Map 全コピー (O(N^2)) を
+  // 解消する。ContextSlotPanel と同一思想。
+  useThumbCacheSubscription();
+  useThumbGeneratingSubscription();
+  // タブを離れる (unmount) ときは未開始のサムネ生成ジョブを破棄する。
+  useEffect(() => () => cancelPendingThumbs(), []);
+
   // 中身ベースで memo 化する。consumer が inline 配列 (新参照を毎レンダリング) を
-  // 渡しても allowedItemTypeSet → displayItems → renderThumbGrid の useMemo 連鎖が
+  // 渡しても allowedItemTypeSet → displayItems → grid の useMemo 連鎖が
   // 無効化されないようにする防御 (識別子でなく内容で判定)。
   const allowedItemTypesKey = allowedItemTypes ? allowedItemTypes.join(",") : "";
   const excludedLibrariesKey = excludedLibraries ? excludedLibraries.join(",") : "";
@@ -188,6 +218,9 @@ export function MaterialPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [allowedMaterialTypesKey],
   );
+  // consumer が絶対 path を必要とするか (video の DnD / add-to-workpool 用)。
+  // 未指定 (design 等) なら getItemFilePath を呼ばず軽量化する。
+  const needsPath = !!(pathCacheRef || onItemPointerDown);
   // 右クリック「編集」コンテキストメニュー（onEditMaterial 指定時のみ）。
   const [ctxMenu, setCtxMenu] = useState<{
     x: number;
@@ -212,38 +245,50 @@ export function MaterialPanel({
     };
   }, [query]);
 
-  // ライブラリ一覧 (akari-uploads / akari-outputs を優先)
-  useEffect(() => {
+  // ライブラリ一覧取得。workId が指定された場合は work-{workId} を必ず含める。
+  // これにより他アプリ（Video 等）が同一ワークのプールに追加した素材が Design 側でも見える。
+  const fetchLibraries = useCallback(async () => {
     if (defaultLibrary) {
       setLibraries(
         excludedLibrarySet.has(defaultLibrary) ? [] : [defaultLibrary],
       );
       return;
     }
-    let cancelled = false;
-    (async () => {
-      try {
-        const list = await listWorkspaces();
-        if (cancelled) return;
-        const names = list
-          .map((l) => l.name)
-          .filter(
-            (n): n is string => typeof n === "string" && n.length > 0,
-          );
-        const known = POOL_LIBRARIES_FALLBACK.filter((n) => names.includes(n));
-        const others = names.filter((n) => !POOL_LIBRARIES_FALLBACK.includes(n));
-        const fallback = POOL_LIBRARIES_FALLBACK.filter((name) => !excludedLibrarySet.has(name));
-        const merged = [...known, ...others].filter((name) => !excludedLibrarySet.has(name));
-        setLibraries(merged.length > 0 ? merged : fallback);
-      } catch {
-        // dev mode は fallback そのまま
-        setLibraries(POOL_LIBRARIES_FALLBACK.filter((name) => !excludedLibrarySet.has(name)));
+    // workId があれば work プール名を事前計算 (命名規約: "work-{workId}")
+    const workLib = workId ? `work-${workId}` : null;
+    try {
+      const list = await listWorkspaces();
+      const names = list
+        .map((l) => l.name)
+        .filter(
+          (n): n is string => typeof n === "string" && n.length > 0,
+        );
+      const known = POOL_LIBRARIES_FALLBACK.filter((n) => names.includes(n));
+      const others = names.filter((n) => !POOL_LIBRARIES_FALLBACK.includes(n));
+      const merged = [...known, ...others].filter((name) => !excludedLibrarySet.has(name));
+      // workLib が未登録（Video がまだ作成していない場合）でも常にスキャン対象に追加。
+      // listItems が空ならサイレントフェイル → 作成後の次回 refresh で自動反映。
+      if (workLib && !merged.includes(workLib) && !excludedLibrarySet.has(workLib)) {
+        merged.push(workLib);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [defaultLibrary, excludedLibrarySet]);
+      const fallback = [
+        ...POOL_LIBRARIES_FALLBACK.filter((name) => !excludedLibrarySet.has(name)),
+        ...(workLib && !excludedLibrarySet.has(workLib) ? [workLib] : []),
+      ];
+      setLibraries(merged.length > 0 ? merged : fallback);
+    } catch {
+      // dev mode は fallback そのまま
+      const fallback = [
+        ...POOL_LIBRARIES_FALLBACK.filter((name) => !excludedLibrarySet.has(name)),
+        ...(workLib && !excludedLibrarySet.has(workLib) ? [workLib] : []),
+      ];
+      setLibraries(fallback);
+    }
+  }, [defaultLibrary, excludedLibrarySet, workId]);
+
+  useEffect(() => {
+    void fetchLibraries();
+  }, [fetchLibraries]);
 
   // 素材一覧取得 (全 library を集約)
   const refresh = useCallback(async () => {
@@ -300,7 +345,20 @@ export function MaterialPanel({
     void refresh();
   }, [refresh]);
 
-  // full / thumbnail の lazy ロード
+  // 他アプリ（Video 等）が同一ワークのプールに追加した素材を自動反映するための
+  // 30 秒ポーリング。タブが背面（hidden）のときは skip して無駄な IPC を抑える。
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
+      void fetchLibraries().then(() => void refresh());
+    }, 30_000);
+    return () => clearInterval(id);
+  }, [fetchLibraries, refresh]);
+
+  // full の lazy ロード。material_type フィルタ時、または summary に item_type を持たない
+  // 検索 hit のときだけ呼ぶ（通常 browse は summary.item_type で済ませ getItem を省く）。
   const ensureFull = useCallback(
     async (item: PoolItemSummary): Promise<PoolItemFull | undefined> => {
       const cached = fullCache.get(item.id);
@@ -325,13 +383,11 @@ export function MaterialPanel({
     [libraries, fullCache],
   );
 
-  const ensureThumb = useCallback(
-    async (item: PoolItemSummary, full: PoolItemFull | undefined) => {
-      if (thumbCache.has(item.id) || !full) return;
-      const type = (full.item_type ?? "").toLowerCase();
-      if (allowedItemTypeSet && !allowedItemTypeSet.has(type)) return;
-      if (!["image", "video"].includes(type)) return;
-      const knownLib = itemLibraryRef.current.get(item.id);
+  // 絶対 path の lazy ロード (needsPath = video 等のときのみ visible-mount で呼ばれる)。
+  const ensurePath = useCallback(
+    async (item: PoolItemSummary, knownLibArg?: string) => {
+      if (pathCache.has(item.id)) return;
+      const knownLib = knownLibArg ?? itemLibraryRef.current.get(item.id);
       const tryOrder = knownLib
         ? [knownLib, ...libraries.filter((l) => l !== knownLib)]
         : libraries;
@@ -339,15 +395,8 @@ export function MaterialPanel({
         try {
           const path = await getItemFilePath(lib, item.id);
           if (path) {
-            // 絶対 path も保持 (consumer が pathCacheRef 経由で読む用)
+            itemLibraryRef.current.set(item.id, lib);
             setPathCache((prev) => new Map(prev).set(item.id, path));
-            const thumbPath = await getItemThumbnail(lib, item.id).catch(
-              () => null,
-            );
-            const url = thumbPath != null ? convertFileSrc(thumbPath) : null;
-            if (url) {
-              setThumbCache((prev) => new Map(prev).set(item.id, url));
-            }
             return;
           }
         } catch {
@@ -355,7 +404,33 @@ export function MaterialPanel({
         }
       }
     },
-    [libraries, thumbCache, allowedItemTypeSet],
+    [libraries, pathCache],
+  );
+
+  // カードが viewport に近づいた最初の 1 回だけ呼ばれる (useVisibleMount 経由)。
+  // image/video のときだけ共有キャッシュにサムネ生成を依頼し、必要なら path も解決する。
+  const handleItemVisible = useCallback(
+    (item: PoolItemSummary) => {
+      const startThumb = (full?: PoolItemFull) => {
+        const type = (full?.item_type ?? item.item_type ?? "").toLowerCase();
+        const tlib = itemLibraryRef.current.get(item.id);
+        if (!tlib) return;
+        if (needsPath && (type === "image" || type === "video")) {
+          void ensurePath(item, tlib);
+        }
+        if (allowedItemTypeSet && type && !allowedItemTypeSet.has(type)) return;
+        if (type !== "image" && type !== "video") return;
+        void ensureThumb(tlib, item.id);
+      };
+      // material_type フィルタ時 or summary に item_type が無い検索 hit のみ full を取る。
+      const needFull = !!allowedMaterialTypeSet || !item.item_type;
+      if (needFull) {
+        void ensureFull(item).then((full) => startThumb(full));
+      } else {
+        startThumb();
+      }
+    },
+    [allowedItemTypeSet, allowedMaterialTypeSet, needsPath, ensureFull, ensurePath],
   );
 
   const displayItems = useMemo(
@@ -379,28 +454,29 @@ export function MaterialPanel({
   /* ----- 素材操作 (click / drag) ----- */
 
   const handleClick = useCallback(
-    async (item: PoolItemSummary) => {
-      const full = fullCache.get(item.id);
-      if (!full) return;
+    (item: PoolItemSummary) => {
       const poolName = itemLibraryRef.current.get(item.id);
       const resolvedPath = pathCache.get(item.id);
-      const url = thumbCache.get(item.id) ?? (resolvedPath ? convertFileSrc(resolvedPath) : "");
+      const thumbUrl = poolName ? getCachedThumb(poolName, item.id) : undefined;
+      const url =
+        thumbUrl ?? (resolvedPath ? convertFileSrc(resolvedPath) : "");
+      const full = fullCache.get(item.id);
       onInsert({
         id: item.id,
         name: item.name,
-        itemType: full.item_type,
+        itemType: full?.item_type ?? item.item_type ?? "",
         url,
         pool: poolName,
       });
     },
-    [fullCache, pathCache, thumbCache, onInsert],
+    [fullCache, pathCache, onInsert],
   );
 
   const handleDragStart = useCallback(
     (e: DragEvent<HTMLDivElement>, item: PoolItemSummary) => {
-      const url = thumbCache.get(item.id);
-      if (!url) return;
       const dragPoolName = itemLibraryRef.current.get(item.id);
+      const url = dragPoolName ? getCachedThumb(dragPoolName, item.id) : undefined;
+      if (!url) return;
       e.dataTransfer.setData(
         AKARI_POOL_ITEM_MIME,
         JSON.stringify({
@@ -421,7 +497,7 @@ export function MaterialPanel({
       e.dataTransfer.setData("text/uri-list", url);
       e.dataTransfer.effectAllowed = "copy";
     },
-    [thumbCache, extraDragMimes],
+    [extraDragMimes],
   );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -435,54 +511,63 @@ export function MaterialPanel({
     [onUpload],
   );
 
-  /* ----- thumbnail grid renderer (region content として使う) ----- */
+  /* ----- thumbnail grid renderer ----- */
 
   const gridClass =
     gridCols === 3 ? "grid grid-cols-3 gap-1.5" : "grid grid-cols-2 gap-1.5";
 
-  const renderThumbGrid = useCallback(
-    (subset: PoolItemSummary[], emptyMessage: string) => {
-      if (subset.length === 0) {
-        return (
-          <div className="text-[10px] text-muted-foreground px-1 py-2">
-            {emptyMessage}
-          </div>
-        );
-      }
+  const renderThumbGrid = (subset: PoolItemSummary[], emptyMessage: string) => {
+    if (subset.length === 0) {
       return (
-        <div className={gridClass}>
-          {subset.map((item) => (
+        <div className="text-[10px] text-muted-foreground px-1 py-2">
+          {emptyMessage}
+        </div>
+      );
+    }
+    return (
+      <div className={gridClass}>
+        {subset.map((item) => {
+          const poolName = itemLibraryRef.current.get(item.id);
+          const full = fullCache.get(item.id);
+          const effectiveType = (
+            full?.item_type ??
+            item.item_type ??
+            ""
+          ).toLowerCase();
+          const thumbUrl = poolName
+            ? getCachedThumb(poolName, item.id) ?? null
+            : null;
+          const generating = poolName
+            ? isThumbGenerating(poolName, item.id)
+            : false;
+          const resolvedPath = pathCache.get(item.id) ?? null;
+          return (
             <MaterialThumb
               key={item.id}
               item={item}
-              fullCache={fullCache}
-              thumbCache={thumbCache}
-              pathCache={pathCache}
-              onMount={async () => {
-                // ensureFull は取得した full をそのまま返す。closure 内の
-                // stale な fullCache を読むと常に undefined になり ensureThumb が
-                // early-return してサムネが永久に出ないため、返り値を直接渡す。
-                const f = await ensureFull(item);
-                void ensureThumb(item, f);
-              }}
-              onClick={() => void handleClick(item)}
+              thumbUrl={thumbUrl}
+              generating={generating}
+              effectiveType={effectiveType}
+              resolvedPath={resolvedPath}
+              onMount={() => handleItemVisible(item)}
+              onClick={() => handleClick(item)}
               onDragStart={(e) => handleDragStart(e, item)}
               onItemPointerDown={
                 onItemPointerDown
-                  ? (e, resolvedPath) => {
-                      const full = fullCache.get(item.id);
-                      if (!resolvedPath) return false;
+                  ? (e, rp) => {
+                      if (!rp) return false;
+                      const f = fullCache.get(item.id);
                       const url =
-                        thumbCache.get(item.id) ?? convertFileSrc(resolvedPath);
-                      const pickPoolName = itemLibraryRef.current.get(item.id);
+                        (poolName ? getCachedThumb(poolName, item.id) : null) ??
+                        convertFileSrc(rp);
                       const pick: MaterialPick = {
                         id: item.id,
                         name: item.name,
-                        itemType: full?.item_type ?? "",
+                        itemType: f?.item_type ?? item.item_type ?? "",
                         url,
-                        pool: pickPoolName,
+                        pool: poolName,
                       };
-                      return onItemPointerDown(e, item, pick, resolvedPath);
+                      return onItemPointerDown(e, item, pick, rp);
                     }
                   : undefined
               }
@@ -496,24 +581,11 @@ export function MaterialPanel({
               }
               renderItemOverlay={renderItemOverlay}
             />
-          ))}
-        </div>
-      );
-    },
-    [
-      gridClass,
-      fullCache,
-      thumbCache,
-      pathCache,
-      ensureFull,
-      ensureThumb,
-      handleClick,
-      handleDragStart,
-      onItemPointerDown,
-      onEditMaterial,
-      renderItemOverlay,
-    ],
-  );
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div
@@ -609,9 +681,10 @@ export function MaterialPanel({
 
 const MaterialThumb = memo(function MaterialThumb({
   item,
-  fullCache,
-  thumbCache,
-  pathCache,
+  thumbUrl,
+  generating,
+  effectiveType,
+  resolvedPath,
   onMount,
   onClick,
   onDragStart,
@@ -620,10 +693,14 @@ const MaterialThumb = memo(function MaterialThumb({
   renderItemOverlay,
 }: {
   item: PoolItemSummary;
-  fullCache: Map<string, PoolItemFull>;
-  thumbCache: Map<string, string>;
-  /** 絶対 path キャッシュ (consumer 向け pathCacheRef の元データ) */
-  pathCache: Map<string, string>;
+  /** 共有キャッシュ解決済みサムネ URL (null = 生成失敗 / 未解決) */
+  thumbUrl: string | null;
+  /** サムネ生成中 (共有キャッシュの generating) */
+  generating: boolean;
+  /** full ?? summary 由来の item_type（小文字） */
+  effectiveType: string;
+  /** 絶対 path キャッシュ (consumer 向け、needsPath のときだけ埋まる) */
+  resolvedPath: string | null;
   onMount: () => void;
   onClick: () => void;
   onDragStart: (e: DragEvent<HTMLDivElement>) => void;
@@ -640,32 +717,25 @@ const MaterialThumb = memo(function MaterialThumb({
   /** サムネ上のオーバーレイ ReactNode。未指定は何も描画しない */
   renderItemOverlay?: (item: PoolItemSummary) => ReactNode;
 }) {
+  // viewport に近づいたとき 1 回だけ onMount (= サムネ/ path ロード) を発火する。
+  const mountRef = useVisibleMount(onMount);
   // HTML5 dragstart を一時抑制するための state (onItemPointerDown が true を返したとき)
   const [suppressDrag, setSuppressDrag] = useState(false);
-
-  useEffect(() => {
-    onMount();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.id]);
-
-  const full = fullCache.get(item.id);
-  const url = thumbCache.get(item.id);
-  const type = (full?.item_type ?? "").toLowerCase();
+  const isMedia = effectiveType === "image" || effectiveType === "video";
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!onItemPointerDown) return;
-      const resolvedPath = pathCache.get(item.id) ?? null;
       // resolvedPath=null (ファイル未解決) のときは consumer DnD を開始できない。
       if (!resolvedPath) return;
       const consumed = onItemPointerDown(e, resolvedPath);
       if (consumed) {
-        // HTML5 dragstart の同時発火を防ぐ (リスク2対策)
+        // HTML5 dragstart の同時発火を防ぐ
         e.preventDefault();
         setSuppressDrag(true);
       }
     },
-    [onItemPointerDown, pathCache, item.id],
+    [onItemPointerDown, resolvedPath],
   );
 
   const handlePointerUp = useCallback(() => {
@@ -674,10 +744,11 @@ const MaterialThumb = memo(function MaterialThumb({
 
   return (
     <div
+      ref={mountRef}
       role="button"
       tabIndex={0}
-      // draggable: url=null は false。onItemPointerDown が true を返したときも false に
-      draggable={!!url && !suppressDrag}
+      // draggable: thumb 未解決は false。onItemPointerDown が true を返したときも false に
+      draggable={!!thumbUrl && !suppressDrag}
       onDragStart={onDragStart}
       onPointerDown={onItemPointerDown ? handlePointerDown : undefined}
       onPointerUp={onItemPointerDown ? handlePointerUp : undefined}
@@ -690,15 +761,22 @@ const MaterialThumb = memo(function MaterialThumb({
         }
       }}
       className="aspect-square rounded border border-border bg-muted/40 overflow-hidden cursor-pointer hover:border-primary transition relative"
+      style={MATERIAL_CARD_DEFER_STYLE}
       title={item.name}
     >
-      {url && (type === "image" || type === "video") ? (
+      {thumbUrl && isMedia ? (
         <img
-          src={url}
+          src={thumbUrl}
           alt=""
           className="w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
           draggable={false}
         />
+      ) : generating && isMedia ? (
+        <div className="w-full h-full flex items-center justify-center">
+          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground/50" />
+        </div>
       ) : (
         <div className="w-full h-full flex items-center justify-center text-[9px] text-muted-foreground p-1 text-center">
           {item.name.slice(0, 24)}
@@ -709,16 +787,16 @@ const MaterialThumb = memo(function MaterialThumb({
     </div>
   );
 },
-// 自分の item の full/thumb/path と overlay が変わったときだけ再レンダする。
+// 自分の item の thumb/generating/type/path と overlay が変わったときだけ再レンダする。
 // コールバック類 (onMount/onClick/onDragStart/onItemPointerDown) は親 renderThumbGrid
-// で毎レンダ新規生成されるため比較から除外する。各サムネは自分のロード完了時
-// (= 下記 cache エントリ更新時) に再レンダして最新クロージャを取り込むので stale closure
-// は無害。item データはロード後 immutable なので以降の親再レンダは無視してよい。
+// で毎レンダ新規生成されるため比較から除外する。各サムネは自分の表示値が変わったとき
+// だけ再レンダして最新クロージャを取り込むので stale closure は無害。
 (prev, next) =>
   prev.item === next.item &&
-  prev.fullCache.get(prev.item.id) === next.fullCache.get(next.item.id) &&
-  prev.thumbCache.get(prev.item.id) === next.thumbCache.get(next.item.id) &&
-  prev.pathCache.get(prev.item.id) === next.pathCache.get(next.item.id) &&
+  prev.thumbUrl === next.thumbUrl &&
+  prev.generating === next.generating &&
+  prev.effectiveType === next.effectiveType &&
+  prev.resolvedPath === next.resolvedPath &&
   prev.renderItemOverlay === next.renderItemOverlay,
 );
 

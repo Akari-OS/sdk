@@ -20,6 +20,11 @@ import {
 const shortcuts = createShortcutRegistry("{{appShortId}}", [...COMMON_SHORTCUTS])
 
 export interface StudioProps {
+  /**
+   * 実効 workId。AppInstance 経由起動時は compositeId（`${work_id}__inst__${app_instance_id}`）。
+   * **ローカル state（localStorage / IndexedDB）はこの id をキーに持つこと**（per-instance 分離）。
+   * `undefined` の間は「アプリ内 Work 一覧（chooser）」を出さず待機表示にする（Shell が SSOT）。
+   */
   workId?: string
   variantId?: string
   workPoolLibrary?: string

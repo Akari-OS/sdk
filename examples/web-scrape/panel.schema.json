@@ -1,0 +1,215 @@
+{
+  "$schema": "akari://panel-schema/v0",
+  "title": "{{t:app.title}}",
+  "layout": "tabs",
+
+  "tabs": [
+    { "id": "search", "label": "{{t:tab.search}}" },
+    { "id": "images", "label": "{{t:tab.images}}" },
+    { "id": "pool-export", "label": "{{t:tab.pool_export}}" }
+  ],
+
+  "fields": [
+    {
+      "_comment_section": "=== Tab 1: Search ===",
+      "id": "query",
+      "tab": "search",
+      "type": "text",
+      "label": "{{t:search.query.label}}",
+      "placeholder": "{{t:search.query.placeholder}}",
+      "bind": "mcp.scrape.search.query",
+      "required": true
+    },
+    {
+      "id": "max_results",
+      "tab": "search",
+      "type": "number",
+      "label": "{{t:search.max_results.label}}",
+      "bind": "mcp.scrape.search.max_results",
+      "min": 1,
+      "max": 50,
+      "default": 10
+    },
+    {
+      "id": "deep_read_top",
+      "tab": "search",
+      "type": "number",
+      "label": "{{t:search.deep_read.label}}",
+      "bind": "mcp.scrape.search.deep_read_top",
+      "min": 0,
+      "max": 10,
+      "default": 0,
+      "helperText": "{{t:search.deep_read.helper}}"
+    },
+    {
+      "id": "results_table",
+      "tab": "search",
+      "type": "table",
+      "label": "{{t:search.results.label}}",
+      "bind": "state.search_result.results",
+      "columns": [
+        { "key": "title", "label": "{{t:search.col.title}}" },
+        { "key": "url", "label": "{{t:search.col.url}}" },
+        { "key": "snippet", "label": "{{t:search.col.snippet}}" }
+      ],
+      "selectable": "multi",
+      "selection_bind": "state.selected_results",
+      "visible_when": "$search_result != null && $search_result.results.length > 0"
+    },
+
+    {
+      "_comment_section": "=== Tab 2: Images ===",
+      "id": "image_query",
+      "tab": "images",
+      "type": "text",
+      "label": "{{t:images.query.label}}",
+      "placeholder": "{{t:images.query.placeholder}}",
+      "bind": "mcp.scrape.images.query"
+    },
+    {
+      "id": "image_url",
+      "tab": "images",
+      "type": "text",
+      "label": "{{t:images.url.label}}",
+      "placeholder": "{{t:images.url.placeholder}}",
+      "bind": "mcp.scrape.images.url"
+    },
+    {
+      "id": "max_images",
+      "tab": "images",
+      "type": "number",
+      "label": "{{t:images.max.label}}",
+      "bind": "mcp.scrape.images.max_images",
+      "min": 1,
+      "max": 100,
+      "default": 20
+    },
+    {
+      "id": "images_grid",
+      "tab": "images",
+      "type": "table",
+      "label": "{{t:images.results.label}}",
+      "bind": "state.image_result.media",
+      "columns": [
+        { "key": "src", "label": "{{t:images.col.src}}" },
+        { "key": "alt", "label": "{{t:images.col.alt}}" }
+      ],
+      "selectable": "multi",
+      "selection_bind": "state.selected_media",
+      "visible_when": "$image_result != null && $image_result.media.length > 0"
+    },
+
+    {
+      "_comment_section": "=== Tab 3: Pool Export ===",
+      "id": "usage_right",
+      "tab": "pool-export",
+      "type": "select",
+      "label": "{{t:export.usage_right.label}}",
+      "bind": "state.usage_right",
+      "options": [
+        { "value": "reference_only", "label": "{{t:export.right.reference_only}}" },
+        { "value": "own", "label": "{{t:export.right.own}}" },
+        { "value": "licensed", "label": "{{t:export.right.licensed}}" },
+        { "value": "public_domain", "label": "{{t:export.right.public_domain}}" }
+      ],
+      "default": "reference_only",
+      "helperText": "{{t:export.usage_right.helper}}"
+    },
+    {
+      "id": "export_note",
+      "tab": "pool-export",
+      "type": "textarea",
+      "label": "{{t:export.note.label}}",
+      "placeholder": "{{t:export.note.placeholder}}",
+      "bind": "state.export_note",
+      "maxLength": 1000
+    }
+  ],
+
+  "actions": [
+    {
+      "id": "run_search",
+      "tab": "search",
+      "label": "{{t:action.search.label}}",
+      "kind": "primary",
+      "mcp": {
+        "tool": "scrape.search",
+        "args": {
+          "query": "$query",
+          "max_results": "$max_results",
+          "deep_read_top": "$deep_read_top"
+        },
+        "result_bind": "state.search_result"
+      },
+      "enabled_when": "$query != null && $query.length > 0",
+      "on_success": { "toast": "{{t:toast.search_done}}" },
+      "on_error": { "toast": "{{t:toast.error}}: {{error}}" }
+    },
+    {
+      "id": "run_images",
+      "tab": "images",
+      "label": "{{t:action.images.label}}",
+      "kind": "primary",
+      "mcp": {
+        "tool": "scrape.images",
+        "args": {
+          "query": "$image_query",
+          "url": "$image_url",
+          "max_images": "$max_images"
+        },
+        "result_bind": "state.image_result"
+      },
+      "enabled_when": "($image_query != null && $image_query.length > 0) || ($image_url != null && $image_url.length > 0)",
+      "on_success": { "toast": "{{t:toast.images_done}}" },
+      "on_error": { "toast": "{{t:toast.error}}: {{error}}" }
+    },
+    {
+      "id": "save_results_to_pool",
+      "tab": "pool-export",
+      "label": "{{t:action.save_results.label}}",
+      "kind": "primary",
+      "mcp": {
+        "tool": "scrape.save_to_pool",
+        "args": {
+          "source_connector": "google-search-v1",
+          "query": "$query",
+          "results": "$selected_results",
+          "usage_right": "$usage_right",
+          "note": "$export_note"
+        }
+      },
+      "hitl": {
+        "require": true,
+        "preview": "text-summary",
+        "preview_template": "{{t:hitl.save_results}}: {{$selected_results.length}} ({{$usage_right}})"
+      },
+      "enabled_when": "$selected_results != null && $selected_results.length > 0",
+      "on_success": { "toast": "{{t:toast.saved_to_pool}}", "clear_fields": ["export_note"] },
+      "on_error": { "toast": "{{t:toast.error}}: {{error}}" }
+    },
+    {
+      "id": "save_media_to_pool",
+      "tab": "pool-export",
+      "label": "{{t:action.save_media.label}}",
+      "kind": "secondary",
+      "mcp": {
+        "tool": "scrape.save_to_pool",
+        "args": {
+          "source_connector": "image-scrape-v1",
+          "query": "$image_query",
+          "media": "$selected_media",
+          "usage_right": "$usage_right",
+          "note": "$export_note"
+        }
+      },
+      "hitl": {
+        "require": true,
+        "preview": "text-summary",
+        "preview_template": "{{t:hitl.save_media}}: {{$selected_media.length}} ({{$usage_right}})"
+      },
+      "enabled_when": "$selected_media != null && $selected_media.length > 0",
+      "on_success": { "toast": "{{t:toast.saved_to_pool}}" },
+      "on_error": { "toast": "{{t:toast.error}}: {{error}}" }
+    }
+  ]
+}

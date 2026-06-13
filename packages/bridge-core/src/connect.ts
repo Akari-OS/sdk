@@ -22,30 +22,39 @@ export interface BridgeConnection {
 // トークン読み取り（Tauri 環境: system_read_text_file / それ以外: 空文字列）
 // ────────────────────────────────────────────────────────────────────────────
 
-/** キャッシュ済みトークン（初回読み取り後に保持）。null = 未取得。*/
+/**
+ * キャッシュ済みトークン（初回読み取り後に保持）。null = 未取得。
+ * NOTE: 非空のトークンだけをキャッシュする。空（ファイル未生成 / 読取失敗）を
+ * キャッシュすると、sidecar がトークンを生成した後も再接続が永久に 401 で
+ * 弾かれ続ける（2026-06-13 不具合: renderer が bridge に二度と接続できない）。
+ */
 let cachedToken: string | null = null
 
 /**
  * ~/.akari/secrets/mcp-bridge-token を読み取る。
  * Tauri WebView 上では system_read_text_file invoke を使う。
  * dev ブラウザ / invoke 不可の場合は空文字列を返す（AKARI_MCP_AUTH=off 相当）。
+ * 空だった場合はキャッシュしない（次回の再接続時に再読取する）。
  */
 async function readTokenFile(): Promise<string> {
   if (cachedToken !== null) return cachedToken
+  let token = ""
   try {
     if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) {
-      cachedToken = ""
       return ""
     }
     const { invoke } = await import("@tauri-apps/api/core")
     const raw = await invoke<string>("system_read_text_file", {
       path: "~/.akari/secrets/mcp-bridge-token",
     }).catch(() => "")
-    cachedToken = (raw ?? "").trim()
+    token = (raw ?? "").trim()
   } catch {
-    cachedToken = ""
+    token = ""
   }
-  return cachedToken
+  if (token) {
+    cachedToken = token
+  }
+  return token
 }
 
 export function connectBridge(opts: ConnectBridgeOptions): BridgeConnection {

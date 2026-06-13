@@ -3,10 +3,19 @@
  *
  * Shell が dynamic import → AppHost が default export を mount する（Video / Synth と同じパターン）。
  * 本ファイルは AKARI-HUB-088 §4 の標準起動フローの雛形:
- *   1. Work 解決（workContext.work_id 優先 / self-heal）
+ *   1. Work 解決（AppInstance 経由なら compositeId、無ければ work_id / self-heal）
  *   2. 上部バーへ固有アクションを登録（戻る・Work 名は Shell 所有）
  *   3. preview-cache CustomEvent を Shell の WorkHome カードへ送る（任意）
  *   4. <Studio/> をレンダー（中身だけ実装すればよい）
+ *
+ * 重要（HUB-084 / 2026-06-05 規約）:
+ *   - **アプリ内に「Work 一覧（chooser）」を持たない**。Work の座組は Shell が SSOT。
+ *     未確定でも Shell の WorkHome を flash させず、resolveWorkId が決まるまで待つ／直接開く。
+ *   - **AppInstance 単位の独立 state**は compositeId（`${work_id}__inst__${app_instance_id}`）で
+ *     表す。Shell は entry をこの id で pre-create し activeWorkId にも入れるが、
+ *     workContext.work_id 自体は親 work_id を渡してくる。app_instance_id があれば自前で
+ *     compositeId を組むこと（親 work_id を直接使うと「同じ Work の別インスタンスが state を
+ *     共有する」「pre-create 済み entry が見つからない」不整合になる）。
  *
  * react / react-dom / @akari-os/* は Shell bundle で共有されるため build 時 external 化（vite.config.ts）。
  */
@@ -20,11 +29,22 @@ export interface FullTierAppProps {
   onBack?: () => void
   /** トースト通知。 */
   toast?: (message: string, kind?: "info" | "success" | "error") => void
-  /** 現在の Work コンテキスト（work_id / variant_id / 所有 Pool）。 */
+  /** 現在の Work コンテキスト（HUB-084 / HUB-085）。 */
   workContext?: {
+    /** 親 Work の ID。 */
     work_id?: string
+    /** アクティブ Variant の ID。 */
     variant_id?: string
+    /** Work 所有 Pool（WorkPool / slot_entries を読む library）。 */
     work_pool_library?: string
+    /**
+     * AppInstance ID（任意）。複数インスタンス（{{appName}}-1 / -2 …）を区別する。
+     * 指定時は compositeId（`${work_id}__inst__${app_instance_id}`）で per-instance state を
+     * 持つこと（resolveInstanceWorkId 参照）。
+     */
+    app_instance_id?: string
+    /** App テンプレ ID（任意）。どのテンプレから生成された AppInstance か。 */
+    app_template_id?: string
   }
   /** 上部バーへ固有アクションを登録するコールバック（AppHost 経由）。 */
   setHeaderActions?: (
@@ -38,6 +58,27 @@ export interface FullTierAppProps {
       onClick: () => void
     }>,
   ) => void
+}
+
+/**
+ * AppInstance を考慮した実効 workId を返す（HUB-084 §3-3）。
+ * app_instance_id があれば compositeId（`${work_id}__inst__${app_instance_id}`）、
+ * 無ければ work_id をそのまま使う。アプリのローカル state（localStorage / IndexedDB）は
+ * **この id をキーに**持つこと（per-instance 分離）。
+ */
+export function resolveInstanceWorkId(
+  workContext?: FullTierAppProps["workContext"],
+): string | undefined {
+  const workId = workContext?.work_id
+  if (!workId) return undefined
+  const instId = workContext?.app_instance_id
+  return instId ? `${workId}__inst__${instId}` : workId
+}
+
+/** compositeId（`${workId}__inst__${instanceId}`）から純粋な workId を取り出す。
+ *  Pool library 名（`work-${baseWorkId}`）など「親 Work 単位」で扱いたい箇所で使う。 */
+export function baseWorkId(id: string): string {
+  return id.includes("__inst__") ? id.split("__inst__")[0]! : id
 }
 
 export default function App({
@@ -56,12 +97,14 @@ export default function App({
     return () => setHeaderActions([])
   }, [setHeaderActions])
 
-  // 1. Work 解決はここで（workContext.work_id を優先）。
-  //    self-heal: work 未確定なら null を返してリトライする等は実装時に追加。
+  // 1. Work 解決: AppInstance 経由なら compositeId を使う（per-instance 独立 state）。
+  //    chooser は出さない。未確定（undefined）の間は Studio 側で待機表示にし、Shell の
+  //    WorkHome を flash させないこと（self-heal が要るアプリは Studio 内で materialize）。
+  const workId = resolveInstanceWorkId(workContext)
 
   return (
     <Studio
-      workId={workContext?.work_id}
+      workId={workId}
       variantId={workContext?.variant_id}
       workPoolLibrary={workContext?.work_pool_library}
       onBack={onBack}

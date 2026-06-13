@@ -85,7 +85,7 @@ Skill API ──→ Core Skill Registry ──→ 他 App
 
 [詳細 → agent-api.md](./agent-api.md)
 
-App 固有のエージェントを定義し、ephemeral（揮発）に呼び出す API。`defineAgent` で仕様をファイルに固定し、`invoke` / `spawn` で実行する。エージェント自身は状態を持たず、状態は必ず Memory API に書く。
+App 固有のエージェントを登録し、ephemeral（揮発）に呼び出す API。`agent.register()` でエージェントを登録し、`agent.invoke()` / `agent.spawn()` で実行する。エージェント自身は状態を持たず、状態は必ず Memory API に書く。
 
 ---
 
@@ -327,8 +327,8 @@ App の処理フロー（例: Writer が下書きを仕上げて X Sender に渡
 App の実装方式（Full / MCP-Declarative）については Tier ガイドを参照。
 
 - [Tier 概要](../tiers/README.md)
-- [Full Tier ガイド](../tiers/full.md)
-- [MCP-Declarative Tier ガイド](../tiers/mcp-declarative.md)
+- [Full Tier ガイド](../tiers/full-tier.md)
+- [MCP-Declarative Tier ガイド](../tiers/mcp-declarative-tier.md)
 
 ### Getting Started
 

@@ -4,9 +4,12 @@
 > **Panel Schema**: `notion-app-panel.schema.json (Hub)`
 > **Tier**: MCP-Declarative
 > **カテゴリ**: Documents
-> **公式 MCP**: ✅ `@notionhq/mcp`（Notion 社公式）
+> **公式 MCP**: `@notionhq/mcp`（Notion 社公式）
 > **位置づけ**: HUB-005 v0.2 Documents カテゴリ Tasks T-2e の**リファレンス実装**。
 > 公式 MCP を活用した省コスト実装のパターンと、Documents カテゴリ固有の設計を示す。
+
+> **ビルド不可の注意（2026-05-07 確認）**: `@notionhq/mcp` は現在 npm registry に未公開（404）のため、`apps/notion` および `examples/notion` はローカルビルド・`pnpm install` ができない。
+> `pnpm-workspace.yaml` で `apps/notion` を除外済み（`!apps/notion`）。本ガイドは**参考実装としての設計パターン参照のみ**を目的として使用すること。`@notionhq/mcp` が公開された時点で除外を解除する。
 
 ---
 

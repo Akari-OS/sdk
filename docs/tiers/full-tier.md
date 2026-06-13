@@ -1043,5 +1043,5 @@ my_editor_writer = "agents/editor.md"
 
 ---
 
-*本ガイドの最新版は `docs/guides/sdk/tiers/full-tier.md`（`akari-os` リポ）。*
+*本ガイドの正典は本ファイル（`akari-sdk/docs/tiers/full-tier.md`）。*
 *仕様の正典は App SDK spec (AKARI-HUB-024, Hub)。*

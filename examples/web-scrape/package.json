@@ -1,0 +1,26 @@
+{
+  "name": "@akari-os-examples/web-scrape",
+  "version": "0.1.0",
+  "description": "Web Scrape — AKARI MCP-Declarative App reference implementation of HUB-104 (Playwright research/scraping connector)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "akari dev",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "postinstall:browser": "playwright install chromium"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "playwright": "^1.59.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

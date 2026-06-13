@@ -10,8 +10,13 @@
 
 | 実装名 | spec-id | Tier | カテゴリ | 公式 MCP | 難易度 | ガイド |
 |---|---|---|---|:-:|---|---|
+| **hello-full** | — | Full | — | ❌ | ★☆☆ 初級 | [hello-full.md](./hello-full.md) |
 | **X Sender** | AKARI-HUB-007 | MCP-Declarative | Publishing | △ (X 公式 MCP / 自前選択) | ★★☆ 中級 | [x-sender.md](./x-sender.md) |
-| **Notion** | AKARI-HUB-026 | MCP-Declarative | Documents | ✅ `@notionhq/mcp` | ★★☆ 中級 | [notion.md](./notion.md) |
+| **Notion** | AKARI-HUB-026 | MCP-Declarative | Documents | ⚠️ `@notionhq/mcp`（npm 未公開） | ★★☆ 中級 | [notion.md](./notion.md) |
+| **web-scrape** | AKARI-HUB-104 | MCP-Declarative | Research | ❌ 自前（Playwright） | ★★★ 上級 | [web-scrape.md](./web-scrape.md) |
+
+> **Notion の注意**: `@notionhq/mcp` は 2026-05-07 時点で npm registry に未公開（404）のため、`apps/notion` はローカルビルド不可。
+> `examples/notion` は**参考実装としての参照のみ可能**。依存解決できない場合は `pnpm-workspace.yaml` の `!apps/notion` 除外を参照。
 
 **凡例**:
 
