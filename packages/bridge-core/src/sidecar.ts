@@ -183,6 +183,12 @@ export interface CreateBridgeSidecarOptions {
   ports: BridgePorts
   toolDefs: ToolDef[]
   exposedToolNames: string[]
+  /**
+   * ADR-130: discovery（tools/list）に出すツール名のサブセット。
+   * 省略時は exposedToolNames 全件を返す（後方互換）。
+   * CallTool は引き続き exposedToolNames 全件を受け付ける（後方互換維持）。
+   */
+  listedToolNames?: string[]
   localHandlers?: Record<string, LocalHandlerFn>
 }
 
@@ -195,6 +201,11 @@ export function createBridgeSidecar(
 ): BridgeSidecar {
   const exposedToolNames = new Set(opts.exposedToolNames)
   const exposedTools = opts.toolDefs.filter((tool) => exposedToolNames.has(tool.name))
+  // ADR-130: listedToolNames が指定されていれば discovery を絞る（CallTool は全件維持）。
+  const listedToolNameSet = opts.listedToolNames
+    ? new Set(opts.listedToolNames)
+    : exposedToolNames
+  const listedTools = exposedTools.filter((tool) => listedToolNameSet.has(tool.name))
   const pendingCalls = new Map<string, PendingCall>()
 
   let rendererSocket: WebSocket | null = null
@@ -342,8 +353,9 @@ export function createBridgeSidecar(
       { capabilities: { tools: {} } },
     )
 
+    // ADR-130: discovery は tier-filter 後の listedTools を返す（既定は全件）。
     server.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: exposedTools.map((tool) => ({
+      tools: listedTools.map((tool) => ({
         name: tool.name,
         title: tool.title,
         description: tool.description,
