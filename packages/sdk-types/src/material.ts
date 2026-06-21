@@ -167,6 +167,14 @@ export type RegisterMaterialOptions = {
   /** ADR-124: 素材ライセンス。省略時は { kind: "user-owned" }。 */
   license?: PoolItemLicense
   /**
+   * ADR-137 D1: 素材の生成元区分。contextJson.origin に刻印する。
+   * - created   : ユーザーが自ら作成した素材（既定）
+   * - sourced   : 外部から取り込んだ素材（インポート / マーケットプレイス等）
+   * - generated : AI / 自動生成で作られた素材
+   * opts.context.origin より優先される。
+   */
+  origin?: "created" | "sourced" | "generated"
+  /**
    * ADR-133 §2.6: true のとき、pool upsert 完了後に
    * `akari:pool-analyze-request` イベントを window に dispatch する。
    * 既定 false。
@@ -301,8 +309,9 @@ export async function registerMaterial(
     preview_item_id: m.previewItemId ?? null,
     baked_item_id: m.bakedItemId ?? null,
     tags: m.tags ?? [],
-    // ADR-123 / ADR-124: origin + license を contextJson に刻印
-    origin: (opts?.context?.origin as string) ?? "user",
+    // ADR-123 / ADR-124 / ADR-137: origin + license を contextJson に刻印
+    // opts.origin（型付き）> opts.context.origin（後方互換レガシー）> 既定 "created"
+    origin: opts?.origin ?? (opts?.context?.origin as string) ?? "created",
     license: opts?.license ?? { kind: "user-owned" },
     ...(opts?.context ?? {}),
   }
@@ -382,8 +391,16 @@ export type RegisterRenderOptions = {
    *   sourceItemId なし  → { kind: "user-owned" }
    */
   license?: PoolItemLicense
-  /** 追加メタデータ。origin 等をオーバーライドしたい場合に使う。 */
+  /** 追加メタデータ。context.origin は opts.origin より優先度が低い（後方互換）。 */
   context?: Record<string, unknown>
+  /**
+   * ADR-137 D1: 書き出し物の生成元区分。contextJson.origin に刻印する。
+   * - created   : ユーザー操作で作成
+   * - sourced   : 外部から取り込んだ出力物
+   * - generated : AI / 自動パイプラインで生成（既定）
+   * opts.context.origin より優先される。省略時は "generated"。
+   */
+  origin?: "created" | "sourced" | "generated"
   /**
    * ADR-133 §2.6: true のとき、pool upsert 完了後に
    * `akari:pool-analyze-request` イベントを window に dispatch する。
@@ -473,7 +490,8 @@ export async function registerRender(
   // --- contextJson 構築 ---
   const contextJson: Record<string, unknown> = {
     scope: "output",
-    origin: (opts?.context?.origin as string) ?? "user",
+    // ADR-137 D1: opts.origin（型付き）> opts.context.origin（後方互換レガシー）> 既定 "generated"
+    origin: opts?.origin ?? (opts?.context?.origin as string) ?? "generated",
     license,
     tags: r.tags ?? [],
     ...(opts?.context ?? {}),
