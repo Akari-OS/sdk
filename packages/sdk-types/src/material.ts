@@ -166,6 +166,12 @@ export type RegisterMaterialOptions = {
   context?: Record<string, unknown>
   /** ADR-124: 素材ライセンス。省略時は { kind: "user-owned" }。 */
   license?: PoolItemLicense
+  /**
+   * ADR-133 §2.6: true のとき、pool upsert 完了後に
+   * `akari:pool-analyze-request` イベントを window に dispatch する。
+   * 既定 false。
+   */
+  analyzeAfter?: boolean
 }
 
 /** contextJson の material メタ（MaterialPanel / 編集導線が参照する形）。 */
@@ -179,6 +185,38 @@ export type MaterialContext = {
   baked_item_id: string | null
   tags: string[]
   [key: string]: unknown
+}
+
+// ---------------------------------------------------------------------------
+// ADR-133 §2.6: pool analyze request イベント
+// ---------------------------------------------------------------------------
+
+/**
+ * `akari:pool-analyze-request` CustomEvent の detail 型。
+ * shell 側の PoolAnalyzeDrawer がこのイベントをリッスンして分析を実行する。
+ */
+export type PoolAnalyzeRequestDetail = {
+  /** 対象 Pool ライブラリ名。 */
+  library: string
+  /** 対象アイテム id。 */
+  itemId: string
+  /** MIME タイプヒント（分かる場合のみ）。 */
+  mimeHint?: string
+  /** true のとき通知を抑制する（既定 false = 通知あり）。 */
+  silent?: boolean
+}
+
+/**
+ * pool upsert 完了後に分析リクエストイベントを dispatch する内部ヘルパ。
+ * ブラウザ / webview 環境専用（typeof window チェック済み）。
+ */
+function dispatchPoolAnalyzeRequest(detail: PoolAnalyzeRequestDetail): void {
+  if (typeof window === "undefined") return
+  window.dispatchEvent(
+    new CustomEvent<PoolAnalyzeRequestDetail>("akari:pool-analyze-request", {
+      detail,
+    }),
+  )
 }
 
 /** 既定の素材 Pool 名。app が library を指定しない場合の置き場。 */
@@ -278,6 +316,11 @@ export async function registerMaterial(
     storageMode: "copy",
   })
 
+  // ADR-133 §2.6: analyzeAfter が true のとき分析リクエストイベントを発火する
+  if (opts?.analyzeAfter) {
+    dispatchPoolAnalyzeRequest({ library, itemId: summary.id })
+  }
+
   return { itemId: summary.id }
 }
 
@@ -341,6 +384,12 @@ export type RegisterRenderOptions = {
   license?: PoolItemLicense
   /** 追加メタデータ。origin 等をオーバーライドしたい場合に使う。 */
   context?: Record<string, unknown>
+  /**
+   * ADR-133 §2.6: true のとき、pool upsert 完了後に
+   * `akari:pool-analyze-request` イベントを window に dispatch する。
+   * 既定 false。
+   */
+  analyzeAfter?: boolean
 }
 
 /** 書き出し物のデフォルト登録先（system-managed library）。 */
@@ -446,6 +495,11 @@ export async function registerRender(
     contextJson,
     storageMode,
   })
+
+  // ADR-133 §2.6: analyzeAfter が true のとき分析リクエストイベントを発火する
+  if (opts?.analyzeAfter) {
+    dispatchPoolAnalyzeRequest({ library, itemId: summary.id })
+  }
 
   return { itemId: summary.id }
 }
