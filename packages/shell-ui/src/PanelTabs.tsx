@@ -62,6 +62,11 @@ export interface PanelTabsProps {
   highlight?: boolean
   /** ルート要素の追加 className */
   className?: string
+  /**
+   * タブボタンをアイコン上・ラベル下の縦並びで表示する。
+   * 未指定（false）の場合は従来どおりアイコンとラベルを横並びにする。
+   */
+  stacked?: boolean
 }
 
 // ─── コンポーネント ────────────────────────────────────────────────────────
@@ -76,6 +81,7 @@ export function PanelTabs({
   onCollapse,
   highlight,
   className,
+  stacked,
 }: PanelTabsProps) {
   const [internalId, setInternalId] = useState<string | null>(
     defaultTabId ?? tabs[0]?.id ?? null,
@@ -132,7 +138,10 @@ export function PanelTabs({
               onClick={() => handleTabClick(tab.id)}
               title={tab.label}
               className={cn(
-                "flex items-center gap-1 px-2 py-1 rounded text-[11px] transition whitespace-nowrap",
+                "flex rounded transition whitespace-nowrap",
+                stacked
+                  ? "flex-col items-center justify-center gap-1 px-2.5 py-1.5 text-[10px] leading-none"
+                  : "items-center gap-1 px-2 py-1 text-[11px]",
                 isActive
                   ? "text-primary bg-primary/10 font-medium"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/50",

@@ -26,14 +26,16 @@
  *       design `akari-os/docs/design/studio-left-panel-modes-2026-05-30.md` §2
  */
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
+  ComponentType,
   CSSProperties,
   DragEvent,
   MouseEvent as ReactMouseEvent,
   PointerEvent,
   ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus,
   Sparkles,
@@ -48,6 +50,11 @@ import {
   ChevronDown,
   ChevronRight,
   Music,
+  Search,
+  Check,
+  Package,
+  Globe,
+  Tag,
 } from "lucide-react";
 import { SLOT_ROLE_LABELS, ALL_SLOT_ROLES, type SlotRole } from "@akari-os/sdk/slot";
 import {
@@ -162,8 +169,16 @@ const RELATED_POOL_LOAD_LIMIT = 60;
 const WORKPOOL_RENDER_BATCH = 36;
 const RELATED_POOL_RENDER_BATCH = 24;
 const MATERIAL_CARD_DEFER_STYLE: CSSProperties = {
-  contentVisibility: "auto",
-  containIntrinsicSize: "96px",
+  // 各カードを layout 的に独立させ、サムネ遅延ロード時に兄弟カードへ reflow が
+  // 伝播しないようにするだけの軽い contain。
+  //
+  // ⚠ 以前は content-visibility: auto を使っていたが撤去した。これは
+  // 「ページの毎レンダリング更新ごとに document 全体で各カードの relevance（表示判定）が
+  // 走る」グローバルコストを持ち、ワークプールをマウントしている間は無関係なパネルリサイズや
+  // タイムラインのシークまで毎フレームもたつく原因になっていた（カードを固定サイズ化したので
+  // 遅延描画の必要も無い）。大量カード時のスクロール最適化が必要になったら、content-visibility
+  // ではなく明示的な仮想スクロールで対処する。
+  contain: "layout style",
 };
 const WORKPOOL_PANEL_CONTAIN_STYLE: CSSProperties = {
   // paint を含めると contain がクリップ境界を作り、フィルター「表示条件」ポップオーバー
@@ -241,6 +256,19 @@ type MaterialStatusFilter = "all" | "analyzed" | "unanalyzed";
 type MaterialSortMode = "added-desc" | "added-asc" | "name-asc" | "analysis";
 type MaterialViewMode = "grid" | "compact" | "list";
 type AnalyzeMode = "api" | "local" | "markitdown";
+/** 左サブタブの分類軸。ワークプール（この Work）/ ドメイン / ブランド。 */
+type MaterialScope = "workpool" | "domain" | "brand";
+
+/** 表示切替（カード / コンパクト / リスト）の定義。1 ボタン → ポップオーバーで切替する。 */
+const VIEW_MODES: {
+  id: MaterialViewMode;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+}[] = [
+  { id: "grid", label: "カード表示", icon: LayoutGrid },
+  { id: "compact", label: "コンパクト表示", icon: Grid3x3 },
+  { id: "list", label: "リスト表示", icon: List },
+];
 
 interface EntryContextMenuState {
   x: number;
@@ -357,6 +385,12 @@ export interface ContextSlotPanelProps {
   visibleRoles?: readonly SlotRole[];
   /** WorkPool 本体とは別枠で表示する関連 Pool。例: 親元ドメイン Pool。 */
   relatedPoolSections?: readonly RelatedPoolSection[];
+  /**
+   * 内蔵の「＋追加」ボタン（ローカル取込 / Pool から）を表示するか。
+   * 既定 false（非表示）。video など外部に独自の追加 FAB を持つアプリでは不要なので
+   * 既定で隠す。必要なアプリだけ true を渡す。
+   */
+  showInlineAdd?: boolean;
 }
 
 export const ContextSlotPanel = memo(function ContextSlotPanel({
@@ -372,6 +406,7 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
   onAddFromLocal,
   visibleRoles,
   relatedPoolSections,
+  showInlineAdd = false,
 }: ContextSlotPanelProps) {
   /** 永続モード = Work / Variant が確定しているとき */
   const bound = !!(workId && variantId);
@@ -387,8 +422,13 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<MaterialSortMode>("added-desc");
   const [viewMode, setViewMode] = useState<MaterialViewMode>("grid");
+  /** 左サブタブの選択（ワークプール / ドメイン / ブランド）。 */
+  const [materialScope, setMaterialScope] = useState<MaterialScope>("workpool");
   const [collapsedSectionIds, setCollapsedSectionIds] = useState<Set<string>>(() => new Set());
+  /** 素材名のフリーワード検索クエリ。 */
+  const [searchQuery, setSearchQuery] = useState("");
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+  const [viewPopoverOpen, setViewPopoverOpen] = useState(false);
   const [dropActive, setDropActive] = useState(false);
   const [selectedEntryKey, setSelectedEntryKey] = useState<string | null>(null);
   // 複数選択 (⌘/Ctrl+クリックでトグル)。一括削除に使う。単一クリックは preview 用の
@@ -415,7 +455,12 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
   const [pickerMode, setPickerMode] = useState<"pool" | null>(null);
   const [sectionRenderLimits, setSectionRenderLimits] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
-  const filterPopoverRef = useRef<HTMLDivElement | null>(null);
+  // キャプチャ等の保存待ち中に出す仮プレースホルダ（「ここに入るよ」スピナー）。
+  const [pendingItems, setPendingItems] = useState<
+    { id: string; library: string | null; label: string }[]
+  >([]);
+  const filterBtnRef = useRef<HTMLButtonElement | null>(null);
+  const viewBtnRef = useRef<HTMLButtonElement | null>(null);
   const roleFilterOptions = useMemo(
     () => (visibleRoles && visibleRoles.length > 0 ? [...visibleRoles] : ALL_SLOT_ROLES),
     [visibleRoles],
@@ -443,7 +488,7 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
 
   useEffect(() => {
     setSectionRenderLimits({});
-  }, [workId, variantId, lib, statusFilter, roleFilter, typeFilter, sortMode]);
+  }, [workId, variantId, lib, statusFilter, roleFilter, typeFilter, sortMode, searchQuery]);
 
   useEffect(() => {
     if (!entryContextMenu) return;
@@ -458,23 +503,6 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
       document.removeEventListener("keydown", onEsc);
     };
   }, [entryContextMenu]);
-
-  useEffect(() => {
-    if (!filterPopoverOpen) return;
-    const onMouseDown = (e: MouseEvent) => {
-      if (filterPopoverRef.current?.contains(e.target as Node | null)) return;
-      setFilterPopoverOpen(false);
-    };
-    const onEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setFilterPopoverOpen(false);
-    };
-    document.addEventListener("mousedown", onMouseDown);
-    document.addEventListener("keydown", onEsc);
-    return () => {
-      document.removeEventListener("mousedown", onMouseDown);
-      document.removeEventListener("keydown", onEsc);
-    };
-  }, [filterPopoverOpen]);
 
   useEffect(() => {
     const allEntries = [...entries, ...relatedEntries];
@@ -696,6 +724,61 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
     window.addEventListener("akari:pool-items-changed", onItemsChanged);
     return () => window.removeEventListener("akari:pool-items-changed", onItemsChanged);
   }, [bound, lib, normalizedRelatedSections, reload, reloadRelated]);
+
+  // 仮プレースホルダ（「ここに入るよ」スピナー）の購読。
+  //  - pending-item: 追加（対象 library が自分 = lib のときだけ）
+  //  - pending-item-resolved: id で削除
+  //  - items-changed: 実アイテムが reload されるので該当 library の仮カードは一掃
+  // さらに 30s の安全タイムアウトで取り残しを自動消去する。
+  useEffect(() => {
+    const mainLibrary = lib ?? FALLBACK_POOL_LIBRARY;
+    const timers = new Map<string, ReturnType<typeof setTimeout>>();
+    const clearTimer = (id: string) => {
+      const t = timers.get(id);
+      if (t) {
+        clearTimeout(t);
+        timers.delete(id);
+      }
+    };
+    const remove = (id: string) => {
+      clearTimer(id);
+      setPendingItems((prev) => prev.filter((p) => p.id !== id));
+    };
+    const onPending = (event: Event) => {
+      const detail = (event as CustomEvent<{ id?: string; library?: string | null; label?: string }>).detail;
+      if (!detail?.id) return;
+      const itemLib = detail.library ?? null;
+      if (itemLib && itemLib !== mainLibrary) return; // 別 library 宛ては無視
+      setPendingItems((prev) =>
+        prev.some((p) => p.id === detail.id)
+          ? prev
+          : [...prev, { id: detail.id!, library: itemLib, label: detail.label ?? "保存中" }],
+      );
+      timers.set(detail.id, setTimeout(() => remove(detail.id!), 30_000));
+    };
+    const onResolved = (event: Event) => {
+      const detail = (event as CustomEvent<{ id?: string }>).detail;
+      if (detail?.id) remove(detail.id);
+    };
+    const onItemsChangedClear = (event: Event) => {
+      const detail = (event as CustomEvent<{ library?: string | null }>).detail;
+      if (detail?.library && detail.library !== mainLibrary) return;
+      setPendingItems((prev) => {
+        prev.forEach((p) => clearTimer(p.id));
+        return [];
+      });
+    };
+    window.addEventListener("akari:pool-pending-item", onPending);
+    window.addEventListener("akari:pool-pending-item-resolved", onResolved);
+    window.addEventListener("akari:pool-items-changed", onItemsChangedClear);
+    return () => {
+      window.removeEventListener("akari:pool-pending-item", onPending);
+      window.removeEventListener("akari:pool-pending-item-resolved", onResolved);
+      window.removeEventListener("akari:pool-items-changed", onItemsChangedClear);
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+    };
+  }, [lib]);
 
   /** モックモード: in-memory にエントリ追加 */
   const addMockEntry = useCallback((role: SlotRole, label: string) => {
@@ -929,11 +1012,15 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
 
   const filterAndSortEntries = useCallback(
     (sourceEntries: DisplayEntry[]) => {
+      const query = searchQuery.trim().toLowerCase();
       const filtered = sourceEntries.filter((entry) => {
         if (statusFilter === "analyzed" && !entry.analyzed) return false;
         if (statusFilter === "unanalyzed" && entry.analyzed) return false;
         if (roleFilter && entry.role !== roleFilter) return false;
         if (typeFilter && (entry.itemType ?? "unknown") !== typeFilter) return false;
+        if (query && !displayNameWithoutPath(entry.label).toLowerCase().includes(query)) {
+          return false;
+        }
         return true;
       });
       return [...filtered].sort((a, b) => {
@@ -948,7 +1035,7 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
         return sortMode === "added-asc" ? aTime - bTime : bTime - aTime;
       });
     },
-    [roleFilter, sortMode, statusFilter, typeFilter],
+    [roleFilter, sortMode, statusFilter, typeFilter, searchQuery],
   );
 
   const visibleWorkEntries = useMemo(
@@ -966,10 +1053,44 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
     [filterAndSortEntries, normalizedRelatedSections, relatedEntries],
   );
 
+  // 左サブタブ用に関連 Pool を kind で振り分ける。
+  // ドメインタブ = domain / related（関わりがあるもの全般）、ブランドタブ = brand。
+  const domainSections = useMemo(
+    () => visibleRelatedSections.filter((s) => s.kind !== "brand"),
+    [visibleRelatedSections],
+  );
+  const brandSections = useMemo(
+    () => visibleRelatedSections.filter((s) => s.kind === "brand"),
+    [visibleRelatedSections],
+  );
+  const hasDomain = domainSections.length > 0;
+  const hasBrand = brandSections.length > 0;
+  // 表示するサブタブ。データが無い軸は出さない（= ワークプールのみなら rail 非表示）。
+  const scopeTabs = useMemo(
+    () => [
+      { id: "workpool" as const, label: "ワークプール", icon: Package },
+      ...(hasDomain ? [{ id: "domain" as const, label: "ドメイン", icon: Globe }] : []),
+      ...(hasBrand ? [{ id: "brand" as const, label: "ブランド", icon: Tag }] : []),
+    ],
+    [hasDomain, hasBrand],
+  );
+  const showScopeRail = scopeTabs.length > 1;
+
+  // 選択中のタブのデータが無くなったらワークプールへ戻す。
+  useEffect(() => {
+    if (materialScope === "domain" && !hasDomain) setMaterialScope("workpool");
+    else if (materialScope === "brand" && !hasBrand) setMaterialScope("workpool");
+  }, [materialScope, hasDomain, hasBrand]);
+
   const addRole: SlotRole = roleFilter ?? "misc";
   const addRoleLabel = SLOT_ROLE_LABELS[addRole];
   const hasRoleFilter = roleFilter != null;
   const activeFilterLabel = filterLabel(statusFilter, roleFilter, typeFilter, sortMode);
+  // フィルター（状態/分類/種別）のいずれかが効いているか。アイコンボタンに小バッジを出す。
+  const filtersActive =
+    statusFilter !== "all" || roleFilter != null || typeFilter != null;
+  const CurrentViewIcon =
+    VIEW_MODES.find((v) => v.id === viewMode)?.icon ?? LayoutGrid;
 
   const handleEntryDragStart = useCallback(
     (
@@ -1087,15 +1208,27 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
                 <div
                   className={
                     viewMode === "grid"
-                      ? "grid grid-cols-3 gap-1"
+                      ? "grid gap-1"
                       : viewMode === "compact"
                         ? "grid justify-items-center gap-x-1.5 gap-y-2"
                         : "flex flex-col gap-1"
                   }
                   style={
-                    viewMode === "compact"
-                      ? { gridTemplateColumns: "repeat(auto-fill, minmax(3.75rem, 1fr))" }
-                      : undefined
+                    // カードは固定幅（auto-fill）。`1fr` ストレッチを廃止し、パネル幅変更
+                    // （リサイズドラッグ）中にカード/画像が連続伸縮しないようにする。列が
+                    // 増減する瞬間だけ再配置されるので resize が滑らかになる。余った横幅は
+                    // justify-content: space-between で列間に均等配分。
+                    viewMode === "grid"
+                      ? {
+                          gridTemplateColumns: "repeat(auto-fill, 5rem)",
+                          justifyContent: "space-between",
+                        }
+                      : viewMode === "compact"
+                        ? {
+                            gridTemplateColumns: "repeat(auto-fill, 3.75rem)",
+                            justifyContent: "space-between",
+                          }
+                        : undefined
                   }
                 >
                   {renderedEntries.map((entry) => {
@@ -1252,7 +1385,37 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
   };
 
   return (
-    <div className="flex flex-col gap-2 p-2 text-xs" style={WORKPOOL_PANEL_CONTAIN_STYLE}>
+    <div className="flex h-full min-h-0 text-xs" style={WORKPOOL_PANEL_CONTAIN_STYLE}>
+      {/* 左サブタブ rail（ワークプール / ドメイン / ブランド）。1 軸しか無ければ非表示。 */}
+      {showScopeRail && (
+        <nav
+          className="flex shrink-0 flex-col gap-1 overflow-y-auto border-r border-border bg-muted/20 p-1"
+          aria-label="素材の分類"
+        >
+          {scopeTabs.map(({ id, label, icon: Icon }) => {
+            const active = materialScope === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                className={`flex w-12 flex-col items-center gap-0.5 rounded border px-1 py-1.5 text-[9px] leading-tight transition ${
+                  active
+                    ? "border-primary/45 bg-primary/10 text-primary"
+                    : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+                onClick={() => setMaterialScope(id)}
+                title={label}
+                aria-pressed={active}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="max-w-full truncate">{label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      )}
+
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-auto p-2">
       {error && (
         <div className="rounded border border-destructive/40 bg-destructive/10 px-1.5 py-1 text-[9px] text-destructive">
           {error}
@@ -1265,155 +1428,199 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
         onDragLeave={handleShelfDragLeave}
         onDrop={(e) => handleDrop(addRole, e)}
       >
-        <div ref={filterPopoverRef} className="relative min-w-0 flex-1">
-          <button
-            type="button"
-            className={`flex w-full min-w-0 items-center gap-1 rounded border px-1.5 py-1 text-left text-[10px] transition ${
-              filterPopoverOpen
-                ? "border-primary bg-primary/5 text-primary"
-                : "border-border bg-muted/30 text-muted-foreground hover:border-primary hover:text-primary"
-            }`}
-            onClick={() => setFilterPopoverOpen((v) => !v)}
-            title="表示条件"
-          >
-            <ListFilter className="h-3 w-3 shrink-0" />
-            <span className="min-w-0 flex-1 truncate">{activeFilterLabel}</span>
-          </button>
-
-          {filterPopoverOpen && (
-            <div className="absolute left-0 top-[calc(100%+4px)] z-[260] w-[min(360px,78vw)] rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="text-[11px] font-medium">表示条件</div>
-                <button
-                  type="button"
-                  className="rounded px-1.5 py-0.5 text-[9px] text-muted-foreground hover:bg-muted hover:text-foreground"
-                  onClick={() => {
-                    setStatusFilter("all");
-                    setRoleFilter(null);
-                    setTypeFilter(null);
-                    setSortMode("added-desc");
-                  }}
-                >
-                  リセット
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                <FilterGroup label="状態">
-                  {(
-                    [
-                      ["all", "すべて"],
-                      ["unanalyzed", "未分析"],
-                      ["analyzed", "分析済み"],
-                    ] as const
-                  ).map(([value, label]) => (
-                    <FilterChip
-                      key={value}
-                      active={statusFilter === value}
-                      label={label}
-                      onClick={() => setStatusFilter(value)}
-                    />
-                  ))}
-                </FilterGroup>
-
-                <FilterGroup label="分類">
-                  <FilterChip
-                    active={roleFilter == null}
-                    label="すべて"
-                    onClick={() => setRoleFilter(null)}
-                  />
-                  {roleFilterOptions.map((role) => (
-                    <FilterChip
-                      key={role}
-                      active={roleFilter === role}
-                      label={SLOT_ROLE_LABELS[role]}
-                      onClick={() => setRoleFilter(role)}
-                    />
-                  ))}
-                </FilterGroup>
-
-                <FilterGroup label="種別">
-                  <FilterChip
-                    active={typeFilter == null}
-                    label="すべて"
-                    onClick={() => setTypeFilter(null)}
-                  />
-                  {typeFilterOptions.map((type) => (
-                    <FilterChip
-                      key={type}
-                      active={typeFilter === type}
-                      label={formatItemType(type === "unknown" ? null : type)}
-                      onClick={() => setTypeFilter(type)}
-                    />
-                  ))}
-                </FilterGroup>
-
-                <FilterGroup label="並び順">
-                  {(
-                    [
-                      ["added-desc", "追加順↓"],
-                      ["added-asc", "追加順↑"],
-                      ["name-asc", "名前順"],
-                      ["analysis", "分析順"],
-                    ] as const
-                  ).map(([value, label]) => (
-                    <FilterChip
-                      key={value}
-                      active={sortMode === value}
-                      label={label}
-                      onClick={() => setSortMode(value)}
-                    />
-                  ))}
-                </FilterGroup>
-              </div>
-            </div>
+        {/* 検索ボックス（素材名のフリーワード絞り込み） */}
+        <div className="relative min-w-0 flex-1">
+          <Search className="pointer-events-none absolute left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="素材を検索"
+            aria-label="素材を検索"
+            className="h-6 w-full rounded border border-border bg-muted/30 pl-6 pr-6 text-[10px] text-foreground placeholder:text-muted-foreground/70 focus:border-primary focus:outline-none"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              className="absolute right-1 top-1/2 flex h-3.5 w-3.5 -translate-y-1/2 items-center justify-center rounded text-muted-foreground transition hover:text-foreground"
+              onClick={() => setSearchQuery("")}
+              aria-label="検索をクリア"
+            >
+              <X className="h-2.5 w-2.5" />
+            </button>
           )}
         </div>
-        <div className="flex shrink-0 overflow-hidden rounded border border-border bg-muted/20">
-          <button
-            type="button"
-            className={`flex h-6 w-6 items-center justify-center transition ${
-              viewMode === "grid"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-            title="カード表示"
-            aria-label="カード表示"
-            onClick={() => setViewMode("grid")}
-          >
-            <LayoutGrid className="h-3 w-3" />
-          </button>
-          <button
-            type="button"
-            className={`flex h-6 w-6 items-center justify-center border-l border-border transition ${
-              viewMode === "compact"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-            title="コンパクト表示"
-            aria-label="コンパクト表示"
-            onClick={() => setViewMode("compact")}
-          >
-            <Grid3x3 className="h-3 w-3" />
-          </button>
-          <button
-            type="button"
-            className={`flex h-6 w-6 items-center justify-center border-l border-border transition ${
-              viewMode === "list"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-            title="リスト表示"
-            aria-label="リスト表示"
-            onClick={() => setViewMode("list")}
-          >
-            <List className="h-3 w-3" />
-          </button>
-        </div>
+
+        {/* フィルター（アイコンのみ・コンパクト）。中身は body へ portal するポップオーバー。 */}
+        <button
+          ref={filterBtnRef}
+          type="button"
+          className={`relative flex h-6 w-6 shrink-0 items-center justify-center rounded border transition ${
+            filterPopoverOpen || filtersActive
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border bg-muted/20 text-muted-foreground hover:border-primary hover:text-primary"
+          }`}
+          onClick={() => {
+            setViewPopoverOpen(false);
+            setFilterPopoverOpen((v) => !v);
+          }}
+          title={`表示条件: ${activeFilterLabel}`}
+          aria-label="表示条件"
+        >
+          <ListFilter className="h-3.5 w-3.5" />
+          {filtersActive && (
+            <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-primary ring-1 ring-background" />
+          )}
+        </button>
+
+        {/* 表示切替（1 ボタン → ポップオーバーで カード / コンパクト / リスト を切替） */}
+        <button
+          ref={viewBtnRef}
+          type="button"
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded border transition ${
+            viewPopoverOpen
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border bg-muted/20 text-muted-foreground hover:border-primary hover:text-primary"
+          }`}
+          onClick={() => {
+            setFilterPopoverOpen(false);
+            setViewPopoverOpen((v) => !v);
+          }}
+          title={`表示: ${VIEW_MODES.find((v) => v.id === viewMode)?.label ?? ""}`}
+          aria-label="表示切替"
+        >
+          <CurrentViewIcon className="h-3.5 w-3.5" />
+        </button>
       </div>
 
-      {/* 追加経路（永続モード）: ＋追加 → ローカル取込 / Pool から選択 */}
-      {bound ? (
+      {/* フィルター ポップオーバー（portal + fixed で確実に最前面） */}
+      <AnchoredPopover
+        anchorRef={filterBtnRef}
+        open={filterPopoverOpen}
+        onClose={() => setFilterPopoverOpen(false)}
+        align="right"
+        width={Math.min(320, typeof window !== "undefined" ? window.innerWidth - 16 : 320)}
+      >
+        <div className="mb-2 flex items-center justify-between">
+          <div className="text-[11px] font-medium">表示条件</div>
+          <button
+            type="button"
+            className="rounded px-1.5 py-0.5 text-[9px] text-muted-foreground hover:bg-muted hover:text-foreground"
+            onClick={() => {
+              setStatusFilter("all");
+              setRoleFilter(null);
+              setTypeFilter(null);
+              setSortMode("added-desc");
+            }}
+          >
+            リセット
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          <FilterGroup label="状態">
+            {(
+              [
+                ["all", "すべて"],
+                ["unanalyzed", "未分析"],
+                ["analyzed", "分析済み"],
+              ] as const
+            ).map(([value, label]) => (
+              <FilterChip
+                key={value}
+                active={statusFilter === value}
+                label={label}
+                onClick={() => setStatusFilter(value)}
+              />
+            ))}
+          </FilterGroup>
+
+          <FilterGroup label="分類">
+            <FilterChip
+              active={roleFilter == null}
+              label="すべて"
+              onClick={() => setRoleFilter(null)}
+            />
+            {roleFilterOptions.map((role) => (
+              <FilterChip
+                key={role}
+                active={roleFilter === role}
+                label={SLOT_ROLE_LABELS[role]}
+                onClick={() => setRoleFilter(role)}
+              />
+            ))}
+          </FilterGroup>
+
+          <FilterGroup label="種別">
+            <FilterChip
+              active={typeFilter == null}
+              label="すべて"
+              onClick={() => setTypeFilter(null)}
+            />
+            {typeFilterOptions.map((type) => (
+              <FilterChip
+                key={type}
+                active={typeFilter === type}
+                label={formatItemType(type === "unknown" ? null : type)}
+                onClick={() => setTypeFilter(type)}
+              />
+            ))}
+          </FilterGroup>
+
+          <FilterGroup label="並び順">
+            {(
+              [
+                ["added-desc", "追加順↓"],
+                ["added-asc", "追加順↑"],
+                ["name-asc", "名前順"],
+                ["analysis", "分析順"],
+              ] as const
+            ).map(([value, label]) => (
+              <FilterChip
+                key={value}
+                active={sortMode === value}
+                label={label}
+                onClick={() => setSortMode(value)}
+              />
+            ))}
+          </FilterGroup>
+        </div>
+      </AnchoredPopover>
+
+      {/* 表示切替 ポップオーバー */}
+      <AnchoredPopover
+        anchorRef={viewBtnRef}
+        open={viewPopoverOpen}
+        onClose={() => setViewPopoverOpen(false)}
+        align="right"
+        width={160}
+      >
+        <div className="flex flex-col gap-0.5">
+          {VIEW_MODES.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              className={`flex items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] transition ${
+                viewMode === id
+                  ? "bg-primary/10 text-primary"
+                  : "text-foreground hover:bg-muted"
+              }`}
+              onClick={() => {
+                setViewMode(id);
+                setViewPopoverOpen(false);
+              }}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              <span className="min-w-0 flex-1 truncate">{label}</span>
+              {viewMode === id && <Check className="h-3 w-3 shrink-0" />}
+            </button>
+          ))}
+        </div>
+      </AnchoredPopover>
+
+      {/* 追加経路（永続モード）: ＋追加 → ローカル取込 / Pool から選択。
+          既定 false。video 等は外部の追加 FAB を持つため内蔵ボタンは隠す。 */}
+      {showInlineAdd && (bound ? (
         <div className="flex flex-col gap-1">
           <button
             type="button"
@@ -1515,7 +1722,7 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
             </div>
           )}
         </div>
-      )}
+      ))}
 
       {/* 複数選択 (⌘/Ctrl+クリック) 中の一括操作バー。 */}
       {selectedKeys.size >= 2 && (
@@ -1541,31 +1748,75 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
         </div>
       )}
 
-      {/* 素材棚: WorkPool（import/書き出し素材）→ 作業状態（他アプリ・同期）→ 関連 Pool
-          （ドメイン → ブランド）の順に区切って表示する。 */}
+      {/* 素材棚: 選択中の左サブタブ（ワークプール / ドメイン / ブランド）の素材を表示。 */}
       <div className="flex flex-col gap-2">
-        {renderMaterialSection({
-          sectionId: "workpool",
-          title: "ワークプール",
-          entries: visibleWorkEntries,
-          totalCount: entries.length,
-        })}
-        {workStateEntries.length > 0 && (
-          <div className="border-t border-border/70 pt-2">{renderWorkStateSection()}</div>
-        )}
-        {visibleRelatedSections.map((section) => (
-          <div key={section.library} className="border-t border-border/70 pt-2">
+        {materialScope === "workpool" && (
+          <>
+            {pendingItems.length > 0 && (
+              <div
+                className="grid gap-1"
+                style={{
+                  gridTemplateColumns: "repeat(auto-fill, 5rem)",
+                  justifyContent: "space-between",
+                }}
+              >
+                {pendingItems.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex aspect-video w-full flex-col items-center justify-center gap-1 rounded border border-dashed border-primary/60 bg-primary/5 text-center text-[8px] font-medium text-primary"
+                    title="保存中…ここに入ります"
+                  >
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>ここに入るよ</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {renderMaterialSection({
-              sectionId: `related:${section.library}`,
-              title: relatedSectionTitle(section),
-              entries: section.entries,
-              totalCount: relatedEntries.filter(
-                (entry) => entry.sourceLibrary === section.library,
-              ).length,
-              readonly: true,
+              sectionId: "workpool",
+              title: "ワークプール",
+              entries: visibleWorkEntries,
+              totalCount: entries.length,
             })}
-          </div>
-        ))}
+            {workStateEntries.length > 0 && (
+              <div className="border-t border-border/70 pt-2">{renderWorkStateSection()}</div>
+            )}
+          </>
+        )}
+        {materialScope === "domain" &&
+          domainSections.map((section) => (
+            <div
+              key={section.library}
+              className="border-t border-border/70 pt-2 first:border-t-0 first:pt-0"
+            >
+              {renderMaterialSection({
+                sectionId: `related:${section.library}`,
+                title: relatedSectionTitle(section),
+                entries: section.entries,
+                totalCount: relatedEntries.filter(
+                  (entry) => entry.sourceLibrary === section.library,
+                ).length,
+                readonly: true,
+              })}
+            </div>
+          ))}
+        {materialScope === "brand" &&
+          brandSections.map((section) => (
+            <div
+              key={section.library}
+              className="border-t border-border/70 pt-2 first:border-t-0 first:pt-0"
+            >
+              {renderMaterialSection({
+                sectionId: `related:${section.library}`,
+                title: relatedSectionTitle(section),
+                entries: section.entries,
+                totalCount: relatedEntries.filter(
+                  (entry) => entry.sourceLibrary === section.library,
+                ).length,
+                readonly: true,
+              })}
+            </div>
+          ))}
       </div>
 
       {entryContextMenu && (
@@ -1611,9 +1862,92 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
           {renderPoolPicker({ onClose: closePicker, defaultRole: addRole })}
         </PoolPickerModal>
       )}
+      </div>
     </div>
   );
 });
+
+/**
+ * アンカー要素（ボタン）の直下に出すポップオーバー。
+ * `document.body` への portal + `position:fixed` で描画するため、祖先の
+ * `overflow` / `contain` / stacking context に影響されず、必ず最前面（z-9999）に出る。
+ * 旧実装は絶対配置のため下のカードに潜り込んで欠けて見えていた（レイヤー不具合）ので置換。
+ * 画面外クリック / Esc / スクロール / リサイズで閉じる。
+ */
+function AnchoredPopover({
+  anchorRef,
+  open,
+  onClose,
+  children,
+  align = "left",
+  width = 260,
+}: {
+  anchorRef: { current: HTMLElement | null };
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+  align?: "left" | "right";
+  width?: number;
+}) {
+  const popRef = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+    const rect = anchor.getBoundingClientRect();
+    const margin = 8;
+    let left = align === "right" ? rect.right - width : rect.left;
+    left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+    const top = Math.min(rect.bottom + 4, window.innerHeight - margin);
+    setPos({ top, left });
+  }, [open, align, width, anchorRef]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: MouseEvent) => {
+      const target = e.target as Node | null;
+      if (popRef.current?.contains(target)) return;
+      // アンカー（トグルボタン）上のクリックはボタン側 onClick に委ねる
+      if (anchorRef.current?.contains(target)) return;
+      onClose();
+    };
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    const onReflow = (e: Event) => {
+      // ポップオーバー内部のスクロールでは閉じない
+      if (popRef.current?.contains(e.target as Node | null)) return;
+      onClose();
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onEsc);
+    window.addEventListener("resize", onReflow, true);
+    window.addEventListener("scroll", onReflow, true);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onEsc);
+      window.removeEventListener("resize", onReflow, true);
+      window.removeEventListener("scroll", onReflow, true);
+    };
+  }, [open, onClose, anchorRef]);
+
+  if (!open || !pos || typeof document === "undefined") return null;
+  return createPortal(
+    <div
+      ref={popRef}
+      className="rounded-md border border-border bg-popover p-2 text-popover-foreground shadow-xl"
+      style={{ position: "fixed", top: pos.top, left: pos.left, width, zIndex: 9999 }}
+    >
+      {children}
+    </div>,
+    document.body,
+  );
+}
 
 function PoolPickerModal({
   children,
@@ -1744,15 +2078,22 @@ const MaterialCard = memo(function MaterialCard({
       onDragStart={onDragStart}
       onContextMenu={onContextMenu}
     >
-      <div className="relative aspect-square w-full overflow-hidden bg-muted/40">
+      <div className="relative aspect-video w-full overflow-hidden bg-muted/40">
+        {/* WKWebView perf: thumb は <img> ではなく CSS background-image で描画する。<img>(replaced
+            element) はデコード/ラスタが「ドキュメント全体のフレーム作業」に引き込まれ、無関係な
+            パネルリサイズ / タイムラインシークの毎フレームで再デコードされてアプリ全体がカクつく
+            （素材0件＝軽い / 画像1枚＝重い、の正体）。background-image は別パスで layout 変化でも
+            再デコードされない。 */}
         {thumbUrl ? (
-          <img
-            src={thumbUrl}
-            alt=""
-            className="h-full w-full object-cover"
-            loading="lazy"
-            decoding="async"
-            draggable={false}
+          <span
+            aria-hidden="true"
+            className="block h-full w-full"
+            style={{
+              backgroundImage: `url(${JSON.stringify(thumbUrl)})`,
+              backgroundSize: "contain",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+            }}
           />
         ) : thumbGenerating ? (
           <div className="flex h-full w-full items-center justify-center">
@@ -1850,13 +2191,15 @@ const MaterialListRow = memo(function MaterialListRow({
     >
       <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded border border-border bg-muted/40">
         {thumbUrl ? (
-          <img
-            src={thumbUrl}
-            alt=""
-            className="h-full w-full object-cover"
-            loading="lazy"
-            decoding="async"
-            draggable={false}
+          <span
+            aria-hidden="true"
+            className="block h-full w-full"
+            style={{
+              backgroundImage: `url(${JSON.stringify(thumbUrl)})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+            }}
           />
         ) : thumbGenerating ? (
           <div className="flex h-full w-full items-center justify-center">
@@ -1956,13 +2299,15 @@ const MaterialCompactIcon = memo(function MaterialCompactIcon({
     >
       <div className="relative h-12 w-12 overflow-hidden rounded border border-border bg-muted/40 shadow-sm">
         {thumbUrl ? (
-          <img
-            src={thumbUrl}
-            alt=""
-            className="h-full w-full object-contain"
-            loading="lazy"
-            decoding="async"
-            draggable={false}
+          <span
+            aria-hidden="true"
+            className="block h-full w-full"
+            style={{
+              backgroundImage: `url(${JSON.stringify(thumbUrl)})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+            }}
           />
         ) : thumbGenerating ? (
           <div className="flex h-full w-full items-center justify-center bg-background/80">

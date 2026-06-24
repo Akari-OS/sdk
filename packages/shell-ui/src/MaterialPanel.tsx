@@ -146,10 +146,12 @@ interface MaterialPanelProps {
 const POOL_LIBRARIES_FALLBACK = ["akari-uploads", "akari-outputs"];
 const AKARI_POOL_ITEM_MIME = "application/x-akari-pool-item";
 
-// カード描画コスト削減: 画面外カードはブラウザ側でも layout/paint を defer する。
+// カードを layout 的に独立させ、サムネ遅延ロード時に兄弟へ reflow を伝播させない。
+// ⚠ content-visibility: auto は撤去（毎レンダリング更新ごとに document 全体で relevance 判定が
+//    走るグローバルコストがあり、マウント中に無関係なリサイズ/シークまで毎フレーム重くするため。
+//    ContextSlotPanel と同方針）。
 const MATERIAL_CARD_DEFER_STYLE = {
-  contentVisibility: "auto",
-  containIntrinsicSize: "96px",
+  contain: "layout style",
 } as React.CSSProperties;
 
 export function MaterialPanel({
@@ -764,14 +766,20 @@ const MaterialThumb = memo(function MaterialThumb({
       style={MATERIAL_CARD_DEFER_STYLE}
       title={item.name}
     >
+      {/* WKWebView perf: thumb は <img> ではなく CSS background-image で描画する。<img>(replaced
+          element) のデコード/ラスタが「ドキュメント全体のフレーム作業」に引き込まれ、無関係な
+          パネルリサイズ等の毎フレームで再デコードされてアプリ全体がカクつくため（ContextSlotPanel
+          と同方針）。 */}
       {thumbUrl && isMedia ? (
-        <img
-          src={thumbUrl}
-          alt=""
-          className="w-full h-full object-cover"
-          loading="lazy"
-          decoding="async"
-          draggable={false}
+        <span
+          aria-hidden="true"
+          className="block w-full h-full"
+          style={{
+            backgroundImage: `url(${JSON.stringify(thumbUrl)})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+          }}
         />
       ) : generating && isMedia ? (
         <div className="w-full h-full flex items-center justify-center">
