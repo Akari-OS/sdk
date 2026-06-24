@@ -20,3 +20,4 @@ packages:
   - "../akari-circuit"
   - "../akari-site"
   - "../akari-site/sidecar"
+  - "../akari-fx"
