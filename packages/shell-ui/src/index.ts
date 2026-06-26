@@ -216,3 +216,11 @@ export {
   type DraftEntry,
   type CreateScheduleEntryInput,
 } from "./PublishPanel";
+// Pool アイテム詳細パネル共有版（akari-video / akari-shell 等で共有）
+export {
+  PoolItemDetail,
+  type PoolItemDetailProps,
+  type AudioPlayerHandle,
+} from "./PoolItemDetail";
+// Pool 型の再エクスポート（akari-video 等 sdk-types を直接依存しないアプリ向け）
+export type { PoolItemFull, PoolItemSummary, PoolRelation } from "@akari-os/sdk/pool";
