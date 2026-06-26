@@ -1270,6 +1270,18 @@ export interface PoolItemDetailProps {
   tabs?: TabId[];
   /** アクションボタン（編集 / 分析 / アーカイブ / 削除等）を表示するか。default true。 */
   showActions?: boolean;
+  /**
+   * ヘッダのインラインメディアプレビュー（動画/画像/音声プレイヤー）を表示するか。default true。
+   * ホスト側に素材プレイヤーがある場合（akari-video の中央ソースプレビュー等）は false にして
+   * 二重表示を避ける。
+   */
+  showMediaPreview?: boolean;
+  /**
+   * 文字起こし / キーフレームのタイムスタンプ click 時の seek をホストに委譲する。
+   * 指定時はインラインプレイヤーではなくこのコールバックを呼ぶ（中央プレビューへジャンプ等）。
+   * 未指定時は従来どおりインラインプレイヤーを seek する。
+   */
+  onSeekToTime?: (seconds: number) => void;
 }
 
 export function PoolItemDetail({
@@ -1300,6 +1312,8 @@ export function PoolItemDetail({
   renderAiTab,
   tabs: tabsProp,
   showActions = true,
+  showMediaPreview = true,
+  onSeekToTime,
 }: PoolItemDetailProps) {
   const toast = toastProp ?? NOOP_TOAST;
   const [rawJsonOpen, setRawJsonOpen] = useState(false);
@@ -1428,6 +1442,20 @@ export function PoolItemDetail({
       audioPlayerRef.current?.seekTo(sec, autoplay);
     }
   }, [ensureVideoPath, filePath, item]);
+
+  // タイムスタンプ click の seek。onSeekToTime 指定時はホスト（中央プレビュー等）へ委譲し、
+  // 無ければインラインプレイヤーを seek する。showMediaPreview=false のときはインライン player が
+  // 無いので onSeekToTime を渡す前提。
+  const handleSeek = useCallback(
+    (sec: number, autoplay = true) => {
+      if (onSeekToTime) {
+        onSeekToTime(sec);
+        return;
+      }
+      seekInlineMedia(sec, autoplay);
+    },
+    [onSeekToTime, seekInlineMedia],
+  );
 
   const toggleInlineMedia = useCallback(() => {
     if (!item) return;
@@ -1810,8 +1838,8 @@ export function PoolItemDetail({
           )}
         </div>
 
-        {/* メディアプレビュー */}
-        {thumbnailLoading && (
+        {/* メディアプレビュー（ホストに素材プレイヤーがある場合 showMediaPreview=false で抑制） */}
+        {showMediaPreview && thumbnailLoading && (
           <div className="mt-2 h-40 bg-muted/30 rounded flex items-center justify-center">
             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
           </div>
@@ -1824,7 +1852,7 @@ export function PoolItemDetail({
           - filePath 解決済なら <video preload="none">、ユーザが play した時のみブラウザがメタを読む
           - フルスクリーン / ポップアップ再生ボタンを overlay で添える
         */}
-        {filePath && item.item_type.toLowerCase() === "video" && (
+        {showMediaPreview && filePath && item.item_type.toLowerCase() === "video" && (
           <div className="mt-2 rounded overflow-hidden border border-border relative group bg-black">
             <video
               ref={inlineVideoRef}
@@ -1845,7 +1873,7 @@ export function PoolItemDetail({
         )}
 
         {/* filePath 未解決の動画: poster のみの軽量カード。クリックで filePath 解決 → <video> 切替 */}
-        {!filePath && item.item_type.toLowerCase() === "video" && (
+        {showMediaPreview && !filePath && item.item_type.toLowerCase() === "video" && (
           <button
             onClick={() => {
               ensureVideoPath();
@@ -1870,7 +1898,7 @@ export function PoolItemDetail({
         )}
 
         {/* 画像プレビュー（file:// で高解像度表示） */}
-        {!thumbnailLoading && item.item_type.toLowerCase() === "image" && (
+        {showMediaPreview && !thumbnailLoading && item.item_type.toLowerCase() === "image" && (
           <button
             onClick={() => setMediaPopupOpen(true)}
             className="mt-2 rounded overflow-hidden border border-border block w-full relative group"
@@ -1888,7 +1916,7 @@ export function PoolItemDetail({
         )}
 
         {/* 音声プレーヤー（波形 + segments クリックジャンプ） */}
-        {filePath && item.item_type.toLowerCase() === "audio" && (
+        {showMediaPreview && filePath && item.item_type.toLowerCase() === "audio" && (
           <div className="mt-2">
             {renderAudioPlayer ? (
               renderAudioPlayer({
@@ -2200,7 +2228,7 @@ export function PoolItemDetail({
                   maxHeightClass="max-h-80"
                   seekOffsetMs={timelineSeekOffsetMs}
                   onSeekOffsetChange={updateTimelineSeekOffset}
-                  onSeek={seekInlineMedia}
+                  onSeek={handleSeek}
                 />
               </Field>
             ) : (
@@ -2225,7 +2253,7 @@ export function PoolItemDetail({
 
             {detailKeyframes.length > 0 && (
               <Field label="代表フレーム結果">
-                <KeyframeDescriptionList frames={detailKeyframes} onSeek={seekInlineMedia} />
+                <KeyframeDescriptionList frames={detailKeyframes} onSeek={handleSeek} />
               </Field>
             )}
 
@@ -2258,7 +2286,7 @@ export function PoolItemDetail({
               <div className="space-y-1">
                 <ContextRichView
                   ctx={ctxJson}
-                  onSeek={seekInlineMedia}
+                  onSeek={handleSeek}
                   seekOffsetMs={timelineSeekOffsetMs}
                   onSeekOffsetChange={updateTimelineSeekOffset}
                 />
