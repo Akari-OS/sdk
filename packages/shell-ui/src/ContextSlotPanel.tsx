@@ -81,6 +81,17 @@ import {
 
 // ADR-108 Wave2: 全 SlotRole は @akari-os/sdk/slot の ALL_SLOT_ROLES が SSOT（手動再列挙を廃止）。
 
+/**
+ * §3.3 層3: Pool 指示ブロック（enabled のみ）の最小表現。
+ * pool_list_instructions の戻り値のサブセット。
+ */
+interface InstructionBlockDisplay {
+  id: string;
+  title: string;
+  body_md: string;
+  enabled: boolean;
+}
+
 function inferDefaultSlotRole(item: PoolItemSummary): SlotRole {
   const type = (item.item_type ?? "").toLowerCase();
   if (type === "video" || type === "image") return "main-track";
@@ -528,33 +539,73 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
     variantId: variantId ?? null,
   });
 
-  // §3.3 層3: Pool 指示（akari.md 相当の指示ブロック）の enabled な title 一覧を開示用に取得。
+  // §3.3 層3: Pool 指示（akari.md 相当の指示ブロック）の enabled なブロック一覧を開示用に取得。
   // sdk に helper が無いため Tauri コマンドを直 invoke する。失敗は握ってパネルを壊さない。
-  const [instructionTitles, setInstructionTitles] = useState<string[]>([]);
-  useEffect(() => {
+  const [instructionBlocks, setInstructionBlocks] = useState<InstructionBlockDisplay[]>([]);
+  /** クリックで展開中の指示 id */
+  const [expandedInstructionId, setExpandedInstructionId] = useState<string | null>(null);
+  /** インライン編集中の指示 id */
+  const [editingInstructionId, setEditingInstructionId] = useState<string | null>(null);
+  /** 編集中の body_md の下書き */
+  const [editingBodyDraft, setEditingBodyDraft] = useState<string>("");
+  /** 保存リクエスト中の指示 id */
+  const [savingInstructionId, setSavingInstructionId] = useState<string | null>(null);
+
+  /** Pool 指示を再取得して instructionBlocks を更新する。失敗は握る。 */
+  const reloadInstructions = useCallback(async () => {
     if (!lib) {
-      setInstructionTitles([]);
+      setInstructionBlocks([]);
       return;
     }
+    try {
+      const raw = await invoke("pool_list_instructions", { library: lib });
+      const blocks = Array.isArray(raw)
+        ? (raw as Array<{ id?: string; title?: string; body_md?: string; enabled?: boolean }>)
+            .filter((b) => b?.enabled && b?.id)
+            .map((b): InstructionBlockDisplay => ({
+              id: b.id!,
+              title: b.title ?? "",
+              body_md: b.body_md ?? "",
+              enabled: b.enabled ?? true,
+            }))
+        : [];
+      setInstructionBlocks(blocks);
+    } catch {
+      setInstructionBlocks([]);
+    }
+  }, [lib]);
+
+  useEffect(() => {
     let cancelled = false;
-    void invoke("pool_list_instructions", { library: lib })
-      .then((blocks) => {
-        if (cancelled) return;
-        const titles = Array.isArray(blocks)
-          ? (blocks as Array<{ title?: string; enabled?: boolean }>)
-              .filter((b) => b?.enabled)
-              .map((b) => b?.title ?? "")
-              .filter((t) => t.length > 0)
-          : [];
-        setInstructionTitles(titles);
-      })
-      .catch(() => {
-        if (!cancelled) setInstructionTitles([]);
-      });
+    void reloadInstructions().then(() => {
+      // キャンセルされていた場合は state 更新が既に無視されている
+      void cancelled;
+    });
     return () => {
       cancelled = true;
     };
-  }, [lib]);
+  }, [reloadInstructions]);
+
+  /** 指示 body_md のインライン保存。失敗はコンソール警告のみ（パネルを壊さない）。 */
+  const handleSaveInstruction = useCallback(
+    async (block: InstructionBlockDisplay) => {
+      if (!lib) return;
+      setSavingInstructionId(block.id);
+      try {
+        await invoke("pool_upsert_instruction", {
+          library: lib,
+          block: { id: block.id, title: block.title, body_md: editingBodyDraft, enabled: block.enabled },
+        });
+        await reloadInstructions();
+        setEditingInstructionId(null);
+      } catch (e) {
+        console.warn("[Pool 指示] upsert 失敗", e);
+      } finally {
+        setSavingInstructionId(null);
+      }
+    },
+    [lib, editingBodyDraft, reloadInstructions],
+  );
 
   // §3.3 層3: brand pool の事業正典（Brand→Domain 継承込み compile）を先頭数行で開示。
   // normalizedRelatedSections から kind==='brand' の最初のエントリを使う。
@@ -1614,7 +1665,7 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
     const collapsed = collapsedSectionIds.has(sectionId);
     const title = "コンテキスト";
     const ctx = workCtx.context;
-    const hasInstructions = instructionTitles.length > 0;
+    const hasInstructions = instructionBlocks.length > 0;
     const hasCanon = canonMarkdown.length > 0;
     const hasAny = !!(ctx?.purpose || ctx?.tone || ctx?.strategy?.memo) || hasInstructions || hasCanon;
     return (
@@ -1677,15 +1728,88 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[9px] font-medium text-muted-foreground">Pool の指示</span>
                     <div className="flex flex-col gap-0.5">
-                      {instructionTitles.map((t, i) => (
-                        <span
-                          key={i}
-                          className="truncate text-[10px] leading-snug text-foreground"
-                          title={t}
-                        >
-                          ・{t}
-                        </span>
-                      ))}
+                      {instructionBlocks.map((block) => {
+                        const isExpanded = expandedInstructionId === block.id;
+                        const isEditing = editingInstructionId === block.id;
+                        const isSaving = savingInstructionId === block.id;
+                        return (
+                          <div
+                            key={block.id}
+                            className="flex flex-col rounded border border-border/50 bg-background/50"
+                          >
+                            {/* タイトル行（クリックで body_md を展開） */}
+                            <button
+                              type="button"
+                              className="flex min-w-0 items-center gap-1 rounded px-1 py-0.5 text-left hover:bg-muted/50"
+                              onClick={() => {
+                                const opening = expandedInstructionId !== block.id;
+                                setExpandedInstructionId(opening ? block.id : null);
+                                if (!opening) setEditingInstructionId(null);
+                              }}
+                              title={isExpanded ? `${block.title} を閉じる` : `${block.title} を展開`}
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+                              )}
+                              <span className="min-w-0 flex-1 truncate text-[10px] leading-snug text-foreground">
+                                {block.title}
+                              </span>
+                            </button>
+                            {/* 展開時: body_md 表示 + インライン編集 */}
+                            {isExpanded && (
+                              <div className="flex flex-col gap-1 px-1 pb-1">
+                                {isEditing ? (
+                                  <>
+                                    <textarea
+                                      className="w-full resize-y rounded border border-border bg-background px-1.5 py-1 text-[10px] leading-snug text-foreground focus:border-primary focus:outline-none"
+                                      style={{ minHeight: "5rem" }}
+                                      value={editingBodyDraft}
+                                      onChange={(e) => setEditingBodyDraft(e.target.value)}
+                                      disabled={isSaving}
+                                    />
+                                    <div className="flex justify-end gap-1">
+                                      <button
+                                        type="button"
+                                        className="rounded px-1.5 py-0.5 text-[9px] text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                                        onClick={() => setEditingInstructionId(null)}
+                                        disabled={isSaving}
+                                      >
+                                        キャンセル
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] text-primary hover:bg-primary/20 disabled:opacity-50"
+                                        onClick={() => void handleSaveInstruction(block)}
+                                        disabled={isSaving}
+                                      >
+                                        {isSaving ? "保存中…" : "保存"}
+                                      </button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <pre className="whitespace-pre-wrap break-words font-sans text-[10px] leading-snug text-foreground/80">
+                                      {block.body_md || "(本文なし)"}
+                                    </pre>
+                                    <button
+                                      type="button"
+                                      className="self-end rounded px-1.5 py-0.5 text-[9px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                                      onClick={() => {
+                                        setEditingInstructionId(block.id);
+                                        setEditingBodyDraft(block.body_md);
+                                      }}
+                                    >
+                                      編集
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
