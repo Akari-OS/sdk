@@ -224,3 +224,10 @@ export {
 } from "./PoolItemDetail";
 // Pool 型の再エクスポート（akari-video 等 sdk-types を直接依存しないアプリ向け）
 export type { PoolItemFull, PoolItemSummary, PoolRelation } from "@akari-os/sdk/pool";
+// 統一ソース取込フック（Video「+」/ Pool Browser「+追加」が共有。統一取込フェーズB）
+export {
+  useSourceIngest,
+  type SourceIngest,
+  type SourceIngestTarget,
+  type IngestOptions,
+} from "./use-source-ingest";
