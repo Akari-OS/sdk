@@ -133,8 +133,10 @@ export function InspectorShell({
         </div>
       )}
 
-      {/* コンテンツ */}
-      <div className="flex-1 overflow-y-auto">{children}</div>
+      {/* コンテンツ。min-h-0 が無いと flex item の自動最小高さで縮まず、
+          内容が縦に溢れたときスクロールせずクリップされる（WKWebView で顕在化、
+          2026-06-25 報告）。tabs ありの分岐（上）と対称に min-h-0 を付ける。 */}
+      <div className="flex-1 min-h-0 overflow-y-auto">{children}</div>
     </div>
   )
 }
