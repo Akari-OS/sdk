@@ -59,6 +59,7 @@ import {
 } from "lucide-react";
 import { SLOT_ROLE_LABELS, ALL_SLOT_ROLES, type SlotRole } from "@akari-os/sdk/slot";
 import { useWorkContext } from "./hooks/useWorkContext";
+import { invoke } from "@tauri-apps/api/core";
 import {
   listItems,
   slotListEntries,
@@ -526,6 +527,34 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
     workId: workId ?? null,
     variantId: variantId ?? null,
   });
+
+  // §3.3 層3: Pool 指示（akari.md 相当の指示ブロック）の enabled な title 一覧を開示用に取得。
+  // sdk に helper が無いため Tauri コマンドを直 invoke する。失敗は握ってパネルを壊さない。
+  const [instructionTitles, setInstructionTitles] = useState<string[]>([]);
+  useEffect(() => {
+    if (!lib) {
+      setInstructionTitles([]);
+      return;
+    }
+    let cancelled = false;
+    void invoke("pool_list_instructions", { library: lib })
+      .then((blocks) => {
+        if (cancelled) return;
+        const titles = Array.isArray(blocks)
+          ? (blocks as Array<{ title?: string; enabled?: boolean }>)
+              .filter((b) => b?.enabled)
+              .map((b) => b?.title ?? "")
+              .filter((t) => t.length > 0)
+          : [];
+        setInstructionTitles(titles);
+      })
+      .catch(() => {
+        if (!cancelled) setInstructionTitles([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [lib]);
 
   useEffect(() => {
     if (roleFilter && !roleFilterOptions.includes(roleFilter)) {
@@ -1551,7 +1580,8 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
     const collapsed = collapsedSectionIds.has(sectionId);
     const title = "コンテキスト";
     const ctx = workCtx.context;
-    const hasAny = !!(ctx?.purpose || ctx?.tone || ctx?.strategy?.memo);
+    const hasInstructions = instructionTitles.length > 0;
+    const hasAny = !!(ctx?.purpose || ctx?.tone || ctx?.strategy?.memo) || hasInstructions;
     return (
       <section className="flex flex-col gap-1">
         <button
@@ -1606,6 +1636,22 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
                     <span className="overflow-hidden text-[10px] leading-snug text-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]">
                       {ctx.strategy.memo}
                     </span>
+                  </div>
+                )}
+                {hasInstructions && (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[9px] font-medium text-muted-foreground">Pool の指示</span>
+                    <div className="flex flex-col gap-0.5">
+                      {instructionTitles.map((t, i) => (
+                        <span
+                          key={i}
+                          className="truncate text-[10px] leading-snug text-foreground"
+                          title={t}
+                        >
+                          ・{t}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </>
