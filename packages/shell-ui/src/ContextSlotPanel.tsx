@@ -1011,6 +1011,8 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
       marqueeBaseRef.current =
         e.shiftKey || e.metaKey || e.ctrlKey ? new Set(selectedKeys) : new Set();
       marqueeMovedRef.current = false;
+      // ドラッグで下のカード文字が範囲選択され青ハイライトが出るのを抑止（select-none と併用）。
+      e.preventDefault();
       try {
         container.setPointerCapture(e.pointerId);
       } catch {
@@ -2047,7 +2049,7 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
       ) : (
       <div
         ref={marqueeContainerRef}
-        className="relative flex min-h-0 flex-1 flex-col gap-2"
+        className={`relative flex min-h-0 flex-1 flex-col gap-2 ${marquee ? "select-none" : ""}`}
         onPointerDown={handleMarqueePointerDown}
         onPointerMove={handleMarqueePointerMove}
         onPointerUp={endMarquee}
