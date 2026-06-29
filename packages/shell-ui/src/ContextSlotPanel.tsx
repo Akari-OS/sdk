@@ -58,6 +58,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { SLOT_ROLE_LABELS, ALL_SLOT_ROLES, type SlotRole } from "@akari-os/sdk/slot";
+import { useWorkContext } from "./hooks/useWorkContext";
 import {
   listItems,
   slotListEntries,
@@ -456,8 +457,8 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
   const [viewMode, setViewMode] = useState<MaterialViewMode>("grid");
   /** 左サブタブの選択（ワークプール / ドメイン / ブランド）。 */
   const [materialScope, setMaterialScope] = useState<MaterialScope>("workpool");
-  // 'data' セクション（参照データ）は既定で折りたたむ（§3.3 層2 プログレッシブ・ディスクロージャ）。
-  const [collapsedSectionIds, setCollapsedSectionIds] = useState<Set<string>>(() => new Set(["data"]));
+  // 'data' セクション（参照データ）と 'context' セクション（Work 文脈）は既定で折りたたむ（§3.3 プログレッシブ・ディスクロージャ）。
+  const [collapsedSectionIds, setCollapsedSectionIds] = useState<Set<string>>(() => new Set(["data", "context"]));
   /** 素材名のフリーワード検索クエリ。 */
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
@@ -518,6 +519,13 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
     }
     return sections;
   }, [relatedPoolSections, lib]);
+
+  // §3.3 層3: Work 文脈（purpose / tone / strategy.memo）を取得。失敗しても素材パネルは壊さない。
+  const workCtx = useWorkContext({
+    library: lib,
+    workId: workId ?? null,
+    variantId: variantId ?? null,
+  });
 
   useEffect(() => {
     if (roleFilter && !roleFilterOptions.includes(roleFilter)) {
@@ -1534,6 +1542,80 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
     );
   };
 
+  /**
+   * §3.3 層3: コンテキスト折りたたみセクション。Work 文脈（purpose / tone / strategy.memo）を開示する。
+   * 検索フィルタ（searchQuery）の対象外。失敗しても素材パネルを壊さない。
+   */
+  const renderContextSection = () => {
+    const sectionId = "context";
+    const collapsed = collapsedSectionIds.has(sectionId);
+    const title = "コンテキスト";
+    const ctx = workCtx.context;
+    const hasAny = !!(ctx?.purpose || ctx?.tone || ctx?.strategy?.memo);
+    return (
+      <section className="flex flex-col gap-1">
+        <button
+          type="button"
+          className="flex min-w-0 items-center justify-between gap-1 rounded px-0.5 py-0.5 text-left hover:bg-muted/50"
+          onClick={() => toggleSectionCollapsed(sectionId)}
+          title={collapsed ? `${title} を開く` : `${title} を閉じる`}
+        >
+          <div className="flex min-w-0 items-center gap-1">
+            {collapsed ? (
+              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+            )}
+            <div className="truncate text-[10px] font-medium text-foreground" title={title}>
+              {title}
+            </div>
+          </div>
+          {workCtx.loading && (
+            <Loader2 className="h-2.5 w-2.5 shrink-0 animate-spin text-muted-foreground" />
+          )}
+        </button>
+        {!collapsed && (
+          <div className="flex flex-col gap-1.5 rounded border border-border/60 bg-muted/20 p-1.5">
+            {workCtx.loading ? (
+              <div className="text-[9px] text-muted-foreground/60">読み込み中…</div>
+            ) : !hasAny ? (
+              <div className="text-[9px] text-muted-foreground/60">
+                コンテキストが設定されていません
+              </div>
+            ) : (
+              <>
+                {ctx?.purpose && (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[9px] font-medium text-muted-foreground">目的</span>
+                    <span className="overflow-hidden text-[10px] leading-snug text-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]">
+                      {ctx.purpose}
+                    </span>
+                  </div>
+                )}
+                {ctx?.tone && (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[9px] font-medium text-muted-foreground">トーン</span>
+                    <span className="overflow-hidden text-[10px] leading-snug text-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+                      {ctx.tone}
+                    </span>
+                  </div>
+                )}
+                {ctx?.strategy?.memo && (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[9px] font-medium text-muted-foreground">方針メモ</span>
+                    <span className="overflow-hidden text-[10px] leading-snug text-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]">
+                      {ctx.strategy.memo}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </section>
+    );
+  };
+
   return (
     <div className="flex h-full min-h-0 text-xs" style={WORKPOOL_PANEL_CONTAIN_STYLE}>
       {/* 左サブタブ rail（ワークプール / ドメイン / ブランド）。1 軸しか無ければ非表示。 */}
@@ -1908,6 +1990,9 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
           </div>
         </div>
       )}
+
+      {/* §3.3 層3: コンテキストセクション（Work 文脈の開示。既定折りたたみ / 検索対象外）。 */}
+      {renderContextSection()}
 
       {/* 素材棚: 選択中の左サブタブ（ワークプール / ドメイン / ブランド）の素材を表示。
           余白からのドラッグで範囲選択（marquee）できる（カード上では D&D を尊重）。 */}
