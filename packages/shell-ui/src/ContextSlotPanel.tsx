@@ -556,6 +556,38 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
     };
   }, [lib]);
 
+  // §3.3 層3: brand pool の事業正典（Brand→Domain 継承込み compile）を先頭数行で開示。
+  // normalizedRelatedSections から kind==='brand' の最初のエントリを使う。
+  // 失敗・空文字・brand なしは握って非表示（パネルを壊さない）。
+  const brandLibrary = useMemo(
+    () => normalizedRelatedSections.find((s) => s.kind === "brand")?.library ?? null,
+    [normalizedRelatedSections],
+  );
+  const [canonMarkdown, setCanonMarkdown] = useState<string>("");
+  useEffect(() => {
+    if (!brandLibrary) {
+      setCanonMarkdown("");
+      return;
+    }
+    let cancelled = false;
+    void invoke<string>("pool_compile_context_inherited", {
+      library: brandLibrary,
+      appId: null,
+      keywords: null,
+      inherit: true,
+    })
+      .then((text) => {
+        if (cancelled) return;
+        setCanonMarkdown(typeof text === "string" ? text.trim() : "");
+      })
+      .catch(() => {
+        if (!cancelled) setCanonMarkdown("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [brandLibrary]);
+
   useEffect(() => {
     if (roleFilter && !roleFilterOptions.includes(roleFilter)) {
       setRoleFilter(null);
@@ -1583,7 +1615,8 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
     const title = "コンテキスト";
     const ctx = workCtx.context;
     const hasInstructions = instructionTitles.length > 0;
-    const hasAny = !!(ctx?.purpose || ctx?.tone || ctx?.strategy?.memo) || hasInstructions;
+    const hasCanon = canonMarkdown.length > 0;
+    const hasAny = !!(ctx?.purpose || ctx?.tone || ctx?.strategy?.memo) || hasInstructions || hasCanon;
     return (
       <section className="flex flex-col gap-1">
         <button
@@ -1654,6 +1687,16 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
                         </span>
                       ))}
                     </div>
+                  </div>
+                )}
+                {hasCanon && (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[9px] font-medium text-muted-foreground">
+                      事業正典（継承）
+                    </span>
+                    <span className="overflow-hidden text-[10px] leading-snug text-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4]">
+                      {canonMarkdown}
+                    </span>
                   </div>
                 )}
               </>
