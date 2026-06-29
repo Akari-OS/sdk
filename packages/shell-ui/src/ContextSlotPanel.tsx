@@ -169,6 +169,8 @@ const WORKPOOL_LEGACY_SYNC_LIMIT = 80;
 const RELATED_POOL_LOAD_LIMIT = 60;
 const WORKPOOL_RENDER_BATCH = 36;
 const RELATED_POOL_RENDER_BATCH = 24;
+/** §3.3 層1: media として前面に出す item_type 一覧。それ以外は層2（参照データ）扱い。 */
+const MEDIA_TYPES = new Set(["video", "image", "audio"]);
 const MATERIAL_CARD_DEFER_STYLE: CSSProperties = {
   // 各カードを layout 的に独立させ、サムネ遅延ロード時に兄弟カードへ reflow が
   // 伝播しないようにするだけの軽い contain。
@@ -454,7 +456,8 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
   const [viewMode, setViewMode] = useState<MaterialViewMode>("grid");
   /** 左サブタブの選択（ワークプール / ドメイン / ブランド）。 */
   const [materialScope, setMaterialScope] = useState<MaterialScope>("workpool");
-  const [collapsedSectionIds, setCollapsedSectionIds] = useState<Set<string>>(() => new Set());
+  // 'data' セクション（参照データ）は既定で折りたたむ（§3.3 層2 プログレッシブ・ディスクロージャ）。
+  const [collapsedSectionIds, setCollapsedSectionIds] = useState<Set<string>>(() => new Set(["data"]));
   /** 素材名のフリーワード検索クエリ。 */
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
@@ -1175,9 +1178,21 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
     [roleFilter, sortMode, statusFilter, typeFilter, searchQuery],
   );
 
+  // 検索・フィルタを先に全 entries に適用してから media / data に分割する。
+  // これにより検索は §3.3 設計原則 2 どおり両セクションを横断して効く。
   const visibleWorkEntries = useMemo(
     () => filterAndSortEntries(entries),
     [entries, filterAndSortEntries],
+  );
+  /** §3.3 層1: 画像 / 動画 / 音声。前面・大きく表示（既定展開）。 */
+  const mediaWorkEntries = useMemo(
+    () => visibleWorkEntries.filter((e) => MEDIA_TYPES.has((e.itemType ?? "").toLowerCase())),
+    [visibleWorkEntries],
+  );
+  /** §3.3 層2: PDF / ドキュメント / テキスト / URL 等、item_type 未設定も含む。既定折りたたみ。 */
+  const dataWorkEntries = useMemo(
+    () => visibleWorkEntries.filter((e) => !MEDIA_TYPES.has((e.itemType ?? "").toLowerCase())),
+    [visibleWorkEntries],
   );
   const visibleRelatedSections = useMemo(
     () =>
@@ -1926,12 +1941,43 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
                 ))}
               </div>
             )}
-            {renderMaterialSection({
-              sectionId: "workpool",
-              title: "ワークプール",
-              entries: visibleWorkEntries,
-              totalCount: entries.length,
+            {/* §3.3 層1: 素材（画像/動画/音声）— 既定展開 */}
+            {mediaWorkEntries.length > 0 && renderMaterialSection({
+              sectionId: "media",
+              title: "素材",
+              entries: mediaWorkEntries,
+              totalCount: entries.filter(
+                (e) => MEDIA_TYPES.has((e.itemType ?? "").toLowerCase()),
+              ).length,
             })}
+            {/* §3.3 層2: 参照データ（PDF/ドキュメント/テキスト/URL 等）— 既定折りたたみ */}
+            {dataWorkEntries.length > 0 && (
+              <div className={mediaWorkEntries.length > 0 ? "border-t border-border/70 pt-2" : ""}>
+                {renderMaterialSection({
+                  sectionId: "data",
+                  title: "参照データ",
+                  entries: dataWorkEntries,
+                  totalCount: entries.filter(
+                    (e) => !MEDIA_TYPES.has((e.itemType ?? "").toLowerCase()),
+                  ).length,
+                })}
+              </div>
+            )}
+            {/* 両セクションとも空の場合は D&D ヒントを表示する。 */}
+            {mediaWorkEntries.length === 0 && dataWorkEntries.length === 0 && (
+              <div
+                className={`min-h-[80px] rounded border border-dashed border-border p-1 transition ${
+                  dropActive ? "border-primary/60 bg-primary/5" : ""
+                }`}
+                onDragOver={handleShelfDragOver}
+                onDragLeave={handleShelfDragLeave}
+                onDrop={(e) => handleDrop(addRole, e)}
+              >
+                <div className="text-center py-5 text-[9px] text-muted-foreground/70">
+                  {`ここに素材を D&D${hasRoleFilter ? `（${addRoleLabel} に分類）` : ""}`}
+                </div>
+              </div>
+            )}
             {workStateEntries.length > 0 && (
               <div className="border-t border-border/70 pt-2">{renderWorkStateSection()}</div>
             )}
