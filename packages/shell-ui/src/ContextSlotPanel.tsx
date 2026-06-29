@@ -55,6 +55,7 @@ import {
   Package,
   Globe,
   Tag,
+  type LucideIcon,
 } from "lucide-react";
 import { SLOT_ROLE_LABELS, ALL_SLOT_ROLES, type SlotRole } from "@akari-os/sdk/slot";
 import {
@@ -256,8 +257,8 @@ type MaterialStatusFilter = "all" | "analyzed" | "unanalyzed";
 type MaterialSortMode = "added-desc" | "added-asc" | "name-asc" | "analysis";
 type MaterialViewMode = "grid" | "compact" | "list";
 type AnalyzeMode = "api" | "local" | "markitdown";
-/** 左サブタブの分類軸。ワークプール（この Work）/ ドメイン / ブランド。 */
-type MaterialScope = "workpool" | "domain" | "brand";
+/** 左サブタブの分類軸。ワークプール / ドメイン / ブランド + アプリ注入の extraScopeTabs id。 */
+type MaterialScope = "workpool" | "domain" | "brand" | (string & {});
 
 /** 表示切替（カード / コンパクト / リスト）の定義。1 ボタン → ポップオーバーで切替する。 */
 const VIEW_MODES: {
@@ -274,6 +275,14 @@ interface EntryContextMenuState {
   x: number;
   y: number;
   entry: DisplayEntry;
+}
+
+/** 範囲選択（marquee / ラバーバンド）の矩形。client 座標で保持する。 */
+interface MarqueeRect {
+  startX: number;
+  startY: number;
+  curX: number;
+  curY: number;
 }
 
 export interface RelatedPoolSection {
@@ -346,6 +355,17 @@ export interface ContextSlotPanelProps {
   /** 素材が属する Pool 名。未指定なら current Pool に fallback（pool-impl 側） */
   library?: string | null;
   /**
+   * アプリが注入する追加の scope サブタブ（左レール）。既存の
+   * ワークプール/ドメイン/ブランドの後ろに並ぶ。選択時は render() を全面描画する
+   * （例: video が「全素材」= 全 Work 横断の素材再利用パネルを差し込む）。
+   */
+  extraScopeTabs?: ReadonlyArray<{
+    id: string;
+    label: string;
+    icon: LucideIcon;
+    render: () => ReactNode;
+  }>;
+  /**
    * 「＋追加 → Pool から」で表示する Pool ピッカーをアプリ（video 等）が注入する。
    * ここでは単一素材選択のモーダル内コンテンツとして描画する。
    * 未指定なら「Pool から」選択肢は出さない。
@@ -374,6 +394,14 @@ export interface ContextSlotPanelProps {
    */
   onRequestEntryAnalyze?: (assetId: string, library?: string | null) => void;
   /**
+   * 複数素材の一括分析リクエスト（範囲選択 / ⌘+クリックで複数選択した素材）。
+   * 指定された場合、選択バー・右クリックメニューから「N件を分析」を一度の dispatch で委譲する。
+   * 未指定なら onRequestEntryAnalyze を 1 件ずつ fallback 呼び出しする。
+   */
+  onRequestEntriesAnalyze?: (
+    targets: ReadonlyArray<{ assetId: string; library?: string | null; itemType?: string | null }>,
+  ) => void;
+  /**
    * 「＋追加 → ローカルから」クリック時のハンドラ。
    * 呼び出し後に自動で reload する。未指定なら「ローカルから」選択肢は出さない。
    */
@@ -398,11 +426,13 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
   variantId,
   library,
   renderPoolPicker,
+  extraScopeTabs,
   onEntryPointerDown,
   onEntryClick,
   onEntryDoubleClick,
   enableEntryHtmlDrag,
   onRequestEntryAnalyze,
+  onRequestEntriesAnalyze,
   onAddFromLocal,
   visibleRoles,
   relatedPoolSections,
@@ -435,6 +465,12 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
   // selectedEntryKey と連動し、ここを {key} にリセットする。
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
   const [entryContextMenu, setEntryContextMenu] = useState<EntryContextMenuState | null>(null);
+  // 範囲選択（marquee）: 表示用矩形 + 起点 / 開始時の選択（additive 用）/ 移動フラグ。
+  const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
+  const marqueeContainerRef = useRef<HTMLDivElement | null>(null);
+  const marqueeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const marqueeBaseRef = useRef<Set<string>>(new Set());
+  const marqueeMovedRef = useRef(false);
   const [analysisDialogEntry, setAnalysisDialogEntry] = useState<DisplayEntry | null>(null);
   /** ソース選択パネルの開閉（true = 展開中） */
   const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
@@ -885,6 +921,107 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
     }
   }, [bound, entries, lib, reload, selectedKeys]);
 
+  /** 指定キー集合（既定: 現在の複数選択）の素材をまとめて分析リクエストする。 */
+  const analyzeEntriesByKeys = useCallback(
+    (keys: Set<string>) => {
+      const targets = entries.filter(
+        (e) => e.assetId && keys.has(entryKey(e, lib)),
+      );
+      if (targets.length === 0) return;
+      if (onRequestEntriesAnalyze) {
+        onRequestEntriesAnalyze(
+          targets.map((e) => ({
+            assetId: e.assetId!,
+            library: entryLibrary(e, lib),
+            itemType: e.itemType,
+          })),
+        );
+      } else if (onRequestEntryAnalyze) {
+        // 一括委譲先がなければ 1 件ずつ fallback
+        for (const e of targets) onRequestEntryAnalyze(e.assetId!, entryLibrary(e, lib));
+      } else {
+        // 親に委譲が無ければ内蔵ダイアログで先頭のみ
+        setAnalysisDialogEntry(targets[0]);
+      }
+    },
+    [entries, lib, onRequestEntriesAnalyze, onRequestEntryAnalyze],
+  );
+
+  const analyzeSelectedEntries = useCallback(() => {
+    analyzeEntriesByKeys(selectedKeys);
+  }, [analyzeEntriesByKeys, selectedKeys]);
+
+  // ─ 範囲選択（marquee / ラバーバンド）─────────────────────────────────
+  // 余白からのドラッグで矩形を描き、交差したカードを選択する（Finder 風）。
+  // カードは pointerdown を D&D 起点に使うため、marquee は「カード以外の余白」でのみ開始する。
+  const handleMarqueePointerDown = useCallback(
+    (e: PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      const target = e.target as HTMLElement;
+      if (
+        target.closest(
+          "button, a, input, select, textarea, [role='button'], [data-entry-key], [data-no-marquee]",
+        )
+      ) {
+        return;
+      }
+      const container = marqueeContainerRef.current;
+      if (!container) return;
+      marqueeStartRef.current = { x: e.clientX, y: e.clientY };
+      marqueeBaseRef.current =
+        e.shiftKey || e.metaKey || e.ctrlKey ? new Set(selectedKeys) : new Set();
+      marqueeMovedRef.current = false;
+      try {
+        container.setPointerCapture(e.pointerId);
+      } catch {
+        // capture 失敗は無視（move/up は通常どおり発火する）
+      }
+      setMarquee({ startX: e.clientX, startY: e.clientY, curX: e.clientX, curY: e.clientY });
+    },
+    [selectedKeys],
+  );
+
+  const handleMarqueePointerMove = useCallback((e: PointerEvent<HTMLDivElement>) => {
+    const start = marqueeStartRef.current;
+    const container = marqueeContainerRef.current;
+    if (!start || !container) return;
+    const curX = e.clientX;
+    const curY = e.clientY;
+    if (Math.abs(curX - start.x) > 3 || Math.abs(curY - start.y) > 3) {
+      marqueeMovedRef.current = true;
+    }
+    setMarquee({ startX: start.x, startY: start.y, curX, curY });
+    const x1 = Math.min(start.x, curX);
+    const x2 = Math.max(start.x, curX);
+    const y1 = Math.min(start.y, curY);
+    const y2 = Math.max(start.y, curY);
+    const hit = new Set(marqueeBaseRef.current);
+    container.querySelectorAll<HTMLElement>("[data-entry-key]").forEach((el) => {
+      const key = el.dataset.entryKey;
+      if (!key) return;
+      const r = el.getBoundingClientRect();
+      if (r.left < x2 && r.right > x1 && r.top < y2 && r.bottom > y1) hit.add(key);
+    });
+    setSelectedKeys(hit);
+  }, []);
+
+  const endMarquee = useCallback((e: PointerEvent<HTMLDivElement>) => {
+    if (!marqueeStartRef.current) return;
+    try {
+      marqueeContainerRef.current?.releasePointerCapture(e.pointerId);
+    } catch {
+      // noop
+    }
+    const moved = marqueeMovedRef.current;
+    marqueeStartRef.current = null;
+    setMarquee(null);
+    // ドラッグせず余白をクリックしただけなら選択解除（Finder 風）。
+    if (!moved) {
+      setSelectedKeys(new Set());
+      setSelectedEntryKey(null);
+    }
+  }, []);
+
   /** モックモード: 分析済みフラグをトグル（永続モードでは display-only） */
   const analyzeMock = useCallback((id: string) => {
     setEntries((prev) =>
@@ -1068,13 +1205,16 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
   // 表示するサブタブ。データが無い軸は出さない（= ワークプールのみなら rail 非表示）。
   const scopeTabs = useMemo(
     () => [
-      { id: "workpool" as const, label: "ワークプール", icon: Package },
-      ...(hasDomain ? [{ id: "domain" as const, label: "ドメイン", icon: Globe }] : []),
-      ...(hasBrand ? [{ id: "brand" as const, label: "ブランド", icon: Tag }] : []),
+      { id: "workpool" as string, label: "ワークプール", icon: Package as LucideIcon },
+      ...(hasDomain ? [{ id: "domain", label: "ドメイン", icon: Globe as LucideIcon }] : []),
+      ...(hasBrand ? [{ id: "brand", label: "ブランド", icon: Tag as LucideIcon }] : []),
+      ...(extraScopeTabs ?? []).map((t) => ({ id: t.id, label: t.label, icon: t.icon })),
     ],
-    [hasDomain, hasBrand],
+    [hasDomain, hasBrand, extraScopeTabs],
   );
   const showScopeRail = scopeTabs.length > 1;
+  // extraScopeTabs（例: 全素材）が選択中なら、その render() を素材棚の代わりに描画する。
+  const activeExtraTab = extraScopeTabs?.find((t) => t.id === materialScope) ?? null;
 
   // 選択中のタブのデータが無くなったらワークプールへ戻す。
   useEffect(() => {
@@ -1214,20 +1354,14 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
                         : "flex flex-col gap-1"
                   }
                   style={
-                    // カードは固定幅（auto-fill）。`1fr` ストレッチを廃止し、パネル幅変更
-                    // （リサイズドラッグ）中にカード/画像が連続伸縮しないようにする。列が
-                    // 増減する瞬間だけ再配置されるので resize が滑らかになる。余った横幅は
-                    // justify-content: space-between で列間に均等配分。
+                    // カードは可変幅。auto-fill + minmax(基準, 1fr) で 1 行をすき間なく
+                    // 埋める。列が入り切らない余白は各カードをわずかに伸縮させて吸収するので、
+                    // 旧実装（固定幅 + justify-content: space-between）で出ていた列間の
+                    // 大きなすき間（特に中央）が出なくなる。すき間は gap のみ。
                     viewMode === "grid"
-                      ? {
-                          gridTemplateColumns: "repeat(auto-fill, 5rem)",
-                          justifyContent: "space-between",
-                        }
+                      ? { gridTemplateColumns: "repeat(auto-fill, minmax(5rem, 1fr))" }
                       : viewMode === "compact"
-                        ? {
-                            gridTemplateColumns: "repeat(auto-fill, 3.75rem)",
-                            justifyContent: "space-between",
-                          }
+                        ? { gridTemplateColumns: "repeat(auto-fill, minmax(3.75rem, 1fr))" }
                         : undefined
                   }
                 >
@@ -1236,6 +1370,7 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
                     const selectedKey = entryKey(entry, lib);
                     const commonProps = {
                       entry,
+                      dataKey: selectedKey,
                       thumbUrl:
                         !previewPlaying && entry.assetId
                           ? (getCachedThumb(sourceLibrary, entry.assetId) ?? null)
@@ -1724,9 +1859,12 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
         </div>
       ))}
 
-      {/* 複数選択 (⌘/Ctrl+クリック) 中の一括操作バー。 */}
+      {/* 複数選択（範囲選択 / ⌘/Ctrl+クリック）中の一括操作バー。 */}
       {selectedKeys.size >= 2 && (
-        <div className="flex items-center justify-between gap-2 rounded border border-primary/40 bg-primary/5 px-2 py-1 text-[10px]">
+        <div
+          data-no-marquee
+          className="flex items-center justify-between gap-2 rounded border border-primary/40 bg-primary/5 px-2 py-1 text-[10px]"
+        >
           <span className="font-medium text-primary">{selectedKeys.size}件選択中</span>
           <div className="flex items-center gap-1">
             <button
@@ -1735,6 +1873,14 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
               onClick={() => setSelectedKeys(new Set())}
             >
               選択解除
+            </button>
+            <button
+              type="button"
+              className="flex items-center gap-1 rounded bg-primary px-1.5 py-0.5 font-medium text-primary-foreground transition hover:bg-primary/90"
+              onClick={analyzeSelectedEntries}
+            >
+              <Sparkles className="h-3 w-3" />
+              分析
             </button>
             <button
               type="button"
@@ -1748,17 +1894,25 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
         </div>
       )}
 
-      {/* 素材棚: 選択中の左サブタブ（ワークプール / ドメイン / ブランド）の素材を表示。 */}
-      <div className="flex flex-col gap-2">
+      {/* 素材棚: 選択中の左サブタブ（ワークプール / ドメイン / ブランド）の素材を表示。
+          余白からのドラッグで範囲選択（marquee）できる（カード上では D&D を尊重）。 */}
+      {activeExtraTab ? (
+        <div className="relative flex min-h-0 flex-1 flex-col">{activeExtraTab.render()}</div>
+      ) : (
+      <div
+        ref={marqueeContainerRef}
+        className="relative flex min-h-0 flex-1 flex-col gap-2"
+        onPointerDown={handleMarqueePointerDown}
+        onPointerMove={handleMarqueePointerMove}
+        onPointerUp={endMarquee}
+        onPointerCancel={endMarquee}
+      >
         {materialScope === "workpool" && (
           <>
             {pendingItems.length > 0 && (
               <div
                 className="grid gap-1"
-                style={{
-                  gridTemplateColumns: "repeat(auto-fill, 5rem)",
-                  justifyContent: "space-between",
-                }}
+                style={{ gridTemplateColumns: "repeat(auto-fill, minmax(5rem, 1fr))" }}
               >
                 {pendingItems.map((p) => (
                   <div
@@ -1817,24 +1971,53 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
               })}
             </div>
           ))}
-      </div>
 
-      {entryContextMenu && (
-        <MaterialContextMenu
-          state={entryContextMenu}
-          analyzing={analyzingIds.has(entryContextMenu.entry.id)}
-          onAnalyze={() => {
-            requestAnalyze(entryContextMenu.entry);
-            setEntryContextMenu(null);
-          }}
-          onRemove={() => {
-            void removeEntry(entryContextMenu.entry);
-            setEntryContextMenu(null);
-          }}
-          removable={!entryContextMenu.entry.readonly}
-          onClose={() => setEntryContextMenu(null)}
-        />
+        {/* 範囲選択中の矩形（client 座標 → コンテナ相対へ変換）。 */}
+        {marquee &&
+          marqueeContainerRef.current &&
+          (() => {
+            const rect = marqueeContainerRef.current.getBoundingClientRect();
+            const left = Math.min(marquee.startX, marquee.curX) - rect.left;
+            const top = Math.min(marquee.startY, marquee.curY) - rect.top;
+            const width = Math.abs(marquee.curX - marquee.startX);
+            const height = Math.abs(marquee.curY - marquee.startY);
+            return (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute z-20 rounded-sm border border-primary/70 bg-primary/15"
+                style={{ left, top, width, height }}
+              />
+            );
+          })()}
+      </div>
       )}
+
+      {entryContextMenu && (() => {
+        // 右クリックした素材が複数選択に含まれていれば、その選択全体を対象にする。
+        const inSelection =
+          selectedKeys.size >= 2 &&
+          selectedKeys.has(entryKey(entryContextMenu.entry, lib));
+        const analyzeCount = inSelection ? selectedKeys.size : 1;
+        return (
+          <MaterialContextMenu
+            state={entryContextMenu}
+            analyzing={analyzingIds.has(entryContextMenu.entry.id)}
+            analyzeCount={analyzeCount}
+            onAnalyze={() => {
+              if (inSelection) analyzeEntriesByKeys(selectedKeys);
+              else requestAnalyze(entryContextMenu.entry);
+              setEntryContextMenu(null);
+            }}
+            onRemove={() => {
+              if (inSelection) void removeSelectedEntries();
+              else void removeEntry(entryContextMenu.entry);
+              setEntryContextMenu(null);
+            }}
+            removable={!entryContextMenu.entry.readonly}
+            onClose={() => setEntryContextMenu(null)}
+          />
+        );
+      })()}
 
       {analysisDialogEntry && (
         <AnalysisConfirmDialog
@@ -2025,6 +2208,7 @@ function FilterChip({
 
 const MaterialCard = memo(function MaterialCard({
   entry,
+  dataKey,
   thumbUrl,
   thumbGenerating,
   isAnalyzing,
@@ -2038,6 +2222,7 @@ const MaterialCard = memo(function MaterialCard({
   onMount,
 }: {
   entry: DisplayEntry;
+  dataKey?: string;
   thumbUrl: string | null;
   thumbGenerating: boolean;
   isAnalyzing: boolean;
@@ -2062,6 +2247,7 @@ const MaterialCard = memo(function MaterialCard({
     <button
       ref={mountRef}
       type="button"
+      data-entry-key={dataKey}
       className={`group relative min-w-0 overflow-hidden rounded border bg-background text-left transition hover:border-primary/50 hover:bg-muted/30 ${
         selected ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border"
       } ${
@@ -2136,6 +2322,7 @@ const MaterialCard = memo(function MaterialCard({
 
 const MaterialListRow = memo(function MaterialListRow({
   entry,
+  dataKey,
   thumbUrl,
   thumbGenerating,
   isAnalyzing,
@@ -2149,6 +2336,7 @@ const MaterialListRow = memo(function MaterialListRow({
   onMount,
 }: {
   entry: DisplayEntry;
+  dataKey?: string;
   thumbUrl: string | null;
   thumbGenerating: boolean;
   isAnalyzing: boolean;
@@ -2173,6 +2361,7 @@ const MaterialListRow = memo(function MaterialListRow({
     <button
       ref={mountRef}
       type="button"
+      data-entry-key={dataKey}
       className={`group flex min-w-0 items-center gap-2 rounded border bg-background px-1.5 py-1 text-left transition hover:border-primary/50 hover:bg-muted/30 ${
         selected ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border"
       } ${
@@ -2244,6 +2433,7 @@ const MaterialListRow = memo(function MaterialListRow({
 
 const MaterialCompactIcon = memo(function MaterialCompactIcon({
   entry,
+  dataKey,
   thumbUrl,
   thumbGenerating,
   isAnalyzing,
@@ -2257,6 +2447,7 @@ const MaterialCompactIcon = memo(function MaterialCompactIcon({
   onMount,
 }: {
   entry: DisplayEntry;
+  dataKey?: string;
   thumbUrl: string | null;
   thumbGenerating: boolean;
   isAnalyzing: boolean;
@@ -2281,6 +2472,7 @@ const MaterialCompactIcon = memo(function MaterialCompactIcon({
     <button
       ref={mountRef}
       type="button"
+      data-entry-key={dataKey}
       className={`group flex w-full max-w-[4.5rem] min-w-0 flex-col items-center gap-0.5 rounded px-0.5 py-1 text-center transition hover:bg-muted/40 ${
         selected ? "bg-primary/10 ring-1 ring-primary/30" : ""
       } ${
@@ -2371,6 +2563,7 @@ function areMaterialEntryPropsEqual(
 function MaterialContextMenu({
   state,
   analyzing,
+  analyzeCount,
   onAnalyze,
   onRemove,
   removable,
@@ -2378,11 +2571,19 @@ function MaterialContextMenu({
 }: {
   state: EntryContextMenuState;
   analyzing: boolean;
+  /** 分析・削除の対象件数（複数選択中はその件数。単体なら 1）。 */
+  analyzeCount: number;
   onAnalyze: () => void;
   onRemove: () => void;
   removable: boolean;
   onClose: () => void;
 }) {
+  const multi = analyzeCount >= 2;
+  const analyzeLabel = multi
+    ? `${analyzeCount}件を分析`
+    : state.entry.analyzed
+      ? "再分析"
+      : "分析";
   return (
     <div
       className="fixed z-[300] min-w-[150px] rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-xl"
@@ -2397,7 +2598,7 @@ function MaterialContextMenu({
         disabled={analyzing}
       >
         <Sparkles className="h-3 w-3" />
-        {state.entry.analyzed ? "再分析" : "分析"}
+        {analyzeLabel}
       </button>
       {removable && (
         <button
@@ -2406,7 +2607,7 @@ function MaterialContextMenu({
           onClick={onRemove}
         >
           <Trash2 className="h-3 w-3" />
-          削除
+          {multi ? `${analyzeCount}件を削除` : "削除"}
         </button>
       )}
       <button
