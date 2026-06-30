@@ -2250,19 +2250,17 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
                 (e) => MEDIA_TYPES.has((e.itemType ?? "").toLowerCase()),
               ).length,
             })}
-            {/* §3.3 層2: 参照データ（PDF/ドキュメント/テキスト/URL 等）— 既定折りたたみ */}
-            {dataWorkEntries.length > 0 && (
-              <div className={mediaWorkEntries.length > 0 ? "border-t border-border/70 pt-2" : ""}>
-                {renderMaterialSection({
-                  sectionId: "data",
-                  title: "参照データ",
-                  entries: dataWorkEntries,
-                  totalCount: entries.filter(
-                    (e) => !MEDIA_TYPES.has((e.itemType ?? "").toLowerCase()),
-                  ).length,
-                })}
-              </div>
-            )}
+            {/* §3.3 層2: 参照データ（PDF/ドキュメント/テキスト/URL 等）— 既定折りたたみ・空でも常時表示 */}
+            <div className={mediaWorkEntries.length > 0 ? "border-t border-border/70 pt-2" : ""}>
+              {renderMaterialSection({
+                sectionId: "data",
+                title: `参照データ (${dataWorkEntries.length})`,
+                entries: dataWorkEntries,
+                totalCount: entries.filter(
+                  (e) => !MEDIA_TYPES.has((e.itemType ?? "").toLowerCase()),
+                ).length,
+              })}
+            </div>
             {/* 両セクションとも空の場合は D&D ヒントを表示する。 */}
             {mediaWorkEntries.length === 0 && dataWorkEntries.length === 0 && (
               <div
