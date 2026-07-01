@@ -18,7 +18,7 @@ import {
   type EntryPointerMeta,
   type RelatedPoolSection,
 } from "./ContextSlotPanel";
-import { OperationsPanel } from "./OperationsPanel";
+import { OperationsPanel, type OperationDef } from "./OperationsPanel";
 import { WorkflowPanel } from "./WorkflowPanel";
 import type { SlotRole } from "@akari-os/sdk/slot";
 
@@ -37,6 +37,12 @@ export interface WorkPanelProps {
   library?: string | null;
   /** OperationsPanel の「実行」クリック → アプリ側のアクションハンドラ */
   onRunOperation?: (id: string) => void;
+  /**
+   * OperationsPanel へ渡す操作定義一覧（未指定時は DEFAULT_OPERATIONS）。
+   * ADR-140 D-2 のレジストリ駆動化に向け、アプリ側で ACD ツール定義から
+   * 生成した OperationDef[] を渡せるようにする pass-through。
+   */
+  operations?: OperationDef[];
   /** 制作素材の「Pool から」インライン Pool ピッカー（ContextSlotPanel へ pass-through） */
   renderPoolPicker?: (args: { onClose: () => void; defaultRole: SlotRole }) => ReactNode;
   /** 追加 scope サブタブ（ContextSlotPanel へ pass-through。例: 全素材） */
@@ -82,6 +88,7 @@ export const WorkPanel = memo(function WorkPanel({
   variantId,
   library,
   onRunOperation,
+  operations,
   renderPoolPicker,
   extraScopeTabs,
   onEntryPointerDown,
@@ -147,6 +154,7 @@ export const WorkPanel = memo(function WorkPanel({
           <OperationsPanel
             workId={workId}
             variantId={variantId}
+            operations={operations}
             onRunOperation={onRunOperation}
           />
         )}

@@ -6,6 +6,10 @@
  * Raw bytes and object references must never be included in a handoff payload.
  * Every handoff is automatically recorded in AMP for full traceability.
  *
+ * @deprecated ADR-140 D-5 により凍結（deferred）。アプリ間連携の正典は Pool 素材バス
+ * （registerMaterial/registerRender）+ engine 直輸入 + ACD の 3 バス。本 API は shell
+ * 未配線・全リポ未使用。再開する場合は ADR-140 の改訂を経ること。型定義は削除せず残す。
+ *
  * @see https://github.com/Akari-OS/sdk/blob/main/docs/api-reference/inter-app-api.md
  */
 
@@ -77,6 +81,10 @@ export interface HandoffHints {
  * - `"append-to-sheet"` — Research / Analytics → Documents (Sheets / Excel)
  * - `"asset-ready"` — Asset Generation → Pool Browser / Writer
  * - `"translation-ready"` — Translation → Writer
+ *
+ * @deprecated ADR-140 D-5 により凍結（deferred）。アプリ間連携の正典は Pool 素材バス
+ * （registerMaterial/registerRender）+ engine 直輸入 + ACD の 3 バス。本 API は shell
+ * 未配線・全リポ未使用。再開する場合は ADR-140 の改訂を経ること。
  */
 export interface HandoffPayload {
   /**
@@ -172,6 +180,10 @@ export type HandoffHandler = (
 /**
  * The `app` object exported from `@akari-os/sdk`.
  * Provides the Inter-App handoff API.
+ *
+ * @deprecated ADR-140 D-5 により凍結（deferred）。アプリ間連携の正典は Pool 素材バス
+ * （registerMaterial/registerRender）+ engine 直輸入 + ACD の 3 バス。本 API は shell
+ * 未配線・全リポ未使用。再開する場合は ADR-140 の改訂を経ること。
  */
 export interface AppAPI {
   /**
@@ -186,6 +198,10 @@ export interface AppAPI {
    * All handoffs are automatically recorded in AMP.
    * For external-network actions, call `permission.gate()` with `hitl: true`
    * **before** calling `handoff()`.
+   *
+   * @deprecated ADR-140 D-5 により凍結（deferred）。アプリ間連携の正典は Pool 素材バス
+   * （registerMaterial/registerRender）+ engine 直輸入 + ACD の 3 バス。本 API は shell
+   * 未配線・全リポ未使用。再開する場合は ADR-140 の改訂を経ること。
    */
   handoff(targetId: string, payload: HandoffPayload): Promise<HandoffResult>
 
@@ -193,6 +209,10 @@ export interface AppAPI {
    * Register a handler for incoming handoffs.
    * Only one handler per app is supported; calling this a second time
    * replaces the previous handler.
+   *
+   * @deprecated ADR-140 D-5 により凍結（deferred）。アプリ間連携の正典は Pool 素材バス
+   * （registerMaterial/registerRender）+ engine 直輸入 + ACD の 3 バス。本 API は shell
+   * 未配線・全リポ未使用。再開する場合は ADR-140 の改訂を経ること。
    */
   onHandoff(handler: HandoffHandler): void
 }

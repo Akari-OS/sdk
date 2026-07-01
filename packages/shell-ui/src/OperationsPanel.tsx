@@ -37,12 +37,33 @@ import {
 // 公開型定義
 // ---------------------------------------------------------------------------
 
-/** 操作定義（外部から渡す際の型。operations prop で使用） */
+/**
+ * 操作定義（外部から渡す際の型。operations prop で使用）。
+ *
+ * ADR-140 D-2「操作 = MCP ツール + UI メタデータ」に向けた拡張フィールドを追加。
+ * すべて optional のため、既存の呼び出し元（DEFAULT_OPERATIONS 等）は変更不要。
+ */
 export interface OperationDef {
   id: string;
   label: string;
   category: string;
   description?: string;
+  /**
+   * 対応する MCP ツール名（ACD `contract.ts` の TOOL 定数に対応）。
+   * レジストリ駆動化（P1）で ACD 側と紐付けるための識別子。
+   */
+  toolName?: string;
+  /**
+   * 実装済みかどうか。`false` の操作は一覧に描画しない
+   * （「偽の実行をしない」方針の維持。ADR-140 D-2）。
+   * undefined の場合は従来どおり表示する。
+   */
+  available?: boolean;
+  /**
+   * 操作の種別。`"tool"` = MCP ハンドラ経由（ACD 実行）、
+   * `"ui"` = ダイアログ起動等の UI 専用操作。省略時は `"tool"` 扱い。
+   */
+  kind?: "tool" | "ui";
 }
 
 // ---------------------------------------------------------------------------
@@ -142,10 +163,14 @@ export function OperationsPanel(props: {
   /** ピン済み操作 ID セット（よく使う → 最上部に浮上） */
   const [pinned, setPinned] = useState<Set<string>>(new Set());
 
-  /** 使用するエントリ一覧（prop 指定があればそちら、なければデフォルト） */
+  /**
+   * 使用するエントリ一覧（prop 指定があればそちら、なければデフォルト）。
+   * `available === false` の操作は「偽の実行をしない」方針により非表示にする
+   * （ADR-140 D-2）。undefined は従来どおり表示する。
+   */
   const allEntries = useMemo<OperationEntry[]>(() => {
     const source = operations ?? DEFAULT_OPERATIONS;
-    return source.map(toEntry);
+    return source.filter((op) => op.available !== false).map(toEntry);
   }, [operations]);
 
   // ピントグル
