@@ -7,10 +7,13 @@
     ".": "./src/index.ts",
     "./protocol": "./src/protocol.ts",
     "./connect": "./src/connect.ts",
-    "./sidecar": "./src/sidecar.ts"
+    "./sidecar": "./src/sidecar.ts",
+    "./bridge-auth": "./src/bridge-auth.ts",
+    "./tool-tier-gate": "./src/tool-tier-gate.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test dist-test/__tests__/*.test.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
