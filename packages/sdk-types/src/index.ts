@@ -288,6 +288,18 @@ export type {
 } from "./work-context.js"
 
 // ---------------------------------------------------------------------------
+// Plugin Manifest (akari-plugin.toml) — ADR-140 P4 MVP（宣言のみ・Layer 2）
+// ---------------------------------------------------------------------------
+export type {
+  PluginIdentity,
+  PluginOperationContribution,
+  PluginContributesSection,
+  PluginPermissionsSection,
+  PluginManifest,
+  PluginManifestInfo,
+} from "./plugin.js"
+
+// ---------------------------------------------------------------------------
 // Generated from upstream JSON Schemas (AMP v0.1 / M2C v0.2)
 // Do not edit manually. Regenerate with `pnpm codegen` at repo root.
 // Upstream SSOT: akari-amp/spec/v0.1/*.schema.json, akari-m2c/spec/v0.2/*.schema.json
