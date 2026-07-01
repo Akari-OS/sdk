@@ -41,6 +41,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test tests/*.test.ts",
     "prepublishOnly": "node ../../scripts/copy-compat-schema.mjs && pnpm run build"
   },
   "peerDependencies": {
@@ -57,6 +58,7 @@
   },
   "devDependencies": {
     "@tauri-apps/api": "^2",
+    "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "react": "^19.0.0",

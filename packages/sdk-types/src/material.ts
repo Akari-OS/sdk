@@ -12,6 +12,9 @@
  * ADR-124: PoolItemLicense / grant モデルを追加。contextJson.license に刻印。
  * ADR-123: registerRender を追加。書き出し物を使用先 Work Pool の generated として登録し
  *          ソースへ lineage リンクする。
+ * ADR-140 D-4 ③: 四点契約「素材登録」の遵守コストを下げるため、`resolveMaterialApi` /
+ *          `registerMaterialSafe` / `registerRenderSafe` を追加。各アプリが個別コピペしていた
+ *          `globalThis.__akari_sdk?.material` 解決ボイラープレートをこの 3 関数に集約する。
  *
  * 設計 SSOT: docs/design/creator-app-shell-standard-2026-06-03.md §7-4
  */
@@ -560,4 +563,134 @@ async function resolveSourceLicense(sourceItemId: string): Promise<PoolItemLicen
   }
   // 全候補で見つからなかった場合は user-owned にフォールバック
   return { kind: "user-owned" }
+}
+
+// ---------------------------------------------------------------------------
+// ADR-140 D-4 ③（素材登録契約）: Tier B 向け解決ヘルパー
+//
+// telop / svg / synth / diagram / stage 等の各アプリが `src/lib/material.ts` に個別
+// コピペしていた「globalThis.__akari_sdk?.material?.registerMaterial を型なしで拾う」
+// ボイラープレート（resolveRegisterMaterial パターン）を、型安全な 1 関数に集約する。
+// telop はさらに契約をローカル再実装していたが、本ヘルパーで置き換え可能。
+//
+// 前提: `@akari-os/sdk/material` は shell の externals shim
+// （`akari-shell/public/akari-externals/akari-sdk-material.js`）経由で
+// `globalThis.__akari_sdk.material`（本モジュール全体）に解決される（HUB-024 / RULES.md ルール14）。
+// 単体 dev 起動・テストなど shell 外実行では未解決 = null（Tauri backend が無いので実登録もしない）。
+// ---------------------------------------------------------------------------
+
+/** `globalThis.__akari_sdk.material` として shell が露出する API のうち登録系のみを型付けしたもの。 */
+export type MaterialApi = {
+  registerMaterial: typeof registerMaterial
+  registerRender: typeof registerRender
+}
+
+type AkariSdkMaterialGlobal = typeof globalThis & {
+  __akari_sdk?: {
+    material?: Partial<MaterialApi>
+  }
+}
+
+/**
+ * ADR-140 D-4 ③: `globalThis.__akari_sdk?.material` を型安全に解決する。
+ *
+ * shell 内で Full Tier app として mount されているときのみ非 null を返す。
+ * 単体 dev 起動（アプリ単独の `pnpm dev` / storybook / unit test 等）や shell 外実行では null。
+ *
+ * @example
+ * ```ts
+ * const api = resolveMaterialApi()
+ * if (api) {
+ *   const { itemId } = await api.registerMaterial(asset, opts)
+ * }
+ * ```
+ */
+export function resolveMaterialApi(): MaterialApi | null {
+  const g = globalThis as AkariSdkMaterialGlobal
+  const m = g.__akari_sdk?.material
+  if (m && typeof m.registerMaterial === "function" && typeof m.registerRender === "function") {
+    return { registerMaterial: m.registerMaterial, registerRender: m.registerRender }
+  }
+  return null
+}
+
+/**
+ * `registerMaterialSafe` / `registerRenderSafe` の戻り値。
+ * shell 外実行時・invoke 失敗時も例外を投げず、常にこの形で結果を返す
+ * （呼び出し側は `if (result.registered)` だけ見れば良い）。
+ */
+export type SafeRegistrationResult =
+  | { registered: true; itemId: string }
+  | { registered: false; itemId: null; reason: "unavailable" | "error"; error?: string }
+
+function describeRegistrationError(err: unknown, subject: string): string {
+  const detail = err instanceof Error ? err.message : String(err)
+  return `[AKARI SDK] ${subject}の登録に失敗しました（AKARI シェル内で実行されているか、Pool 接続が有効かをご確認ください）: ${detail}`
+}
+
+/**
+ * ADR-140 D-4 ③（素材登録契約）: {@link registerMaterial} の失敗しないラッパー。
+ *
+ * - shell 内で mount されている（{@link resolveMaterialApi} が非 null）ときのみ実際に登録する。
+ * - shell 外・単体 dev 起動時は no-op で `{ registered: false, reason: "unavailable" }` を返す。
+ * - invoke 失敗時も例外を投げず、丁寧な日本語エラーメッセージ付きで結果を返す。
+ *
+ * 各アプリの `resolveRegisterMaterial` ボイラープレート（akari-svg / akari-telop 等でコピペ
+ * 実装されていたもの）はこの 1 関数の呼び出しに置き換えられる。
+ *
+ * @example
+ * ```ts
+ * const result = await registerMaterialSafe(
+ *   { type: "svg", name, docFormat: SVG_DOC_FORMAT, doc: aspSvg },
+ *   { library, dedupKey },
+ * )
+ * if (result.registered) {
+ *   console.log("登録完了:", result.itemId)
+ * }
+ * ```
+ */
+export async function registerMaterialSafe(
+  m: MaterialAsset,
+  opts?: RegisterMaterialOptions,
+): Promise<SafeRegistrationResult> {
+  const api = resolveMaterialApi()
+  if (!api) {
+    return { registered: false, itemId: null, reason: "unavailable" }
+  }
+  try {
+    const { itemId } = await api.registerMaterial(m, opts)
+    return { registered: true, itemId }
+  } catch (err) {
+    return {
+      registered: false,
+      itemId: null,
+      reason: "error",
+      error: describeRegistrationError(err, "素材"),
+    }
+  }
+}
+
+/**
+ * ADR-140 D-4 ③（素材登録契約）: {@link registerRender} の失敗しないラッパー。
+ * 挙動は {@link registerMaterialSafe} と同様（shell 外 no-op / invoke 失敗を握りつぶさず日本語で返す）。
+ */
+export async function registerRenderSafe(
+  r: RenderedOutputAsset,
+  opts?: RegisterRenderOptions,
+): Promise<SafeRegistrationResult> {
+  const api = resolveMaterialApi()
+  if (!api) {
+    return { registered: false, itemId: null, reason: "unavailable" }
+  }
+  try {
+    const { itemId } = await api.registerRender(r, opts)
+    return { registered: true, itemId }
+  } catch (err) {
+    return {
+      registered: false,
+      itemId: null,
+      reason: "error",
+      error: describeRegistrationError(err, "書き出し物"),
+    }
+  }
 }
