@@ -54,10 +54,65 @@ export interface AppSection {
    * @example ">=0.1.0 <1.0"
    */
   sdk: string
+
+  /**
+   * Short display name used where horizontal space is constrained
+   * (e.g. ActivityBar タブ幅)。
+   * @example "Writer", "Video", "Sheets"
+   */
+  short_name?: string
+
+  /**
+   * lucide-react のアイコン名（ActivityBar 表示用）。
+   * Shell 側の whitelist（akari-shell/src/lib/app-icon.ts）への事前登録が必要。
+   * @example "PenLine", "Film", "BarChart3"
+   */
+  icon?: string
+
+  /**
+   * Marketplace カテゴリ。Core 11 固定値（ADR-013 / HUB-005）
+   * または `"x-<slug>"` 拡張パターン。
+   * @example "studio", "publishing", "x-education"
+   */
+  category?: string
+
+  /**
+   * Shell AppLayout のペイン構成プロファイル（Full Tier のみ）。
+   * - `"studio"` — 4 ペイン構成
+   * - `"compact"` — 2 分割構成
+   * `akari app create` のスキャフォールドが出力するフィールド（AKARI-HUB-088）。
+   * @default "studio"
+   */
+  profile?: "studio" | "compact"
+
+  /**
+   * ロケール別の表示名・説明（`[app.i18n]` サブテーブル）。
+   */
+  i18n?: AppI18nSection
 }
 
 /** App tier declaration. */
 export type AppTier = "full" | "mcp-declarative"
+
+/**
+ * `[app.i18n]` section of `akari.toml`.
+ * ロケール別の表示名・説明。実運用の akari.toml では既定ロケール（英語）の
+ * `description` もこのテーブル配下に置く慣習になっている
+ * （例: `akari-writer/akari.toml`, `akari-video/akari.toml` 等）。
+ */
+export interface AppI18nSection {
+  /** 日本語の表示名。 */
+  name_ja?: string
+
+  /** 日本語の短縮表示名。 */
+  short_name_ja?: string
+
+  /** 既定ロケールの説明文（Marketplace 掲載用）。 */
+  description?: string
+
+  /** 日本語の説明文。 */
+  description_ja?: string
+}
 
 // ---------------------------------------------------------------------------
 // Permissions section
