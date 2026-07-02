@@ -1,0 +1,15 @@
+# akari.toml — Permission Suite fixture: external-network が "*" でカバーされるケース
+
+[app]
+id      = "com.example.network-wildcard-ok"
+name    = "Network Wildcard OK"
+version = "0.1.0"
+tier    = "full"
+sdk     = ">=0.1.0 <1.0"
+
+[permissions]
+external-network = ["*"]
+
+[panels.main]
+title = "Network Wildcard OK"
+mount = "dist/index.js"

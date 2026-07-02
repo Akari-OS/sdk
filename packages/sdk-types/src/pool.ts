@@ -491,6 +491,113 @@ export async function slotPromoteEntry(
   })) as SlotEntry
 }
 
+// ===== Entity / Knowledge Graph API =====
+
+export interface Entity {
+  id: string
+  canonical_key: string
+  entity_type: string | null
+  display_name: string
+  aliases: string[]
+  created_at: string
+  updated_at: string
+}
+
+export interface EntityRelation {
+  id: string
+  subject_entity_id: string
+  predicate: string
+  object_entity_id: string
+  source_item_id: string | null
+  confidence: number | null
+  created_at: string
+}
+
+/** Pool 内の全エンティティ（更新が新しい順） */
+export async function listEntities(
+  library: string,
+  limit?: number,
+): Promise<Entity[]> {
+  return (await invoke("pool_entity_list", { library, limit: limit ?? null })) as Entity[]
+}
+
+/** Pool 内の全エンティティ関係（entity 層グラフのエッジ） */
+export async function listEntityRelations(
+  library: string,
+  limit?: number,
+): Promise<EntityRelation[]> {
+  return (await invoke("pool_entity_relations", { library, limit: limit ?? null })) as EntityRelation[]
+}
+
+/** canonical_key / display_name / alias の部分一致検索 */
+export async function searchEntities(
+  library: string,
+  query: string,
+): Promise<Entity[]> {
+  return (await invoke("pool_entity_search", { library, query })) as Entity[]
+}
+
+/** 近傍関係（by="item": item の言及エンティティ近傍 / by="entity": entity 近傍） */
+export async function entityGraph(
+  library: string,
+  by: "item" | "entity",
+  id: string,
+): Promise<EntityRelation[]> {
+  return (await invoke("pool_entity_graph", { library, by, id })) as EntityRelation[]
+}
+
+// ===== Item 更新 API =====
+
+export interface ItemUpdate {
+  /** 表示名 (空文字列は受け付けない、null/undefined はそのまま) */
+  name?: string
+  /** AI 要約 (空文字列で NULL クリア) */
+  ai_summary?: string
+  /** タグ配列 (空配列で NULL クリア) */
+  ai_tags?: string[]
+  /** Role (空文字列で NULL クリア) */
+  role?: string
+  /** Layer (空文字列で NULL クリア) */
+  layer?: string
+}
+
+/**
+ * アイテムのメタデータを部分更新する。
+ * undefined のフィールドは変更しない。空文字列 / 空配列は明示的にクリア。
+ * 更新後の最新 PoolItemFull を返す。
+ */
+export async function updateItem(
+  library: string,
+  id: string,
+  update: ItemUpdate,
+): Promise<PoolItemFull> {
+  return (await invoke("pool_update_item", { library, id, update })) as PoolItemFull
+}
+
+/**
+ * アイテムの context_json を完全置換で更新する。
+ */
+export async function updateItemContext(
+  library: string,
+  id: string,
+  contextJson: Record<string, unknown> | null,
+): Promise<PoolItemFull> {
+  return (await invoke("pool_update_item_context", { library, id, contextJson })) as PoolItemFull
+}
+
+export interface AssetDeleteCheck {
+  safe: boolean
+  blockers: string[]
+  warnings: string[]
+}
+
+export async function checkAssetDeletion(
+  library: string,
+  id: string,
+): Promise<AssetDeleteCheck> {
+  return (await invoke("pool_check_asset_deletion", { library, id })) as AssetDeleteCheck
+}
+
 // ===== WorkflowPanel 手順永続化 =====
 //
 // work_states テーブルの state_json に "workflow_steps" キーで保存。

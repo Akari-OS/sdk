@@ -8,12 +8,18 @@
  *   4. Naming lint — app id, agent ids (naming.ts / ADR-011)
  *   5. Category lint (category.ts / ADR-013)
  *   6. JSONLogic expression lint on panel.schema.json (expression.ts / ADR-012)
- *   7. Contract Test stub runner (contract-test.ts)
+ *   7. Contract Test runner (contract-test.ts) — Permission API is real, others still STUB
  *   8. Print colour-coded report + exit with appropriate code
  *
+ * Verdict（2026-06-12 クリーンルーム監査 PASS_WITH_STUBS 区別勧告への対応, P1-6）:
+ *   - PASS             — 全チェック PASS、かつ Contract Test に STUB が 1 つも残っていない
+ *   - PASS_WITH_STUBS  — エラーは無いが、Contract Test の一部スイートがまだ STUB
+ *                        （スタブのため動作保証なし）。--strict 指定時のみ FAIL 相当に格上げ
+ *   - FAIL             — 1 つ以上のエラー
+ *
  * Exit codes:
- *   0 — all checks passed (CI safe)
- *   1 — one or more errors found
+ *   0 — PASS または PASS_WITH_STUBS（--strict なし）
+ *   1 — FAIL、または PASS_WITH_STUBS で --strict 指定時
  *
  * Spec reference: AKARI-HUB-024 §6.8 Certification, §6.9 Toolchain
  */
@@ -70,6 +76,7 @@ const PASS = c.green("✓ PASS");
 const FAIL = c.red("✗ FAIL");
 const STUB = c.cyan("○ STUB");
 const SKIP = c.dim("– SKIP");
+const WARN = c.yellow("! WARN");
 
 function printSection(title: string, passed: boolean, stubbed = false): void {
   const marker = stubbed ? STUB : (passed ? PASS : FAIL);
@@ -93,7 +100,13 @@ function printWarnings(warnings: string[]): void {
 // Main certify runner
 // ---------------------------------------------------------------------------
 
-export async function runCertify(appDir: string): Promise<number> {
+export interface RunCertifyOptions {
+  /** PASS_WITH_STUBS を FAIL 相当（exit 1）として扱う */
+  strict?: boolean;
+}
+
+export async function runCertify(appDir: string, options: RunCertifyOptions = {}): Promise<number> {
+  const { strict = false } = options;
   const absDir = path.resolve(appDir);
   console.log(c.bold(`\nAKARI App Certify — ${absDir}`));
   console.log(c.dim("─".repeat(60)));
@@ -223,7 +236,12 @@ export async function runCertify(appDir: string): Promise<number> {
     }
 
     for (const tc of suite.cases) {
-      const tcMarker = tc.status === "SKIP" ? SKIP : tc.status === "STUB" ? STUB : tc.status === "FAIL" ? FAIL : PASS;
+      const tcMarker =
+        tc.status === "SKIP" ? SKIP :
+        tc.status === "STUB" ? STUB :
+        tc.status === "FAIL" ? FAIL :
+        tc.status === "WARN" ? WARN :
+        PASS;
       console.log(`    ${tcMarker} ${tc.name}`);
       if (tc.message) {
         console.log(c.dim(`       ${tc.message}`));
@@ -236,17 +254,34 @@ export async function runCertify(appDir: string): Promise<number> {
 
   // ── Final Report ────────────────────────────────────────────────────────
   console.log(`\n${c.dim("─".repeat(60))}`);
-  if (overallPassed) {
+
+  // Contract Test スイートが 1 つでも STUB のままなら PASS_WITH_STUBS（三値化, P1-6 §1）
+  const anyStub = contractResult.suites.some((suite) => suite.status === "STUB");
+  const verdict: "PASS" | "PASS_WITH_STUBS" | "FAIL" = !overallPassed
+    ? "FAIL"
+    : anyStub
+      ? "PASS_WITH_STUBS"
+      : "PASS";
+
+  if (verdict === "PASS") {
     console.log(c.green(c.bold("\n✓ Certification PASSED")));
-    console.log(c.dim("  Note: Contract tests are currently stubs (not yet executed)."));
+    console.log(c.dim("  All Contract Test suites ran with real assertions (no stubs remaining)."));
+  } else if (verdict === "PASS_WITH_STUBS") {
+    console.log(c.yellow(c.bold("\n✓ Certification PASSED_WITH_STUBS")));
+    console.log(c.yellow("  スタブのため動作保証なし — 一部の Contract Test スイートはまだ STUB（未実装）です。"));
     console.log(c.dim("  Manual Review may still be required for Marketplace submission."));
+    if (strict) {
+      console.log(c.red("  --strict 指定のため PASS_WITH_STUBS を FAIL として扱います。"));
+    }
   } else {
     console.log(c.red(c.bold("\n✗ Certification FAILED")));
     console.log(c.dim("  Fix the errors above and re-run: akari app certify"));
   }
   console.log();
 
-  return overallPassed ? 0 : 1;
+  if (verdict === "FAIL") return 1;
+  if (verdict === "PASS_WITH_STUBS") return strict ? 1 : 0;
+  return 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -266,8 +301,13 @@ export function registerCertifyCommand(appCmd: Command): void {
       "Run Automated Lint + Contract Tests for the app in the current directory (AKARI-HUB-024 §6.8)"
     )
     .option("-d, --dir <path>", "App root directory (default: current working directory)", ".")
-    .action(async (options: { dir: string }) => {
-      const exitCode = await runCertify(options.dir);
+    .option(
+      "--strict",
+      "PASS_WITH_STUBS（Contract Test に STUB が残っている）を FAIL 扱いにし、exit code 1 で終了する",
+      false
+    )
+    .action(async (options: { dir: string; strict: boolean }) => {
+      const exitCode = await runCertify(options.dir, { strict: options.strict });
       process.exit(exitCode);
     });
 }

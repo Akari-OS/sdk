@@ -192,6 +192,39 @@ export function useThumbGeneratingSubscription(): number {
   return tick;
 }
 
+/**
+ * React hook: ライブラリ・アイテム ID のサムネイル URL を返す。
+ * - `string`: キャッシュ済み URL (convertFileSrc 変換済み)
+ * - `null`: 生成失敗 / 対象なし
+ * - `undefined`: 未取得中
+ *
+ * eager=true (既定) の場合、マウント時に即サムネ生成をキューイングする。
+ * eager=false の場合は getCachedThumb の返り値のみを返す (オンデマンド取得用)。
+ */
+export function useThumb(
+  library: string | null | undefined,
+  id: string | null | undefined,
+  eager = true,
+): string | null | undefined {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const fn = () => setTick((n) => n + 1);
+    subscribers.add(fn);
+    return () => {
+      subscribers.delete(fn);
+    };
+  }, []);
+  useEffect(() => {
+    if (eager && library && id) {
+      void ensureThumb(library, id);
+    }
+  }, [library, id, eager]);
+  if (!library || !id) return null;
+  const cached = getCachedThumb(library, id);
+  if (cached !== undefined) return cached;
+  return undefined;
+}
+
 export function usePreviewPlaybackActive(): boolean {
   const [active, setActive] = useState(previewPlaybackActive);
   useEffect(() => {

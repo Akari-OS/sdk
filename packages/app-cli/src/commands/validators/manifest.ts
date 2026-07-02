@@ -31,6 +31,15 @@ export interface ManifestPermissions {
   "external-network"?: string[] | false;
   filesystem?: string[];
   oauth?: string[];
+  /** 呼び出しを許可する MCP tool 名（自アプリの [mcp].tools とは別概念）。P1-6 Permission Suite で使用。 */
+  mcp?: string[];
+  /** handoff を送信可能な App ID / category セレクタ。P1-6 Permission Suite で使用。 */
+  "inter-app"?: string[];
+  // NOTE: 実運用の akari.toml には keychain / process 等、本 schema 未定義のキーも
+  // 存在する（例: examples/x-sender, examples/web-scrape）。sdk-types/src/manifest.ts の
+  // PermissionsSection にも同様の未対応キーがあり、本 task のスコープ外として未修正のまま
+  // 残す（permission-scan.ts では未知キーを FAIL ではなく WARN として扱い、既存アプリを
+  // 壊さないようにしている）。
 }
 
 export interface ManifestPanel {

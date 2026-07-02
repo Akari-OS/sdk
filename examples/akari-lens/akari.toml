@@ -1,0 +1,29 @@
+# Akari Lens — 動画バズ分析 dev 限定アプリ
+#
+# 非公開: akari-shell/src/lib/builtin-apps.ts の PRIMARY_APP_IDS / BUNDLED_APP_IDS に
+# 追加しないこと。dev は Settings > AppsHub > フォルダから追加 で runtime install する。
+
+[app]
+id = "com.akari.lens"
+name = "Akari Lens"
+short_name = "Lens"
+version = "0.1.0"
+author = "Akari-OS"
+tier = "full"
+sdk = ">=0.1.0 <1.0"
+icon = "ScanSearch"
+category = "analytics"
+
+[app.i18n]
+name_ja = "アカリレンズ"
+short_name_ja = "レンズ"
+description = "Video viral analysis tool — transcript, excitement curve, keyframes, hook breakdown, virality features."
+description_ja = "動画バズ分析ツール。transcript / excitement曲線 / キーフレーム / フック分解 / virality_features を1画面で可視化する。"
+
+[permissions]
+pool = ["read", "write"]
+mcp = ["pool_get_analysis", "pool_get_transcript"]
+
+[panels.main]
+title = "Akari Lens"
+mount = "dist/index.js"

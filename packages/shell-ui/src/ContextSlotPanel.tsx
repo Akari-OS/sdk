@@ -55,8 +55,11 @@ import {
   Package,
   Globe,
   Tag,
+  type LucideIcon,
 } from "lucide-react";
 import { SLOT_ROLE_LABELS, ALL_SLOT_ROLES, type SlotRole } from "@akari-os/sdk/slot";
+import { useWorkContext } from "./hooks/useWorkContext";
+import { invoke } from "@tauri-apps/api/core";
 import {
   listItems,
   slotListEntries,
@@ -77,6 +80,17 @@ import {
 } from "./lib/pool-thumbnail-cache";
 
 // ADR-108 Wave2: 全 SlotRole は @akari-os/sdk/slot の ALL_SLOT_ROLES が SSOT（手動再列挙を廃止）。
+
+/**
+ * §3.3 層3: Pool 指示ブロック（enabled のみ）の最小表現。
+ * pool_list_instructions の戻り値のサブセット。
+ */
+interface InstructionBlockDisplay {
+  id: string;
+  title: string;
+  body_md: string;
+  enabled: boolean;
+}
 
 function inferDefaultSlotRole(item: PoolItemSummary): SlotRole {
   const type = (item.item_type ?? "").toLowerCase();
@@ -168,6 +182,8 @@ const WORKPOOL_LEGACY_SYNC_LIMIT = 80;
 const RELATED_POOL_LOAD_LIMIT = 60;
 const WORKPOOL_RENDER_BATCH = 36;
 const RELATED_POOL_RENDER_BATCH = 24;
+/** §3.3 層1: media として前面に出す item_type 一覧。それ以外は層2（参照データ）扱い。 */
+const MEDIA_TYPES = new Set(["video", "image", "audio"]);
 const MATERIAL_CARD_DEFER_STYLE: CSSProperties = {
   // 各カードを layout 的に独立させ、サムネ遅延ロード時に兄弟カードへ reflow が
   // 伝播しないようにするだけの軽い contain。
@@ -256,8 +272,8 @@ type MaterialStatusFilter = "all" | "analyzed" | "unanalyzed";
 type MaterialSortMode = "added-desc" | "added-asc" | "name-asc" | "analysis";
 type MaterialViewMode = "grid" | "compact" | "list";
 type AnalyzeMode = "api" | "local" | "markitdown";
-/** 左サブタブの分類軸。ワークプール（この Work）/ ドメイン / ブランド。 */
-type MaterialScope = "workpool" | "domain" | "brand";
+/** 左サブタブの分類軸。ワークプール / ドメイン / ブランド + アプリ注入の extraScopeTabs id。 */
+type MaterialScope = "workpool" | "domain" | "brand" | (string & {});
 
 /** 表示切替（カード / コンパクト / リスト）の定義。1 ボタン → ポップオーバーで切替する。 */
 const VIEW_MODES: {
@@ -274,6 +290,14 @@ interface EntryContextMenuState {
   x: number;
   y: number;
   entry: DisplayEntry;
+}
+
+/** 範囲選択（marquee / ラバーバンド）の矩形。client 座標で保持する。 */
+interface MarqueeRect {
+  startX: number;
+  startY: number;
+  curX: number;
+  curY: number;
 }
 
 export interface RelatedPoolSection {
@@ -346,6 +370,17 @@ export interface ContextSlotPanelProps {
   /** 素材が属する Pool 名。未指定なら current Pool に fallback（pool-impl 側） */
   library?: string | null;
   /**
+   * アプリが注入する追加の scope サブタブ（左レール）。既存の
+   * ワークプール/ドメイン/ブランドの後ろに並ぶ。選択時は render() を全面描画する
+   * （例: video が「全素材」= 全 Work 横断の素材再利用パネルを差し込む）。
+   */
+  extraScopeTabs?: ReadonlyArray<{
+    id: string;
+    label: string;
+    icon: LucideIcon;
+    render: () => ReactNode;
+  }>;
+  /**
    * 「＋追加 → Pool から」で表示する Pool ピッカーをアプリ（video 等）が注入する。
    * ここでは単一素材選択のモーダル内コンテンツとして描画する。
    * 未指定なら「Pool から」選択肢は出さない。
@@ -374,6 +409,14 @@ export interface ContextSlotPanelProps {
    */
   onRequestEntryAnalyze?: (assetId: string, library?: string | null) => void;
   /**
+   * 複数素材の一括分析リクエスト（範囲選択 / ⌘+クリックで複数選択した素材）。
+   * 指定された場合、選択バー・右クリックメニューから「N件を分析」を一度の dispatch で委譲する。
+   * 未指定なら onRequestEntryAnalyze を 1 件ずつ fallback 呼び出しする。
+   */
+  onRequestEntriesAnalyze?: (
+    targets: ReadonlyArray<{ assetId: string; library?: string | null; itemType?: string | null }>,
+  ) => void;
+  /**
    * 「＋追加 → ローカルから」クリック時のハンドラ。
    * 呼び出し後に自動で reload する。未指定なら「ローカルから」選択肢は出さない。
    */
@@ -398,11 +441,13 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
   variantId,
   library,
   renderPoolPicker,
+  extraScopeTabs,
   onEntryPointerDown,
   onEntryClick,
   onEntryDoubleClick,
   enableEntryHtmlDrag,
   onRequestEntryAnalyze,
+  onRequestEntriesAnalyze,
   onAddFromLocal,
   visibleRoles,
   relatedPoolSections,
@@ -424,7 +469,8 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
   const [viewMode, setViewMode] = useState<MaterialViewMode>("grid");
   /** 左サブタブの選択（ワークプール / ドメイン / ブランド）。 */
   const [materialScope, setMaterialScope] = useState<MaterialScope>("workpool");
-  const [collapsedSectionIds, setCollapsedSectionIds] = useState<Set<string>>(() => new Set());
+  // 'data' セクション（参照データ）と 'context' セクション（Work 文脈）は既定で折りたたむ（§3.3 プログレッシブ・ディスクロージャ）。
+  const [collapsedSectionIds, setCollapsedSectionIds] = useState<Set<string>>(() => new Set(["data", "context"]));
   /** 素材名のフリーワード検索クエリ。 */
   const [searchQuery, setSearchQuery] = useState("");
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
@@ -435,6 +481,12 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
   // selectedEntryKey と連動し、ここを {key} にリセットする。
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
   const [entryContextMenu, setEntryContextMenu] = useState<EntryContextMenuState | null>(null);
+  // 範囲選択（marquee）: 表示用矩形 + 起点 / 開始時の選択（additive 用）/ 移動フラグ。
+  const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
+  const marqueeContainerRef = useRef<HTMLDivElement | null>(null);
+  const marqueeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const marqueeBaseRef = useRef<Set<string>>(new Set());
+  const marqueeMovedRef = useRef(false);
   const [analysisDialogEntry, setAnalysisDialogEntry] = useState<DisplayEntry | null>(null);
   /** ソース選択パネルの開閉（true = 展開中） */
   const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
@@ -479,6 +531,113 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
     }
     return sections;
   }, [relatedPoolSections, lib]);
+
+  // §3.3 層3: Work 文脈（purpose / tone / strategy.memo）を取得。失敗しても素材パネルは壊さない。
+  const workCtx = useWorkContext({
+    library: lib,
+    workId: workId ?? null,
+    variantId: variantId ?? null,
+  });
+
+  // §3.3 層3: Pool 指示（akari.md 相当の指示ブロック）の enabled なブロック一覧を開示用に取得。
+  // sdk に helper が無いため Tauri コマンドを直 invoke する。失敗は握ってパネルを壊さない。
+  const [instructionBlocks, setInstructionBlocks] = useState<InstructionBlockDisplay[]>([]);
+  /** クリックで展開中の指示 id */
+  const [expandedInstructionId, setExpandedInstructionId] = useState<string | null>(null);
+  /** インライン編集中の指示 id */
+  const [editingInstructionId, setEditingInstructionId] = useState<string | null>(null);
+  /** 編集中の body_md の下書き */
+  const [editingBodyDraft, setEditingBodyDraft] = useState<string>("");
+  /** 保存リクエスト中の指示 id */
+  const [savingInstructionId, setSavingInstructionId] = useState<string | null>(null);
+
+  /** Pool 指示を再取得して instructionBlocks を更新する。失敗は握る。 */
+  const reloadInstructions = useCallback(async () => {
+    if (!lib) {
+      setInstructionBlocks([]);
+      return;
+    }
+    try {
+      const raw = await invoke("pool_list_instructions", { library: lib });
+      const blocks = Array.isArray(raw)
+        ? (raw as Array<{ id?: string; title?: string; body_md?: string; enabled?: boolean }>)
+            .filter((b) => b?.enabled && b?.id)
+            .map((b): InstructionBlockDisplay => ({
+              id: b.id!,
+              title: b.title ?? "",
+              body_md: b.body_md ?? "",
+              enabled: b.enabled ?? true,
+            }))
+        : [];
+      setInstructionBlocks(blocks);
+    } catch {
+      setInstructionBlocks([]);
+    }
+  }, [lib]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void reloadInstructions().then(() => {
+      // キャンセルされていた場合は state 更新が既に無視されている
+      void cancelled;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadInstructions]);
+
+  /** 指示 body_md のインライン保存。失敗はコンソール警告のみ（パネルを壊さない）。 */
+  const handleSaveInstruction = useCallback(
+    async (block: InstructionBlockDisplay) => {
+      if (!lib) return;
+      setSavingInstructionId(block.id);
+      try {
+        await invoke("pool_upsert_instruction", {
+          library: lib,
+          block: { id: block.id, title: block.title, body_md: editingBodyDraft, enabled: block.enabled },
+        });
+        await reloadInstructions();
+        setEditingInstructionId(null);
+      } catch (e) {
+        console.warn("[Pool 指示] upsert 失敗", e);
+      } finally {
+        setSavingInstructionId(null);
+      }
+    },
+    [lib, editingBodyDraft, reloadInstructions],
+  );
+
+  // §3.3 層3: brand pool の事業正典（Brand→Domain 継承込み compile）を先頭数行で開示。
+  // normalizedRelatedSections から kind==='brand' の最初のエントリを使う。
+  // 失敗・空文字・brand なしは握って非表示（パネルを壊さない）。
+  const brandLibrary = useMemo(
+    () => normalizedRelatedSections.find((s) => s.kind === "brand")?.library ?? null,
+    [normalizedRelatedSections],
+  );
+  const [canonMarkdown, setCanonMarkdown] = useState<string>("");
+  useEffect(() => {
+    if (!brandLibrary) {
+      setCanonMarkdown("");
+      return;
+    }
+    let cancelled = false;
+    void invoke<string>("pool_compile_context_inherited", {
+      library: brandLibrary,
+      appId: null,
+      keywords: null,
+      inherit: true,
+    })
+      .then((text) => {
+        if (cancelled) return;
+        setCanonMarkdown(typeof text === "string" ? text.trim() : "");
+      })
+      .catch(() => {
+        if (!cancelled) setCanonMarkdown("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [brandLibrary]);
 
   useEffect(() => {
     if (roleFilter && !roleFilterOptions.includes(roleFilter)) {
@@ -885,6 +1044,109 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
     }
   }, [bound, entries, lib, reload, selectedKeys]);
 
+  /** 指定キー集合（既定: 現在の複数選択）の素材をまとめて分析リクエストする。 */
+  const analyzeEntriesByKeys = useCallback(
+    (keys: Set<string>) => {
+      const targets = entries.filter(
+        (e) => e.assetId && keys.has(entryKey(e, lib)),
+      );
+      if (targets.length === 0) return;
+      if (onRequestEntriesAnalyze) {
+        onRequestEntriesAnalyze(
+          targets.map((e) => ({
+            assetId: e.assetId!,
+            library: entryLibrary(e, lib),
+            itemType: e.itemType,
+          })),
+        );
+      } else if (onRequestEntryAnalyze) {
+        // 一括委譲先がなければ 1 件ずつ fallback
+        for (const e of targets) onRequestEntryAnalyze(e.assetId!, entryLibrary(e, lib));
+      } else {
+        // 親に委譲が無ければ内蔵ダイアログで先頭のみ
+        setAnalysisDialogEntry(targets[0]);
+      }
+    },
+    [entries, lib, onRequestEntriesAnalyze, onRequestEntryAnalyze],
+  );
+
+  const analyzeSelectedEntries = useCallback(() => {
+    analyzeEntriesByKeys(selectedKeys);
+  }, [analyzeEntriesByKeys, selectedKeys]);
+
+  // ─ 範囲選択（marquee / ラバーバンド）─────────────────────────────────
+  // 余白からのドラッグで矩形を描き、交差したカードを選択する（Finder 風）。
+  // カードは pointerdown を D&D 起点に使うため、marquee は「カード以外の余白」でのみ開始する。
+  const handleMarqueePointerDown = useCallback(
+    (e: PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      const target = e.target as HTMLElement;
+      if (
+        target.closest(
+          "button, a, input, select, textarea, [role='button'], [data-entry-key], [data-no-marquee]",
+        )
+      ) {
+        return;
+      }
+      const container = marqueeContainerRef.current;
+      if (!container) return;
+      marqueeStartRef.current = { x: e.clientX, y: e.clientY };
+      marqueeBaseRef.current =
+        e.shiftKey || e.metaKey || e.ctrlKey ? new Set(selectedKeys) : new Set();
+      marqueeMovedRef.current = false;
+      // ドラッグで下のカード文字が範囲選択され青ハイライトが出るのを抑止（select-none と併用）。
+      e.preventDefault();
+      try {
+        container.setPointerCapture(e.pointerId);
+      } catch {
+        // capture 失敗は無視（move/up は通常どおり発火する）
+      }
+      setMarquee({ startX: e.clientX, startY: e.clientY, curX: e.clientX, curY: e.clientY });
+    },
+    [selectedKeys],
+  );
+
+  const handleMarqueePointerMove = useCallback((e: PointerEvent<HTMLDivElement>) => {
+    const start = marqueeStartRef.current;
+    const container = marqueeContainerRef.current;
+    if (!start || !container) return;
+    const curX = e.clientX;
+    const curY = e.clientY;
+    if (Math.abs(curX - start.x) > 3 || Math.abs(curY - start.y) > 3) {
+      marqueeMovedRef.current = true;
+    }
+    setMarquee({ startX: start.x, startY: start.y, curX, curY });
+    const x1 = Math.min(start.x, curX);
+    const x2 = Math.max(start.x, curX);
+    const y1 = Math.min(start.y, curY);
+    const y2 = Math.max(start.y, curY);
+    const hit = new Set(marqueeBaseRef.current);
+    container.querySelectorAll<HTMLElement>("[data-entry-key]").forEach((el) => {
+      const key = el.dataset.entryKey;
+      if (!key) return;
+      const r = el.getBoundingClientRect();
+      if (r.left < x2 && r.right > x1 && r.top < y2 && r.bottom > y1) hit.add(key);
+    });
+    setSelectedKeys(hit);
+  }, []);
+
+  const endMarquee = useCallback((e: PointerEvent<HTMLDivElement>) => {
+    if (!marqueeStartRef.current) return;
+    try {
+      marqueeContainerRef.current?.releasePointerCapture(e.pointerId);
+    } catch {
+      // noop
+    }
+    const moved = marqueeMovedRef.current;
+    marqueeStartRef.current = null;
+    setMarquee(null);
+    // ドラッグせず余白をクリックしただけなら選択解除（Finder 風）。
+    if (!moved) {
+      setSelectedKeys(new Set());
+      setSelectedEntryKey(null);
+    }
+  }, []);
+
   /** モックモード: 分析済みフラグをトグル（永続モードでは display-only） */
   const analyzeMock = useCallback((id: string) => {
     setEntries((prev) =>
@@ -1038,9 +1300,21 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
     [roleFilter, sortMode, statusFilter, typeFilter, searchQuery],
   );
 
+  // 検索・フィルタを先に全 entries に適用してから media / data に分割する。
+  // これにより検索は §3.3 設計原則 2 どおり両セクションを横断して効く。
   const visibleWorkEntries = useMemo(
     () => filterAndSortEntries(entries),
     [entries, filterAndSortEntries],
+  );
+  /** §3.3 層1: 画像 / 動画 / 音声。前面・大きく表示（既定展開）。 */
+  const mediaWorkEntries = useMemo(
+    () => visibleWorkEntries.filter((e) => MEDIA_TYPES.has((e.itemType ?? "").toLowerCase())),
+    [visibleWorkEntries],
+  );
+  /** §3.3 層2: PDF / ドキュメント / テキスト / URL 等、item_type 未設定も含む。既定折りたたみ。 */
+  const dataWorkEntries = useMemo(
+    () => visibleWorkEntries.filter((e) => !MEDIA_TYPES.has((e.itemType ?? "").toLowerCase())),
+    [visibleWorkEntries],
   );
   const visibleRelatedSections = useMemo(
     () =>
@@ -1068,13 +1342,16 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
   // 表示するサブタブ。データが無い軸は出さない（= ワークプールのみなら rail 非表示）。
   const scopeTabs = useMemo(
     () => [
-      { id: "workpool" as const, label: "ワークプール", icon: Package },
-      ...(hasDomain ? [{ id: "domain" as const, label: "ドメイン", icon: Globe }] : []),
-      ...(hasBrand ? [{ id: "brand" as const, label: "ブランド", icon: Tag }] : []),
+      { id: "workpool" as string, label: "ワークプール", icon: Package as LucideIcon },
+      ...(hasDomain ? [{ id: "domain", label: "ドメイン", icon: Globe as LucideIcon }] : []),
+      ...(hasBrand ? [{ id: "brand", label: "ブランド", icon: Tag as LucideIcon }] : []),
+      ...(extraScopeTabs ?? []).map((t) => ({ id: t.id, label: t.label, icon: t.icon })),
     ],
-    [hasDomain, hasBrand],
+    [hasDomain, hasBrand, extraScopeTabs],
   );
   const showScopeRail = scopeTabs.length > 1;
+  // extraScopeTabs（例: 全素材）が選択中なら、その render() を素材棚の代わりに描画する。
+  const activeExtraTab = extraScopeTabs?.find((t) => t.id === materialScope) ?? null;
 
   // 選択中のタブのデータが無くなったらワークプールへ戻す。
   useEffect(() => {
@@ -1214,20 +1491,14 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
                         : "flex flex-col gap-1"
                   }
                   style={
-                    // カードは固定幅（auto-fill）。`1fr` ストレッチを廃止し、パネル幅変更
-                    // （リサイズドラッグ）中にカード/画像が連続伸縮しないようにする。列が
-                    // 増減する瞬間だけ再配置されるので resize が滑らかになる。余った横幅は
-                    // justify-content: space-between で列間に均等配分。
+                    // カードは可変幅。auto-fill + minmax(基準, 1fr) で 1 行をすき間なく
+                    // 埋める。列が入り切らない余白は各カードをわずかに伸縮させて吸収するので、
+                    // 旧実装（固定幅 + justify-content: space-between）で出ていた列間の
+                    // 大きなすき間（特に中央）が出なくなる。すき間は gap のみ。
                     viewMode === "grid"
-                      ? {
-                          gridTemplateColumns: "repeat(auto-fill, 5rem)",
-                          justifyContent: "space-between",
-                        }
+                      ? { gridTemplateColumns: "repeat(auto-fill, minmax(5rem, 1fr))" }
                       : viewMode === "compact"
-                        ? {
-                            gridTemplateColumns: "repeat(auto-fill, 3.75rem)",
-                            justifyContent: "space-between",
-                          }
+                        ? { gridTemplateColumns: "repeat(auto-fill, minmax(3.75rem, 1fr))" }
                         : undefined
                   }
                 >
@@ -1236,6 +1507,7 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
                     const selectedKey = entryKey(entry, lib);
                     const commonProps = {
                       entry,
+                      dataKey: selectedKey,
                       thumbUrl:
                         !previewPlaying && entry.assetId
                           ? (getCachedThumb(sourceLibrary, entry.assetId) ?? null)
@@ -1378,6 +1650,181 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
                 </span>
               </div>
             ))}
+          </div>
+        )}
+      </section>
+    );
+  };
+
+  /**
+   * §3.3 層3: コンテキスト折りたたみセクション。Work 文脈（purpose / tone / strategy.memo）を開示する。
+   * 検索フィルタ（searchQuery）の対象外。失敗しても素材パネルを壊さない。
+   */
+  const renderContextSection = () => {
+    const sectionId = "context";
+    const collapsed = collapsedSectionIds.has(sectionId);
+    const title = "コンテキスト";
+    const ctx = workCtx.context;
+    const hasInstructions = instructionBlocks.length > 0;
+    const hasCanon = canonMarkdown.length > 0;
+    const hasAny = !!(ctx?.purpose || ctx?.tone || ctx?.strategy?.memo) || hasInstructions || hasCanon;
+    return (
+      <section className="flex flex-col gap-1">
+        <button
+          type="button"
+          className="flex min-w-0 items-center justify-between gap-1 rounded px-0.5 py-0.5 text-left hover:bg-muted/50"
+          onClick={() => toggleSectionCollapsed(sectionId)}
+          title={collapsed ? `${title} を開く` : `${title} を閉じる`}
+        >
+          <div className="flex min-w-0 items-center gap-1">
+            {collapsed ? (
+              <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+            )}
+            <div className="truncate text-[10px] font-medium text-foreground" title={title}>
+              {title}
+            </div>
+          </div>
+          {workCtx.loading && (
+            <Loader2 className="h-2.5 w-2.5 shrink-0 animate-spin text-muted-foreground" />
+          )}
+        </button>
+        {!collapsed && (
+          <div className="flex flex-col gap-1.5 rounded border border-border/60 bg-muted/20 p-1.5">
+            {workCtx.loading ? (
+              <div className="text-[9px] text-muted-foreground/60">読み込み中…</div>
+            ) : !hasAny ? (
+              <div className="text-[9px] text-muted-foreground/60">
+                コンテキストが設定されていません
+              </div>
+            ) : (
+              <>
+                {ctx?.purpose && (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[9px] font-medium text-muted-foreground">目的</span>
+                    <span className="overflow-hidden text-[10px] leading-snug text-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]">
+                      {ctx.purpose}
+                    </span>
+                  </div>
+                )}
+                {ctx?.tone && (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[9px] font-medium text-muted-foreground">トーン</span>
+                    <span className="overflow-hidden text-[10px] leading-snug text-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+                      {ctx.tone}
+                    </span>
+                  </div>
+                )}
+                {ctx?.strategy?.memo && (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[9px] font-medium text-muted-foreground">方針メモ</span>
+                    <span className="overflow-hidden text-[10px] leading-snug text-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3]">
+                      {ctx.strategy.memo}
+                    </span>
+                  </div>
+                )}
+                {hasInstructions && (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[9px] font-medium text-muted-foreground">Pool の指示</span>
+                    <div className="flex flex-col gap-0.5">
+                      {instructionBlocks.map((block) => {
+                        const isExpanded = expandedInstructionId === block.id;
+                        const isEditing = editingInstructionId === block.id;
+                        const isSaving = savingInstructionId === block.id;
+                        return (
+                          <div
+                            key={block.id}
+                            className="flex flex-col rounded border border-border/50 bg-background/50"
+                          >
+                            {/* タイトル行（クリックで body_md を展開） */}
+                            <button
+                              type="button"
+                              className="flex min-w-0 items-center gap-1 rounded px-1 py-0.5 text-left hover:bg-muted/50"
+                              onClick={() => {
+                                const opening = expandedInstructionId !== block.id;
+                                setExpandedInstructionId(opening ? block.id : null);
+                                if (!opening) setEditingInstructionId(null);
+                              }}
+                              title={isExpanded ? `${block.title} を閉じる` : `${block.title} を展開`}
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+                              )}
+                              <span className="min-w-0 flex-1 truncate text-[10px] leading-snug text-foreground">
+                                {block.title}
+                              </span>
+                            </button>
+                            {/* 展開時: body_md 表示 + インライン編集 */}
+                            {isExpanded && (
+                              <div className="flex flex-col gap-1 px-1 pb-1">
+                                {isEditing ? (
+                                  <>
+                                    <textarea
+                                      className="w-full resize-y rounded border border-border bg-background px-1.5 py-1 text-[10px] leading-snug text-foreground focus:border-primary focus:outline-none"
+                                      style={{ minHeight: "5rem" }}
+                                      value={editingBodyDraft}
+                                      onChange={(e) => setEditingBodyDraft(e.target.value)}
+                                      disabled={isSaving}
+                                    />
+                                    <div className="flex justify-end gap-1">
+                                      <button
+                                        type="button"
+                                        className="rounded px-1.5 py-0.5 text-[9px] text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                                        onClick={() => setEditingInstructionId(null)}
+                                        disabled={isSaving}
+                                      >
+                                        キャンセル
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] text-primary hover:bg-primary/20 disabled:opacity-50"
+                                        onClick={() => void handleSaveInstruction(block)}
+                                        disabled={isSaving}
+                                      >
+                                        {isSaving ? "保存中…" : "保存"}
+                                      </button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <pre className="whitespace-pre-wrap break-words font-sans text-[10px] leading-snug text-foreground/80">
+                                      {block.body_md || "(本文なし)"}
+                                    </pre>
+                                    <button
+                                      type="button"
+                                      className="self-end rounded px-1.5 py-0.5 text-[9px] text-muted-foreground hover:bg-muted hover:text-foreground"
+                                      onClick={() => {
+                                        setEditingInstructionId(block.id);
+                                        setEditingBodyDraft(block.body_md);
+                                      }}
+                                    >
+                                      編集
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {hasCanon && (
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[9px] font-medium text-muted-foreground">
+                      事業正典（継承）
+                    </span>
+                    <span className="overflow-hidden text-[10px] leading-snug text-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4]">
+                      {canonMarkdown}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </section>
@@ -1724,9 +2171,12 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
         </div>
       ))}
 
-      {/* 複数選択 (⌘/Ctrl+クリック) 中の一括操作バー。 */}
+      {/* 複数選択（範囲選択 / ⌘/Ctrl+クリック）中の一括操作バー。 */}
       {selectedKeys.size >= 2 && (
-        <div className="flex items-center justify-between gap-2 rounded border border-primary/40 bg-primary/5 px-2 py-1 text-[10px]">
+        <div
+          data-no-marquee
+          className="flex items-center justify-between gap-2 rounded border border-primary/40 bg-primary/5 px-2 py-1 text-[10px]"
+        >
           <span className="font-medium text-primary">{selectedKeys.size}件選択中</span>
           <div className="flex items-center gap-1">
             <button
@@ -1735,6 +2185,14 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
               onClick={() => setSelectedKeys(new Set())}
             >
               選択解除
+            </button>
+            <button
+              type="button"
+              className="flex items-center gap-1 rounded bg-primary px-1.5 py-0.5 font-medium text-primary-foreground transition hover:bg-primary/90"
+              onClick={analyzeSelectedEntries}
+            >
+              <Sparkles className="h-3 w-3" />
+              分析
             </button>
             <button
               type="button"
@@ -1748,17 +2206,28 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
         </div>
       )}
 
-      {/* 素材棚: 選択中の左サブタブ（ワークプール / ドメイン / ブランド）の素材を表示。 */}
-      <div className="flex flex-col gap-2">
+      {/* §3.3 層3: コンテキストセクション（Work 文脈の開示。既定折りたたみ / 検索対象外）。 */}
+      {renderContextSection()}
+
+      {/* 素材棚: 選択中の左サブタブ（ワークプール / ドメイン / ブランド）の素材を表示。
+          余白からのドラッグで範囲選択（marquee）できる（カード上では D&D を尊重）。 */}
+      {activeExtraTab ? (
+        <div className="relative flex min-h-0 flex-1 flex-col">{activeExtraTab.render()}</div>
+      ) : (
+      <div
+        ref={marqueeContainerRef}
+        className={`relative flex min-h-0 flex-1 flex-col gap-2 ${marquee ? "select-none" : ""}`}
+        onPointerDown={handleMarqueePointerDown}
+        onPointerMove={handleMarqueePointerMove}
+        onPointerUp={endMarquee}
+        onPointerCancel={endMarquee}
+      >
         {materialScope === "workpool" && (
           <>
             {pendingItems.length > 0 && (
               <div
                 className="grid gap-1"
-                style={{
-                  gridTemplateColumns: "repeat(auto-fill, 5rem)",
-                  justifyContent: "space-between",
-                }}
+                style={{ gridTemplateColumns: "repeat(auto-fill, minmax(5rem, 1fr))" }}
               >
                 {pendingItems.map((p) => (
                   <div
@@ -1772,12 +2241,41 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
                 ))}
               </div>
             )}
-            {renderMaterialSection({
-              sectionId: "workpool",
-              title: "ワークプール",
-              entries: visibleWorkEntries,
-              totalCount: entries.length,
+            {/* §3.3 層1: 素材（画像/動画/音声）— 既定展開 */}
+            {mediaWorkEntries.length > 0 && renderMaterialSection({
+              sectionId: "media",
+              title: "素材",
+              entries: mediaWorkEntries,
+              totalCount: entries.filter(
+                (e) => MEDIA_TYPES.has((e.itemType ?? "").toLowerCase()),
+              ).length,
             })}
+            {/* §3.3 層2: 参照データ（PDF/ドキュメント/テキスト/URL 等）— 既定折りたたみ・空でも常時表示 */}
+            <div className={mediaWorkEntries.length > 0 ? "border-t border-border/70 pt-2" : ""}>
+              {renderMaterialSection({
+                sectionId: "data",
+                title: `参照データ (${dataWorkEntries.length})`,
+                entries: dataWorkEntries,
+                totalCount: entries.filter(
+                  (e) => !MEDIA_TYPES.has((e.itemType ?? "").toLowerCase()),
+                ).length,
+              })}
+            </div>
+            {/* 両セクションとも空の場合は D&D ヒントを表示する。 */}
+            {mediaWorkEntries.length === 0 && dataWorkEntries.length === 0 && (
+              <div
+                className={`min-h-[80px] rounded border border-dashed border-border p-1 transition ${
+                  dropActive ? "border-primary/60 bg-primary/5" : ""
+                }`}
+                onDragOver={handleShelfDragOver}
+                onDragLeave={handleShelfDragLeave}
+                onDrop={(e) => handleDrop(addRole, e)}
+              >
+                <div className="text-center py-5 text-[9px] text-muted-foreground/70">
+                  {`ここに素材を D&D${hasRoleFilter ? `（${addRoleLabel} に分類）` : ""}`}
+                </div>
+              </div>
+            )}
             {workStateEntries.length > 0 && (
               <div className="border-t border-border/70 pt-2">{renderWorkStateSection()}</div>
             )}
@@ -1817,24 +2315,53 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
               })}
             </div>
           ))}
-      </div>
 
-      {entryContextMenu && (
-        <MaterialContextMenu
-          state={entryContextMenu}
-          analyzing={analyzingIds.has(entryContextMenu.entry.id)}
-          onAnalyze={() => {
-            requestAnalyze(entryContextMenu.entry);
-            setEntryContextMenu(null);
-          }}
-          onRemove={() => {
-            void removeEntry(entryContextMenu.entry);
-            setEntryContextMenu(null);
-          }}
-          removable={!entryContextMenu.entry.readonly}
-          onClose={() => setEntryContextMenu(null)}
-        />
+        {/* 範囲選択中の矩形（client 座標 → コンテナ相対へ変換）。 */}
+        {marquee &&
+          marqueeContainerRef.current &&
+          (() => {
+            const rect = marqueeContainerRef.current.getBoundingClientRect();
+            const left = Math.min(marquee.startX, marquee.curX) - rect.left;
+            const top = Math.min(marquee.startY, marquee.curY) - rect.top;
+            const width = Math.abs(marquee.curX - marquee.startX);
+            const height = Math.abs(marquee.curY - marquee.startY);
+            return (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute z-20 rounded-sm border border-primary/70 bg-primary/15"
+                style={{ left, top, width, height }}
+              />
+            );
+          })()}
+      </div>
       )}
+
+      {entryContextMenu && (() => {
+        // 右クリックした素材が複数選択に含まれていれば、その選択全体を対象にする。
+        const inSelection =
+          selectedKeys.size >= 2 &&
+          selectedKeys.has(entryKey(entryContextMenu.entry, lib));
+        const analyzeCount = inSelection ? selectedKeys.size : 1;
+        return (
+          <MaterialContextMenu
+            state={entryContextMenu}
+            analyzing={analyzingIds.has(entryContextMenu.entry.id)}
+            analyzeCount={analyzeCount}
+            onAnalyze={() => {
+              if (inSelection) analyzeEntriesByKeys(selectedKeys);
+              else requestAnalyze(entryContextMenu.entry);
+              setEntryContextMenu(null);
+            }}
+            onRemove={() => {
+              if (inSelection) void removeSelectedEntries();
+              else void removeEntry(entryContextMenu.entry);
+              setEntryContextMenu(null);
+            }}
+            removable={!entryContextMenu.entry.readonly}
+            onClose={() => setEntryContextMenu(null)}
+          />
+        );
+      })()}
 
       {analysisDialogEntry && (
         <AnalysisConfirmDialog
@@ -2025,6 +2552,7 @@ function FilterChip({
 
 const MaterialCard = memo(function MaterialCard({
   entry,
+  dataKey,
   thumbUrl,
   thumbGenerating,
   isAnalyzing,
@@ -2038,6 +2566,7 @@ const MaterialCard = memo(function MaterialCard({
   onMount,
 }: {
   entry: DisplayEntry;
+  dataKey?: string;
   thumbUrl: string | null;
   thumbGenerating: boolean;
   isAnalyzing: boolean;
@@ -2062,6 +2591,7 @@ const MaterialCard = memo(function MaterialCard({
     <button
       ref={mountRef}
       type="button"
+      data-entry-key={dataKey}
       className={`group relative min-w-0 overflow-hidden rounded border bg-background text-left transition hover:border-primary/50 hover:bg-muted/30 ${
         selected ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border"
       } ${
@@ -2136,6 +2666,7 @@ const MaterialCard = memo(function MaterialCard({
 
 const MaterialListRow = memo(function MaterialListRow({
   entry,
+  dataKey,
   thumbUrl,
   thumbGenerating,
   isAnalyzing,
@@ -2149,6 +2680,7 @@ const MaterialListRow = memo(function MaterialListRow({
   onMount,
 }: {
   entry: DisplayEntry;
+  dataKey?: string;
   thumbUrl: string | null;
   thumbGenerating: boolean;
   isAnalyzing: boolean;
@@ -2173,6 +2705,7 @@ const MaterialListRow = memo(function MaterialListRow({
     <button
       ref={mountRef}
       type="button"
+      data-entry-key={dataKey}
       className={`group flex min-w-0 items-center gap-2 rounded border bg-background px-1.5 py-1 text-left transition hover:border-primary/50 hover:bg-muted/30 ${
         selected ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border"
       } ${
@@ -2244,6 +2777,7 @@ const MaterialListRow = memo(function MaterialListRow({
 
 const MaterialCompactIcon = memo(function MaterialCompactIcon({
   entry,
+  dataKey,
   thumbUrl,
   thumbGenerating,
   isAnalyzing,
@@ -2257,6 +2791,7 @@ const MaterialCompactIcon = memo(function MaterialCompactIcon({
   onMount,
 }: {
   entry: DisplayEntry;
+  dataKey?: string;
   thumbUrl: string | null;
   thumbGenerating: boolean;
   isAnalyzing: boolean;
@@ -2281,6 +2816,7 @@ const MaterialCompactIcon = memo(function MaterialCompactIcon({
     <button
       ref={mountRef}
       type="button"
+      data-entry-key={dataKey}
       className={`group flex w-full max-w-[4.5rem] min-w-0 flex-col items-center gap-0.5 rounded px-0.5 py-1 text-center transition hover:bg-muted/40 ${
         selected ? "bg-primary/10 ring-1 ring-primary/30" : ""
       } ${
@@ -2371,6 +2907,7 @@ function areMaterialEntryPropsEqual(
 function MaterialContextMenu({
   state,
   analyzing,
+  analyzeCount,
   onAnalyze,
   onRemove,
   removable,
@@ -2378,11 +2915,19 @@ function MaterialContextMenu({
 }: {
   state: EntryContextMenuState;
   analyzing: boolean;
+  /** 分析・削除の対象件数（複数選択中はその件数。単体なら 1）。 */
+  analyzeCount: number;
   onAnalyze: () => void;
   onRemove: () => void;
   removable: boolean;
   onClose: () => void;
 }) {
+  const multi = analyzeCount >= 2;
+  const analyzeLabel = multi
+    ? `${analyzeCount}件を分析`
+    : state.entry.analyzed
+      ? "再分析"
+      : "分析";
   return (
     <div
       className="fixed z-[300] min-w-[150px] rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-xl"
@@ -2397,7 +2942,7 @@ function MaterialContextMenu({
         disabled={analyzing}
       >
         <Sparkles className="h-3 w-3" />
-        {state.entry.analyzed ? "再分析" : "分析"}
+        {analyzeLabel}
       </button>
       {removable && (
         <button
@@ -2406,7 +2951,7 @@ function MaterialContextMenu({
           onClick={onRemove}
         >
           <Trash2 className="h-3 w-3" />
-          削除
+          {multi ? `${analyzeCount}件を削除` : "削除"}
         </button>
       )}
       <button

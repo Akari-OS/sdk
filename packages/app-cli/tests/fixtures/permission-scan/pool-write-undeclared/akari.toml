@@ -1,0 +1,15 @@
+# akari.toml — Permission Suite fixture: pool write を使うが宣言していない（FAIL 期待）
+
+[app]
+id      = "com.example.pool-write-undeclared"
+name    = "Pool Write Undeclared"
+version = "0.1.0"
+tier    = "full"
+sdk     = ">=0.1.0 <1.0"
+
+[permissions]
+pool = ["read"]
+
+[panels.main]
+title = "Pool Write Undeclared"
+mount = "dist/index.js"

@@ -192,6 +192,7 @@ export type {
 export type {
   AppSection,
   AppTier,
+  AppI18nSection,
   PermissionsSection,
   McpSection,
   PanelsSection,

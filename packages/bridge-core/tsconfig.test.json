@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "rewriteRelativeImportExtensions": true,
+    "outDir": "dist-test",
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": [
+    "src/bridge-auth.ts",
+    "src/protocol.ts",
+    "src/tool-tier-gate.ts",
+    "src/sidecar.ts",
+    "src/ws.d.ts",
+    "src/__tests__/**/*.ts"
+  ]
+}

@@ -5,6 +5,11 @@
  *   - 全 akari-* sidecar で共有する単一ファイル（依存ゼロ）
  *   - 共有トークンファイル: ~/.akari/secrets/mcp-bridge-token（0600）
  *   - AKARI_MCP_AUTH=off で無効化できる脱出ハッチ（既定は on）
+ *   - ただし production 相当の環境では脱出ハッチを無視する（gap-audit SEC-12）。
+ *     「production 相当」= NODE_ENV=production、または明示 dev フラグ
+ *     （AKARI_ENV=development、cookbook 既定の慣習に合わせる）が無い場合。
+ *     つまり dev で off を許すには AKARI_ENV=development を明示指定する必要がある
+ *     （NODE_ENV 未設定のまま off だけ指定しても production 扱いで無視される＝fail-closed）。
  *
  * 保護対象:
  *   1. HTTP MCP: Host ヘッダ + Authorization: Bearer
@@ -12,6 +17,7 @@
  *
  * akari-video sidecar/bridge-auth.ts（コミット 6a8d046）から移植。
  * 旧: 各リポの sidecar/ にコピー方式 → 新: bridge-core ライブラリとして一元管理。
+ * sidecar.ts はここを import して使う（認証ロジックの二重実装を避ける）。
  */
 
 import * as crypto from "node:crypto"
@@ -23,15 +29,53 @@ import type * as http from "node:http"
 
 // ────────────────────────────────────────────────────────────────────────────
 // トークンファイルパス（全アプリ共通）
+// 呼び出しの都度 os.homedir() を評価する（モジュール読み込み時に固定しない）。
+// テストで HOME を差し替えてから呼べるようにするための設計で、本番挙動は変わらない
+// （プロセス生存中に HOME が変わることは通常無い）。
 // ────────────────────────────────────────────────────────────────────────────
-const SECRETS_DIR = path.join(os.homedir(), ".akari", "secrets")
-const TOKEN_FILE = path.join(SECRETS_DIR, "mcp-bridge-token")
+function getSecretsDir(): string {
+  return path.join(os.homedir(), ".akari", "secrets")
+}
+
+function getTokenFile(): string {
+  return path.join(getSecretsDir(), "mcp-bridge-token")
+}
 
 // ────────────────────────────────────────────────────────────────────────────
-// Auth の on/off スイッチ
+// Auth の on/off スイッチ（+ production ガード）
 // ────────────────────────────────────────────────────────────────────────────
-function isAuthEnabled(): boolean {
-  return (process.env.AKARI_MCP_AUTH ?? "on").toLowerCase() !== "off"
+
+/** 明示 dev フラグ（cookbook 慣習: AKARI_ENV=development）。 */
+function isExplicitDevFlagSet(): boolean {
+  return (process.env.AKARI_ENV ?? "").toLowerCase() === "development"
+}
+
+/**
+ * production 相当の環境か判定する。
+ * NODE_ENV=production なら常に true（明示 dev フラグより優先、fail-closed）。
+ * それ以外は「明示 dev フラグが無い」場合に true（未設定は production 扱い）。
+ */
+function isProductionLike(): boolean {
+  if ((process.env.NODE_ENV ?? "").toLowerCase() === "production") return true
+  return !isExplicitDevFlagSet()
+}
+
+interface AuthDecision {
+  enabled: boolean
+  /** AKARI_MCP_AUTH=off の指定を production ガードで無視したかどうか。 */
+  offOverridden: boolean
+}
+
+function resolveAuthDecision(): AuthDecision {
+  const requestedOff = (process.env.AKARI_MCP_AUTH ?? "on").toLowerCase() === "off"
+  if (!requestedOff) return { enabled: true, offOverridden: false }
+  if (isProductionLike()) return { enabled: true, offOverridden: true }
+  return { enabled: false, offOverridden: false }
+}
+
+/** テスト・sidecar.ts から使う公開版。process.env を都度読むので副作用なしの純関数。 */
+export function isAuthEnabled(): boolean {
+  return resolveAuthDecision().enabled
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -40,26 +84,40 @@ function isAuthEnabled(): boolean {
 
 /** 起動時に 1 回呼ぶ。ファイルが無ければ生成して返す。あれば読んで返す。 */
 export async function loadOrCreateToken(): Promise<string> {
-  if (!isAuthEnabled()) {
+  const decision = resolveAuthDecision()
+
+  if (decision.offOverridden) {
+    console.error(
+      "[bridge-auth] 警告: AKARI_MCP_AUTH=off is ignored because the environment " +
+        `looks production-like (NODE_ENV=${process.env.NODE_ENV ?? "(unset)"}, ` +
+        `AKARI_ENV=${process.env.AKARI_ENV ?? "(unset)"}). ` +
+        "認証を維持します。dev で無効化するには AKARI_ENV=development を明示指定してください。",
+    )
+  }
+
+  if (!decision.enabled) {
     console.error("[bridge-auth] auth=OFF (AKARI_MCP_AUTH=off)")
     return ""
   }
 
-  // ディレクトリを 0700 で作成
-  await fsPromises.mkdir(SECRETS_DIR, { recursive: true, mode: 0o700 })
+  const secretsDir = getSecretsDir()
+  const tokenFile = getTokenFile()
 
-  if (fs.existsSync(TOKEN_FILE)) {
-    const token = (await fsPromises.readFile(TOKEN_FILE, "utf8")).trim()
+  // ディレクトリを 0700 で作成
+  await fsPromises.mkdir(secretsDir, { recursive: true, mode: 0o700 })
+
+  if (fs.existsSync(tokenFile)) {
+    const token = (await fsPromises.readFile(tokenFile, "utf8")).trim()
     if (token.length > 0) {
-      console.error("[bridge-auth] auth=ON  token loaded from", TOKEN_FILE)
+      console.error("[bridge-auth] auth=ON  token loaded from", tokenFile)
       return token
     }
   }
 
   // 新規生成
   const token = crypto.randomBytes(32).toString("hex")
-  await fsPromises.writeFile(TOKEN_FILE, token + "\n", { encoding: "utf8", mode: 0o600 })
-  console.error("[bridge-auth] auth=ON  token generated and saved to", TOKEN_FILE)
+  await fsPromises.writeFile(tokenFile, token + "\n", { encoding: "utf8", mode: 0o600 })
+  console.error("[bridge-auth] auth=ON  token generated and saved to", tokenFile)
   return token
 }
 
@@ -142,26 +200,39 @@ export interface WsAuthContext {
  *
  * トークン渡し方: ?token=<hex> クエリパラム（ブラウザ WS API では
  * カスタムヘッダが使えないため query param が現実的）。
+ *
+ * 注意: `socket.destroy(new Error(...))` はリスナー不在の 'error' イベントを発火させ
+ * **sidecar プロセスごと落とす**ため使わない（実際に dev ブラウザの無認証接続で全断した）。
+ * 401 を書いてからエラーを渡さずに destroy する。
  */
 export function checkWsAuth(
   req: http.IncomingMessage,
-  socket: { destroy: (err?: Error) => void },
+  socket: { destroy: (err?: Error) => void; write?: (data: string) => void },
   ctx: WsAuthContext,
 ): boolean {
+  const reject = (reason: string): false => {
+    console.error(`[bridge-auth] ws upgrade rejected: ${reason}`)
+    try {
+      socket.write?.("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n")
+    } catch {
+      // 書き込み失敗は無視（すでに切断済みなど）
+    }
+    socket.destroy()
+    return false
+  }
+
   if (!isAuthEnabled()) return true
 
   // (a) Host 検証
   if (!isAllowedHost(req.headers.host, ctx.port)) {
-    socket.destroy(new Error("bridge-auth: forbidden host"))
-    return false
+    return reject("forbidden host")
   }
 
   // (b) ?token= クエリパラム検証
   const urlObj = new URL(req.url ?? "/", `http://127.0.0.1:${ctx.port}`)
   const provided = urlObj.searchParams.get("token") ?? ""
   if (!timingSafeEqual(provided, ctx.token)) {
-    socket.destroy(new Error("bridge-auth: unauthorized"))
-    return false
+    return reject("unauthorized")
   }
 
   return true

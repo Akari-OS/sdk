@@ -14,6 +14,7 @@ import { memo, useState, type PointerEvent, type ReactNode } from "react";
 import { Package, Wrench, ListOrdered } from "lucide-react";
 import {
   ContextSlotPanel,
+  type ContextSlotPanelProps,
   type EntryPointerMeta,
   type RelatedPoolSection,
 } from "./ContextSlotPanel";
@@ -38,6 +39,8 @@ export interface WorkPanelProps {
   onRunOperation?: (id: string) => void;
   /** 制作素材の「Pool から」インライン Pool ピッカー（ContextSlotPanel へ pass-through） */
   renderPoolPicker?: (args: { onClose: () => void; defaultRole: SlotRole }) => ReactNode;
+  /** 追加 scope サブタブ（ContextSlotPanel へ pass-through。例: 全素材） */
+  extraScopeTabs?: ContextSlotPanelProps["extraScopeTabs"];
   /**
    * 制作素材一覧行の PointerDown コールバック（ContextSlotPanel へ pass-through）。
    * タイムラインへの pointer-drag 起点として video 側が利用する。
@@ -56,6 +59,10 @@ export interface WorkPanelProps {
   enableEntryHtmlDrag?: boolean;
   /** 制作素材の分析リクエスト（Pool Browser の分析ポップアップ等へ委譲） */
   onRequestEntryAnalyze?: (assetId: string, library?: string | null) => void;
+  /** 複数素材の一括分析リクエスト（範囲選択 / 複数選択した素材をまとめて分析） */
+  onRequestEntriesAnalyze?: (
+    targets: ReadonlyArray<{ assetId: string; library?: string | null; itemType?: string | null }>,
+  ) => void;
   /** 「ローカルから取込」ハンドラ（ContextSlotPanel へ pass-through） */
   onAddFromLocal?: (role: SlotRole) => Promise<void>;
   /** WorkPool に表示する分類フィルター。未指定時は全 role。 */
@@ -76,11 +83,13 @@ export const WorkPanel = memo(function WorkPanel({
   library,
   onRunOperation,
   renderPoolPicker,
+  extraScopeTabs,
   onEntryPointerDown,
   onEntryClick,
   onEntryDoubleClick,
   enableEntryHtmlDrag,
   onRequestEntryAnalyze,
+  onRequestEntriesAnalyze,
   onAddFromLocal,
   visibleRoles,
   relatedPoolSections,
@@ -122,11 +131,13 @@ export const WorkPanel = memo(function WorkPanel({
             variantId={variantId}
             library={library}
             renderPoolPicker={renderPoolPicker}
+            extraScopeTabs={extraScopeTabs}
             onEntryPointerDown={onEntryPointerDown}
             onEntryClick={onEntryClick}
             onEntryDoubleClick={onEntryDoubleClick}
             enableEntryHtmlDrag={enableEntryHtmlDrag}
             onRequestEntryAnalyze={onRequestEntryAnalyze}
+            onRequestEntriesAnalyze={onRequestEntriesAnalyze}
             onAddFromLocal={onAddFromLocal}
             visibleRoles={visibleRoles}
             relatedPoolSections={relatedPoolSections}

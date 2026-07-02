@@ -1,0 +1,124 @@
+name: CI
+
+# akari-sdk の pnpm-workspace.yaml は、独立リポとして存在する公式 App
+# （akari-writer / akari-video / akari-design 等、計 14+ 本）を
+# "../akari-*" という相対パスで packages に含めている（workspace:* 越境解決のため）。
+# これは開発者のローカル checkout（akari-os/ 配下に全 akari-* リポが並んでいる前提）
+# でのみ解決可能で、akari-sdk 単体を checkout する CI ランナー上には存在しない。
+#
+# そのため本 workflow は、checkout 直後に pnpm-workspace.yaml から
+# 相対親ディレクトリ参照（"../..."）の行を除去してから pnpm install する。
+# これは CI ランナーのワークツリー内だけの使い捨ての加工であり、
+# リポジトリの pnpm-workspace.yaml / pnpm-lock.yaml を書き換えてコミットするものでは
+# ない（毎回 checkout → 加工 → install を新しいランナーで繰り返す）。
+# 加工後は sdk 自身のワークスペース内パッケージ（packages/* / apps/* / examples/*）
+# だけが残るため、そのままでは pnpm-lock.yaml と整合しなくなる → --no-frozen-lockfile
+# で許容する（CI 専用の一時的なロック再解決。開発者の pnpm-lock.yaml には影響しない）。
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  PNPM_VERSION: '9.15.0'
+  NODE_VERSION: '20'
+
+jobs:
+  build-and-test:
+    name: Build & test SDK packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Strip external sibling-repo workspace entries (CI-only, not committed)
+        run: |
+          node -e '
+            const fs = require("fs");
+            const file = "pnpm-workspace.yaml";
+            const before = fs.readFileSync(file, "utf-8");
+            const lines = before.split("\n");
+            const kept = lines.filter((line) => !/^\s*-\s*"\.\.\//.test(line));
+            const removed = lines.length - kept.length;
+            fs.writeFileSync(file, kept.join("\n"));
+            console.log(`[ci] pnpm-workspace.yaml: removed ${removed} sibling-repo line(s) (CI runner has no ../akari-* checkouts)`);
+            console.log(kept.join("\n"));
+          '
+
+      - name: Install dependencies (workspace-local only)
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build sdk-types (@akari-os/sdk)
+        run: pnpm --filter @akari-os/sdk run build
+
+      - name: Build shell-ui
+        run: pnpm --filter @akari-os/shell-ui run build
+
+      - name: Test shell-ui
+        run: pnpm --filter @akari-os/shell-ui run test
+
+      - name: Build app-cli
+        run: pnpm --filter @akari-os/app-cli run build
+
+      - name: Test app-cli
+        run: pnpm --filter @akari-os/app-cli run test
+
+      - name: Test bridge-core
+        run: pnpm --filter @akari-os/bridge-core run test
+
+      - name: Build schema-panel
+        run: pnpm --filter @akari-os/schema-panel run build
+
+  verify-external-scaffold:
+    name: Verify scaffold works outside the monorepo (tarball roundtrip)
+    runs-on: ubuntu-latest
+    # tarball 生成 + 別ディレクトリでの npm install + build を伴い重いので、
+    # PR ごとには回さず main への push 時のみ実行する（フルの回帰は main で担保）。
+    # workflow_dispatch からは手動でいつでも回せるようにしておく。
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Strip external sibling-repo workspace entries (CI-only, not committed)
+        run: |
+          node -e '
+            const fs = require("fs");
+            const file = "pnpm-workspace.yaml";
+            const before = fs.readFileSync(file, "utf-8");
+            const lines = before.split("\n");
+            const kept = lines.filter((line) => !/^\s*-\s*"\.\.\//.test(line));
+            fs.writeFileSync(file, kept.join("\n"));
+          '
+
+      - name: Install dependencies (workspace-local only)
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Verify external scaffold (tarball roundtrip)
+        run: node scripts/verify-external-scaffold.mjs
