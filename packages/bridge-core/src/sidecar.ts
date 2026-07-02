@@ -190,6 +190,19 @@ export interface CreateBridgeSidecarOptions {
    */
   listedToolNames?: string[]
   localHandlers?: Record<string, LocalHandlerFn>
+  /**
+   * renderer relay（callRenderer）の応答待ちタイムアウト既定値（ms）。
+   * 省略時は RESPONSE_TIMEOUT_MS（15,000ms）。
+   * per-tool の上書きが必要な場合は `rendererTimeoutOverrides` を使う。
+   */
+  rendererTimeoutMs?: number
+  /**
+   * ツール名 → タイムアウト(ms) の per-tool 上書き。`rendererTimeoutMs` / 既定値より優先。
+   * 例: video_export のような長時間処理ツールは 600_000（10分）を指定する。
+   * `invokeTool`（localHandlers 経由）・`callRendererUnwrapped` いずれの経路でも
+   * 最終的に `callRenderer` を通るため、ここで一元的に有効になる。
+   */
+  rendererTimeoutOverrides?: Record<string, number>
 }
 
 export interface BridgeSidecar {
@@ -287,6 +300,17 @@ export function createBridgeSidecar(
     })
   }
 
+  /**
+   * tool 名から renderer relay タイムアウト(ms) を解決する。
+   * 優先順位: rendererTimeoutOverrides[tool] > rendererTimeoutMs > RESPONSE_TIMEOUT_MS(既定 15s)。
+   * video_export のような長時間処理ツールは per-tool override で 10 分等に伸ばす想定。
+   */
+  function resolveRendererTimeoutMs(tool: string): number {
+    return (
+      opts.rendererTimeoutOverrides?.[tool] ?? opts.rendererTimeoutMs ?? RESPONSE_TIMEOUT_MS
+    )
+  }
+
   function callRenderer(tool: string, input: unknown): Promise<BridgeResponse> {
     const socket = rendererSocket
     if (!socket || socket.readyState !== WebSocket.OPEN) {
@@ -295,14 +319,15 @@ export function createBridgeSidecar(
 
     const id = crypto.randomUUID()
     const request: BridgeRequest = { id, tool, input }
+    const timeoutMs = resolveRendererTimeoutMs(tool)
 
     return new Promise<BridgeResponse>((resolve, reject) => {
       const timeout = setTimeout(() => {
         pendingCalls.delete(id)
         reject(
-          new Error(`renderer response timed out after ${RESPONSE_TIMEOUT_MS}ms: ${tool}`),
+          new Error(`renderer response timed out after ${timeoutMs}ms: ${tool}`),
         )
-      }, RESPONSE_TIMEOUT_MS)
+      }, timeoutMs)
 
       pendingCalls.set(id, { resolve, reject, timeout })
 
