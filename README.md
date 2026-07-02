@@ -79,13 +79,15 @@ packages/
 ├── headless-render/     @akari-os/headless-render  — canvas アプリ（design / video）のヘッドレスレンダラー
 ├── markdown-core/       @akari-os/markdown-core    — Markdown → HTML / Markdown 変換（内部用）
 ├── pipeline-core/       @akari-os/pipeline-core    — Writer 投稿ワークフロー（内部用）
-├── shell-ui/            @akari-os/shell-ui         — Shell UI コンポーネント群（内部用）
+├── shell-ui/            @akari-os/shell-ui         — Shell UI コンポーネント群（公開 API、npm 未公開）
 ├── templates-core/      @akari-os/templates-core   — Writer テンプレート定義（内部用）
 └── writer-style-core/   @akari-os/writer-style-core— スタイル管理（内部用）
 ```
 
-**公開 API**: sdk-types, app-cli, schema-panel, headless-render  
-**内部パッケージ** (`private: true`): bridge-core, markdown-core, pipeline-core, shell-ui, templates-core, writer-style-core
+**公開 API**: sdk-types, app-cli, schema-panel, headless-render, shell-ui  
+**内部パッケージ** (`private: true`、npm 公開の予定なし): bridge-core, markdown-core, pipeline-core, templates-core, writer-style-core
+
+> `shell-ui` は `private: false` + `publishConfig.access: "public"`（公開 API 側）だが、他の公開パッケージ同様 **npm には未公開**（`npm view @akari-os/shell-ui` → 404）。公開準備は済んでいるが未実施、という意図的な状態であり `private` と `publishConfig` の値自体に矛盾はない。公開手順は [docs/publishing.md](./docs/publishing.md) を参照。
 
 ---
 

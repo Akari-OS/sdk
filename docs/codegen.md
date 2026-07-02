@@ -57,8 +57,11 @@ import type { AMPMemoryRecord } from "@akari-os/sdk/generated"
 - **同期タイミング**: 上流の `.schema.json` が変わった PR がマージされたら、本リポで `pnpm sync-schemas && pnpm codegen` → commit
 - **upstream-commit 表の更新**: `schemas/README.md` の「各 schema の上流コミット」表を同期時に手で更新する（自動化は codegen Phase 3 で検討）
 
+## CI 検証
+
+- **codegen 差分は CI で検証済み**: `.github/workflows/codegen-check.yml` が `schemas/**` / `scripts/codegen.mjs` / `scripts/sync-schemas.mjs` / `packages/sdk-types/src/generated/**` の変更時（PR / push / 手動）に `pnpm codegen` を再実行し、`packages/sdk-types/src/generated/` に diff が出れば CI fail させる。ローカルで直接 `generated/` を編集した場合や `schemas/` の同期漏れは PR 時点で検出される
+
 ## 既知の制限
 
 - **`mcp-tools.schema.json` の $ref**: `provenanceInput` / `accessPolicy` / `relationInput` は現状 `additionalProperties: true` の緩い object として $defs に居るだけで、MemoryRecord 本体スキーマとは `$ref` 接続されていない。Phase 3 で修正予定
 - **上流 PATCH 版への追従は手動**: version ディレクトリ粒度（`v0.1` / `v0.2`）でしか分けていないので、patch 差分は都度 re-sync が必要
-- **codegen 差分の CI 検証は未整備**: `pnpm codegen` の再実行で生成物が変わらないことを CI で検証する仕組みはまだない。Phase 3 候補
