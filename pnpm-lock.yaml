@@ -69,6 +69,55 @@ importers:
         specifier: ^8.0.16
         version: 8.0.16(@types/node@25.6.0)(esbuild@0.28.0)(tsx@4.22.4)(yaml@2.8.3)
 
+  ../akari-audio:
+    dependencies:
+      '@akari-os/sdk':
+        specifier: workspace:*
+        version: link:../akari-sdk/packages/sdk-types
+      '@akari-os/shell-ui':
+        specifier: workspace:*
+        version: link:../akari-sdk/packages/shell-ui
+      '@tauri-apps/api':
+        specifier: ^2
+        version: 2.10.1
+      lucide-react:
+        specifier: ^1.8.0
+        version: 1.17.0(react@19.2.7)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.7(react@19.2.7)
+      react-resizable-panels:
+        specifier: ^4.9.0
+        version: 4.10.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      zustand:
+        specifier: ^5.0.12
+        version: 5.0.12(@types/react@19.2.16)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
+    devDependencies:
+      '@types/node':
+        specifier: ^25.6.0
+        version: 25.6.0
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.16
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.3(@types/react@19.2.16)
+      '@vitejs/plugin-react':
+        specifier: ^4.6.0
+        version: 4.7.0(vite@6.4.2(@types/node@25.6.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.8.3))
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.2(@types/node@25.6.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.8.3)
+      vitest:
+        specifier: ^4.1.5
+        version: 4.1.5(@types/node@25.6.0)(jsdom@20.0.3(canvas@2.11.2))(vite@6.4.2(@types/node@25.6.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.8.3))
+
   ../akari-circuit:
     dependencies:
       '@akari-os/bridge-core':

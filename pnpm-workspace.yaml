@@ -21,3 +21,4 @@ packages:
   - "../akari-site"
   - "../akari-site/sidecar"
   - "../akari-fx"
+  - "../akari-audio"

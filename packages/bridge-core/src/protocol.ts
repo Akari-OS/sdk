@@ -34,6 +34,7 @@ export const APP_BRIDGE_PORTS: Record<string, BridgePorts> = {
   "com.akari.synth": { ws: 47633, mcp: 47634 },
   "com.akari.circuit": { ws: 47635, mcp: 47636 },
   "com.akari.site": { ws: 47637, mcp: 47638 },
+  "com.akari.audio": { ws: 47639, mcp: 47640 },
   // OS 層: shell 自身のオーケストレーション MCP（os_open_app 等でアプリを開く/切替）
   "com.akari.shell": { ws: 47627, mcp: 47628 },
 }
