@@ -231,3 +231,12 @@ export {
   type SourceIngestTarget,
   type IngestOptions,
 } from "./use-source-ingest";
+// Writer 改修 Phase B (spec-writer-renovation-2026 §3.3): shell-ui 未昇格だった
+// row/toggle primitive を昇格（akari-video WorksPanelPrimitives の Tailwind 再実装）
+export { Switch, type SwitchProps } from "./Switch";
+export { ListRow, type ListRowProps } from "./ListRow";
+// OperationsPanel / OperationDef はこれまで index.ts バレルからも package.json
+// exports からも公開されておらず、akari-video が構造重複の VideoOperationDef を
+// ローカル定義して回避していた（spec-writer-renovation-2026 §3.3 調査確定事項）。
+export { OperationsPanel } from "./OperationsPanel";
+export type { OperationDef } from "./OperationsPanel";
