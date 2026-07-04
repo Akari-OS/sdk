@@ -1869,6 +1869,11 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
         </div>
       )}
 
+      {/* 全素材などアプリ注入 extra タブ選択中は、ワークプール棚専用のツールバー
+          （検索/フィルタ/表示切替）・追加ボタン・コンテキストを出さない。
+          extra タブ側（AssetReusePanel 等）が自前のツールバーを持ち、この検索は
+          棚エントリにしか効かないため、二重掲載＝未接続の死に検索バーになる。 */}
+      {!activeExtraTab && (<>
       <div
         className="flex items-center gap-1.5"
         onDragOver={handleShelfDragOver}
@@ -2064,10 +2069,11 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
           ))}
         </div>
       </AnchoredPopover>
+      </>)}
 
       {/* 追加経路（永続モード）: ＋追加 → ローカル取込 / Pool から選択。
           既定 false。video 等は外部の追加 FAB を持つため内蔵ボタンは隠す。 */}
-      {showInlineAdd && (bound ? (
+      {!activeExtraTab && showInlineAdd && (bound ? (
         <div className="flex flex-col gap-1">
           <button
             type="button"
@@ -2172,7 +2178,7 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
       ))}
 
       {/* 複数選択（範囲選択 / ⌘/Ctrl+クリック）中の一括操作バー。 */}
-      {selectedKeys.size >= 2 && (
+      {!activeExtraTab && selectedKeys.size >= 2 && (
         <div
           data-no-marquee
           className="flex items-center justify-between gap-2 rounded border border-primary/40 bg-primary/5 px-2 py-1 text-[10px]"
@@ -2206,8 +2212,9 @@ export const ContextSlotPanel = memo(function ContextSlotPanel({
         </div>
       )}
 
-      {/* §3.3 層3: コンテキストセクション（Work 文脈の開示。既定折りたたみ / 検索対象外）。 */}
-      {renderContextSection()}
+      {/* §3.3 層3: コンテキストセクション（Work 文脈の開示。既定折りたたみ / 検索対象外）。
+          Work 横断の extra タブ（全素材）では「この Work の文脈」は場違いなので出さない。 */}
+      {!activeExtraTab && renderContextSection()}
 
       {/* 素材棚: 選択中の左サブタブ（ワークプール / ドメイン / ブランド）の素材を表示。
           余白からのドラッグで範囲選択（marquee）できる（カード上では D&D を尊重）。 */}
