@@ -240,3 +240,5 @@ export { ListRow, type ListRowProps } from "./ListRow";
 // ローカル定義して回避していた（spec-writer-renovation-2026 §3.3 調査確定事項）。
 export { OperationsPanel } from "./OperationsPanel";
 export type { OperationDef } from "./OperationsPanel";
+// Writer 改修 Phase F (spec-writer-renovation-2026 §3.8): Context Composer チップ列
+export { ContextChipRow, type ContextChipRowProps } from "./ContextChipRow";
