@@ -22,3 +22,5 @@ packages:
   - "../akari-site/sidecar"
   - "../akari-fx"
   - "../akari-audio"
+  - "../akari-viz"
+  - "../akari-canvas"
