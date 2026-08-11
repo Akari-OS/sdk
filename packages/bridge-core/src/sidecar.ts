@@ -1,8 +1,4 @@
 import crypto from "node:crypto"
-import * as fs from "node:fs"
-import * as fsPromises from "node:fs/promises"
-import * as os from "node:os"
-import * as path from "node:path"
 import http from "node:http"
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
@@ -12,6 +8,7 @@ import {
   type CallToolRequest,
 } from "@modelcontextprotocol/sdk/types.js"
 import WebSocket, { WebSocketServer, type RawData } from "ws"
+import { checkHttpAuth, checkWsAuth, loadOrCreateToken } from "./bridge-auth.ts"
 import type {
   BridgeHello,
   BridgePorts,
@@ -19,134 +16,17 @@ import type {
   BridgeResponse,
   ToolDef,
 } from "./protocol.ts"
+import { createToolTierGate } from "./tool-tier-gate.ts"
 
 const HOST = "127.0.0.1"
 const MCP_HTTP_PATH = "/mcp"
 const RESPONSE_TIMEOUT_MS = 15_000
 
 // ────────────────────────────────────────────────────────────────────────────
-// MCP ブリッジ認証（akari-video bridge-auth.ts 踏襲、依存ゼロ・インライン）
+// MCP ブリッジ認証は bridge-auth.ts に一元化（discovery/実行と同様、二重実装を避ける）。
 // 共有トークン: ~/.akari/secrets/mcp-bridge-token（0600）
-// AKARI_MCP_AUTH=off で無効化できる脱出ハッチ（既定は on）
+// AKARI_MCP_AUTH=off で無効化できる脱出ハッチ（既定は on、production 相当では無視される）
 // ────────────────────────────────────────────────────────────────────────────
-
-const SECRETS_DIR = path.join(os.homedir(), ".akari", "secrets")
-const TOKEN_FILE = path.join(SECRETS_DIR, "mcp-bridge-token")
-
-function isAuthEnabled(): boolean {
-  return (process.env.AKARI_MCP_AUTH ?? "on").toLowerCase() !== "off"
-}
-
-/** 起動時に 1 回呼ぶ。ファイルが無ければ生成して返す。あれば読んで返す。 */
-async function loadOrCreateToken(): Promise<string> {
-  if (!isAuthEnabled()) {
-    console.error("[bridge-auth] auth=OFF (AKARI_MCP_AUTH=off)")
-    return ""
-  }
-
-  await fsPromises.mkdir(SECRETS_DIR, { recursive: true, mode: 0o700 })
-
-  if (fs.existsSync(TOKEN_FILE)) {
-    const token = (await fsPromises.readFile(TOKEN_FILE, "utf8")).trim()
-    if (token.length > 0) {
-      console.error("[bridge-auth] auth=ON  token loaded from", TOKEN_FILE)
-      return token
-    }
-  }
-
-  const token = crypto.randomBytes(32).toString("hex")
-  await fsPromises.writeFile(TOKEN_FILE, token + "\n", { encoding: "utf8", mode: 0o600 })
-  console.error("[bridge-auth] auth=ON  token generated and saved to", TOKEN_FILE)
-  return token
-}
-
-function isAllowedHost(hostHeader: string | undefined, port: number): boolean {
-  if (!hostHeader) return false
-  const normalised = hostHeader.toLowerCase().trim()
-  return normalised === `127.0.0.1:${port}` || normalised === `localhost:${port}`
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length === 0 || b.length === 0) return false
-  const bufA = Buffer.from(a, "utf8")
-  const bufB = Buffer.from(b, "utf8")
-  if (bufA.length !== bufB.length) {
-    const padded = Buffer.alloc(bufB.length)
-    bufA.copy(padded, 0, 0, Math.min(bufA.length, padded.length))
-    crypto.timingSafeEqual(padded, bufB)
-    return false
-  }
-  return crypto.timingSafeEqual(bufA, bufB)
-}
-
-/** HTTP MCP リクエスト認証（失敗時は res に 401/403 を書いて false を返す）。 */
-function checkHttpAuth(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  port: number,
-  authToken: string,
-): boolean {
-  if (!isAuthEnabled()) return true
-
-  if (!isAllowedHost(req.headers.host, port)) {
-    res.writeHead(403, { "content-type": "text/plain" })
-    res.end()
-    return false
-  }
-
-  const authHeader = req.headers.authorization ?? ""
-  const bearerPrefix = "Bearer "
-  if (!authHeader.startsWith(bearerPrefix)) {
-    res.writeHead(401, { "content-type": "text/plain", "www-authenticate": "Bearer" })
-    res.end()
-    return false
-  }
-  const provided = authHeader.slice(bearerPrefix.length).trim()
-  if (!timingSafeEqual(provided, authToken)) {
-    res.writeHead(401, { "content-type": "text/plain", "www-authenticate": "Bearer" })
-    res.end()
-    return false
-  }
-
-  return true
-}
-
-/**
- * WebSocket upgrade 認証（失敗時は 401 を書いて socket を閉じ、false を返す）。
- * 注意: `socket.destroy(new Error(...))` はリスナー不在の 'error' イベントを発火させ
- * **sidecar プロセスごと落とす**ため使わない（実際に dev ブラウザの無認証接続で全断した）。
- */
-function checkWsAuth(
-  req: http.IncomingMessage,
-  socket: { destroy: (err?: Error) => void; write?: (data: string) => void },
-  port: number,
-  authToken: string,
-): boolean {
-  const reject = (reason: string): false => {
-    console.error(`[bridge-auth] ws upgrade rejected: ${reason}`)
-    try {
-      socket.write?.("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n")
-    } catch {
-      // 書き込み失敗は無視（すでに切断済みなど）
-    }
-    socket.destroy()
-    return false
-  }
-
-  if (!isAuthEnabled()) return true
-
-  if (!isAllowedHost(req.headers.host, port)) {
-    return reject("forbidden host")
-  }
-
-  const urlObj = new URL(req.url ?? "/", `http://127.0.0.1:${port}`)
-  const provided = urlObj.searchParams.get("token") ?? ""
-  if (!timingSafeEqual(provided, authToken)) {
-    return reject("unauthorized")
-  }
-
-  return true
-}
 
 type PendingCall = {
   resolve: (response: BridgeResponse) => void
@@ -184,11 +64,26 @@ export interface CreateBridgeSidecarOptions {
   toolDefs: ToolDef[]
   exposedToolNames: string[]
   /**
-   * ADR-130: discovery（tools/list）に出すツール名のサブセット。
-   * 省略時は exposedToolNames 全件を返す（後方互換）。
-   * CallTool は引き続き exposedToolNames 全件を受け付ける（後方互換維持）。
+   * ADR-130: discovery（tools/list）に出す初期ツール名のサブセット。
+   * 省略時は exposedToolNames 全件を返す（tier 非対応・後方互換モード）。
+   *
+   * gap-audit SEC-12 対応: CallTool も「今ロードされているツール」だけを受け付ける
+   * （discovery と同一の判定ロジックを共有。二重実装しない — tool-tier-gate.ts 参照）。
+   * つまり listedToolNames を絞ったのに CallTool が全件を許す、という抜け穴は無い。
    */
   listedToolNames?: string[]
+  /**
+   * ADR-130 D-4: 遅延グループ（lazy bundle）定義。キー=グループ名、値=解放するツール名一覧。
+   * `loadGroupToolName` と組み合わせて使う。
+   */
+  toolGroups?: Record<string, string[]>
+  /**
+   * `<app>_load_group(name)` に相当するメタツールの名前。
+   * CallTool でこの名前が呼ばれると、bridge-core が `toolGroups[input.name]` を
+   * discovery/実行の両方に解放する（アプリ側で localHandler を書く必要はない）。
+   * このツール自体は `listedToolNames` に含めて常時呼び出せるようにしておくこと。
+   */
+  loadGroupToolName?: string
   localHandlers?: Record<string, LocalHandlerFn>
   /**
    * renderer relay（callRenderer）の応答待ちタイムアウト既定値（ms）。
@@ -207,18 +102,22 @@ export interface CreateBridgeSidecarOptions {
 
 export interface BridgeSidecar {
   start(): Promise<void>
+  /** 起動した WS/MCP HTTP サーバを閉じる（主にテスト・グレースフルシャットダウン用）。 */
+  stop(): Promise<void>
 }
 
 export function createBridgeSidecar(
   opts: CreateBridgeSidecarOptions,
 ): BridgeSidecar {
   const exposedToolNames = new Set(opts.exposedToolNames)
-  const exposedTools = opts.toolDefs.filter((tool) => exposedToolNames.has(tool.name))
-  // ADR-130: listedToolNames が指定されていれば discovery を絞る（CallTool は全件維持）。
-  const listedToolNameSet = opts.listedToolNames
-    ? new Set(opts.listedToolNames)
-    : exposedToolNames
-  const listedTools = exposedTools.filter((tool) => listedToolNameSet.has(tool.name))
+  // ADR-130: discovery（tools/list）と CallTool の両方がこの tierGate を参照する
+  // （判定ロジックの単一ソース。gap-audit SEC-12 の「discoveryだけ絞ってCallToolは素通り」を解消）。
+  const tierGate = createToolTierGate({
+    toolDefs: opts.toolDefs,
+    exposedToolNames,
+    listedToolNames: opts.listedToolNames,
+    toolGroups: opts.toolGroups,
+  })
   const pendingCalls = new Map<string, PendingCall>()
 
   let rendererSocket: WebSocket | null = null
@@ -378,9 +277,9 @@ export function createBridgeSidecar(
       { capabilities: { tools: {} } },
     )
 
-    // ADR-130: discovery は tier-filter 後の listedTools を返す（既定は全件）。
+    // ADR-130: discovery は tierGate がロード済みと判定したツールだけを返す（既定は全件）。
     server.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: listedTools.map((tool) => ({
+      tools: tierGate.listLoadedTools().map((tool) => ({
         name: tool.name,
         title: tool.title,
         description: tool.description,
@@ -392,15 +291,51 @@ export function createBridgeSidecar(
       CallToolRequestSchema,
       async (request: CallToolRequest) => {
         const requestedName = request.params.name
+        const args = request.params.arguments ?? {}
+
+        if (opts.loadGroupToolName && requestedName === opts.loadGroupToolName) {
+          return handleLoadGroupCall(args)
+        }
+
         if (!exposedToolNames.has(requestedName)) {
           return errorResult(`Unknown tool: ${requestedName}`)
         }
 
-        return invokeTool(requestedName, request.params.arguments ?? {})
+        // gap-audit SEC-12: discovery で見えていない（tier 未ロードの）ツールは実行も拒否する。
+        // tierGate.isLoaded は ListTools と同じ判定ロジックを参照する（二重実装しない）。
+        if (!tierGate.isLoaded(requestedName)) {
+          return errorResult(
+            `Tool "${requestedName}" is not loaded yet (tier-gated).` +
+              (opts.loadGroupToolName
+                ? ` Call "${opts.loadGroupToolName}" with the containing group name first.`
+                : " It is not currently exposed by this sidecar."),
+          )
+        }
+
+        return invokeTool(requestedName, args)
       },
     )
 
     return server
+  }
+
+  /** ADR-130 D-4: `<app>_load_group(name)` 相当のメタツール呼び出しを bridge-core 側で処理する。 */
+  function handleLoadGroupCall(args: unknown): ToolResult {
+    const groupName = isRecord(args) && typeof args.name === "string" ? args.name : undefined
+    if (!groupName) {
+      return errorResult(`${opts.loadGroupToolName} requires { name: string }`)
+    }
+
+    const result = tierGate.loadGroup(groupName)
+    if (!result) {
+      return errorResult(`Unknown tool group: ${groupName}`)
+    }
+
+    return valueToToolResult({
+      group: groupName,
+      loaded: result.loaded,
+      alreadyLoaded: result.alreadyLoaded,
+    })
   }
 
   async function handleMcpHttpRequest(
@@ -428,7 +363,7 @@ export function createBridgeSidecar(
     }
 
     // 認証チェック（Host + Bearer トークン）
-    if (!checkHttpAuth(req, res, opts.ports.mcp, authToken)) {
+    if (!checkHttpAuth(req, res, { port: opts.ports.mcp, token: authToken })) {
       return
     }
 
@@ -478,7 +413,9 @@ export function createBridgeSidecar(
     }
   }
 
-  async function startWebSocketServer(authToken: string): Promise<WebSocketServer> {
+  async function startWebSocketServer(
+    authToken: string,
+  ): Promise<{ wss: WebSocketServer; httpServer: http.Server }> {
     // noServer=true にして upgrade イベントで認証してから acceptUpgrade する
     const wss = new WebSocketServer({ noServer: true })
 
@@ -492,7 +429,7 @@ export function createBridgeSidecar(
       socket.on("error", (error) => {
         console.error(`[${opts.appId}-sidecar] ws upgrade socket error`, error.message)
       })
-      if (!checkWsAuth(req, socket, opts.ports.ws, authToken)) {
+      if (!checkWsAuth(req, socket, { port: opts.ports.ws, token: authToken })) {
         return
       }
       wss.handleUpgrade(req, socket, head, (ws) => {
@@ -517,7 +454,7 @@ export function createBridgeSidecar(
     console.error(
       `[${opts.appId}-sidecar] websocket listening on ws://${HOST}:${opts.ports.ws}`,
     )
-    return wss
+    return { wss, httpServer }
   }
 
   async function startMcpHttpServer(authToken: string): Promise<http.Server> {
@@ -549,12 +486,31 @@ export function createBridgeSidecar(
     return httpServer
   }
 
+  let wsHttpServer: http.Server | null = null
+  let mcpHttpServer: http.Server | null = null
+
+  function closeServer(server: http.Server | null): Promise<void> {
+    if (!server) return Promise.resolve()
+    return new Promise<void>((resolve) => {
+      server.close(() => resolve())
+      // keep-alive 中の接続が残っていると close() のコールバックが遅延するため強制切断する。
+      server.closeAllConnections?.()
+    })
+  }
+
   return {
     async start(): Promise<void> {
       // 認証トークンをロード or 生成（AKARI_MCP_AUTH=off なら "" を返す）
       const authToken = await loadOrCreateToken()
-      await startWebSocketServer(authToken)
-      await startMcpHttpServer(authToken)
+      const { httpServer } = await startWebSocketServer(authToken)
+      wsHttpServer = httpServer
+      mcpHttpServer = await startMcpHttpServer(authToken)
+    },
+    async stop(): Promise<void> {
+      rejectAllPending(new Error(`${opts.appId}-sidecar stopped`))
+      await Promise.all([closeServer(wsHttpServer), closeServer(mcpHttpServer)])
+      wsHttpServer = null
+      mcpHttpServer = null
     },
   }
 }

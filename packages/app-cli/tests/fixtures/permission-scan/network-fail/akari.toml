@@ -1,0 +1,15 @@
+# akari.toml — Permission Suite fixture: 未宣言ドメインへの fetch()（FAIL 期待）
+
+[app]
+id      = "com.example.network-fail"
+name    = "Network Fail"
+version = "0.1.0"
+tier    = "full"
+sdk     = ">=0.1.0 <1.0"
+
+[permissions]
+# external-network 未宣言（デフォルト deny）
+
+[panels.main]
+title = "Network Fail"
+mount = "dist/index.js"

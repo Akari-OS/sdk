@@ -1,0 +1,16 @@
+# akari.toml — Permission Suite fixture: pool read import が正しく宣言と一致するケース
+# akari-lens (examples/akari-lens) の実際の使用パターンを模したもの。
+
+[app]
+id      = "com.example.pool-read-ok"
+name    = "Pool Read OK"
+version = "0.1.0"
+tier    = "full"
+sdk     = ">=0.1.0 <1.0"
+
+[permissions]
+pool = ["read"]
+
+[panels.main]
+title = "Pool Read OK"
+mount = "dist/index.js"

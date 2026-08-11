@@ -1,8 +1,11 @@
 /**
- * contract-test.ts — Contract Test ランナースタブ (AKARI-HUB-024 §6.8 / §8)
+ * contract-test.ts — Contract Test ランナー (AKARI-HUB-024 §6.8 / §8)
  *
- * This is a STUB / scaffold for the Contract Test runner.
- * Actual test execution is NOT implemented here.
+ * 2026-06-12 クリーンルーム監査を受け、7 スイート中「Permission API」を
+ * STUB → 実テスト化した（P1-6, 実装は permission-scan.ts）。
+ * 残り 6 スイート（Agent / Memory / UI / Inter-App / Offline / MCP）は
+ * まだ STUB のまま — certify.ts は STUB が残っている限り "PASS_WITH_STUBS"
+ * を返し、無条件の PASS とは区別する（P1-6 §1）。
  *
  * Intended future shape:
  *   - Run trait-based contract tests for each of the 7 App APIs
@@ -21,6 +24,7 @@
  */
 
 import type { AppManifest } from "./manifest.js";
+import { runPermissionScan } from "./permission-scan.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,15 +51,17 @@ export interface ContractSuiteResult {
 
 export interface ContractCase {
   name: string;
-  status: "STUB" | "PASS" | "FAIL" | "SKIP";
+  /** STUB | PASS | FAIL | SKIP | WARN（WARN は Permission Suite の over-declaration 検出等で使用） */
+  status: "STUB" | "PASS" | "FAIL" | "SKIP" | "WARN";
   message?: string;
 }
 
 // ---------------------------------------------------------------------------
-// Contract Test Suites (stubs)
+// Contract Test Suites
 //
 // Each suite corresponds to one of the 7 App API traits from HUB-024.
-// TODO: Replace the stub logic with real assertions against a Core mock.
+// Permission API（runPermissionApiSuite）以外はまだ STUB。
+// TODO: Replace the remaining stub logic with real assertions against a Core mock.
 // ---------------------------------------------------------------------------
 
 /**
@@ -127,29 +133,20 @@ function runMemoryApiSuite(_manifest: AppManifest): ContractSuiteResult {
 /**
  * Suite 3 — Permission API Contract (HUB-024 §6.6.6)
  *
- * TODO: Cross-check that all permission.gate() calls in source code reference
- *       permissions declared in [permissions] section of akari.toml.
+ * P1-6 でスタブから実装に変更。形状検証 + 静的スキャンの実体は permission-scan.ts。
+ * ここではケース結果から suite 全体の status を集計するだけの薄いラッパー。
  */
-function runPermissionApiSuite(manifest: AppManifest): ContractSuiteResult {
-  const declared = Object.keys(manifest.permissions ?? {});
+async function runPermissionApiSuite(manifest: AppManifest, appDir: string): Promise<ContractSuiteResult> {
+  const cases = await runPermissionScan(manifest, appDir);
+
+  const hasFail = cases.some((c) => c.status === "FAIL");
+  const allSkip = cases.length > 0 && cases.every((c) => c.status === "SKIP");
+  const status: ContractSuiteResult["status"] = hasFail ? "FAIL" : allSkip ? "SKIP" : "PASS";
+
   return {
     suite: "Permission API (HUB-024 §6.6.6)",
-    status: "STUB",
-    cases: [
-      {
-        name: `Declared permissions are non-empty (found: [${declared.join(", ")}])`,
-        status: declared.length > 0 ? "STUB" : "FAIL",
-        message:
-          declared.length > 0
-            ? "TODO: Verify runtime gate() calls match manifest declarations"
-            : "No permissions declared in [permissions] — every app needs at least one",
-      },
-      {
-        name: "No undeclared permission.gate() calls in source",
-        status: "STUB",
-        message: "TODO: AST scan for permission.gate({ action }) where action is not in [permissions]",
-      },
-    ],
+    status,
+    cases,
   };
 }
 
@@ -277,20 +274,21 @@ function runMcpContractSuite(manifest: AppManifest): ContractSuiteResult {
 /**
  * Run all contract test suites for the given app.
  *
- * Currently all suites return STUB status — this is the scaffold for future
- * implementation. Each suite logs what a real test would verify.
+ * Permission API is now a real suite (P1-6); the remaining 6 suites still
+ * return STUB status — this is the scaffold for future implementation.
+ * Each stub suite logs what a real test would verify.
  *
  * @param manifest  Parsed and validated AppManifest from manifest.ts
  * @param appDir    Path to the app root directory (for file access)
  */
 export async function runContractTests(
   manifest: AppManifest,
-  _appDir: string
+  appDir: string
 ): Promise<ContractTestResult> {
   const suites: ContractSuiteResult[] = [
     runAgentApiSuite(manifest),
     runMemoryApiSuite(manifest),
-    runPermissionApiSuite(manifest),
+    await runPermissionApiSuite(manifest, appDir),
     runUiApiSuite(manifest),
     runInterAppApiSuite(manifest),
     runOfflineSuite(manifest),

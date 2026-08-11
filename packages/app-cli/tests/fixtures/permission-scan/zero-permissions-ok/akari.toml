@@ -1,0 +1,16 @@
+# akari.toml — Permission Suite fixture: ゼロパーミッション（hello-full 相当）
+# 旧 stub 実装のバグ回帰テスト: 「宣言ゼロ = FAIL」ではないことを保証する。
+
+[app]
+id      = "com.example.zero-permissions-ok"
+name    = "Zero Permissions OK"
+version = "0.1.0"
+tier    = "full"
+sdk     = ">=0.1.0 <1.0"
+
+[permissions]
+# 意図的に空 — 何も要求しない最小権限アプリ
+
+[panels.main]
+title = "Zero Permissions OK"
+mount = "dist/index.js"
